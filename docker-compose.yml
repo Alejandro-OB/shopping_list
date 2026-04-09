@@ -1,0 +1,51 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: shopping_list_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-shopping_list}
+    volumes:
+      # Datos persistentes de PostgreSQL
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-shopping_list}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: ./backend
+    container_name: shopping_list_api
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env
+    restart: always
+    environment:
+      # Sobrescribimos el host del servidor para que apunte al contenedor 'db'
+      POSTGRES_SERVER: db
+      TZ: America/Bogota
+    volumes:
+      - ./backend:/app
+
+  frontend:
+    build: ./frontend
+    container_name: shopping_list_ui
+    depends_on:
+      api:
+        condition: service_started
+    ports:
+      - "5173:8080"
+    restart: always
+
+volumes:
+  # Volumen persistente para la base de datos
+  postgres_data:

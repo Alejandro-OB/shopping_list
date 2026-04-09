@@ -1,0 +1,16 @@
+# Ignora archivos y carpetas locales
+.venv
+__pycache__
+*.pyc
+
+# Ignora configuración de git e IDE
+.git
+.gitignore
+.vscode
+.idea
+
+# Ignora archivos de la base de datos local y temporales
+*.db
+*.log
+tmp/
+.gemini/
