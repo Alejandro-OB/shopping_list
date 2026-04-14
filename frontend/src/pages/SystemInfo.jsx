@@ -150,7 +150,7 @@ export default function SystemInfo() {
             <div>
               <p className="text-sm text-dark-100 font-medium">Mi Preferencia Personal</p>
               <p className="text-xs text-dark-400 mt-1 max-w-md">
-                Indica si deseas que el sistema genere listas automáticas para **tu propia cuenta** de administrador.
+                Indica si deseas que el sistema genere listas automáticas para <strong>tu propia cuenta</strong> de administrador.
               </p>
             </div>
             <div className="flex items-center gap-3">
