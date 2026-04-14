@@ -8,3 +8,4 @@ from .shopping_list_item import ShoppingListItem
 from .price_history import PriceHistory
 from .action_token import ActionToken, ActionTokenType
 from .user_refresh_token import UserRefreshToken
+from .heartbeat import Heartbeat

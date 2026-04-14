@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     POSTGRES_DB: str = "shopping_list"
     POSTGRES_PORT: int = 5432
     
+    # Entorno (local o supabase)
+    ENVIRONMENT: str = "local"
+    SUPABASE_DATABASE_URI: Optional[str] = None
+    
     # URL de Conexión (Se construye dinámicamente)
     SQLALCHEMY_DATABASE_URI: Optional[str] = None
 
@@ -26,6 +30,14 @@ class Settings(BaseSettings):
     def assemble_db_connection(cls, v: Optional[str], info: ValidationInfo) -> Any:
         if isinstance(v, str):
             return v
+        
+        # Si estamos en modo supabase y tenemos la URI, la usamos
+        if info.data.get("ENVIRONMENT") == "supabase":
+            supabase_uri = info.data.get("SUPABASE_DATABASE_URI")
+            if supabase_uri:
+                return supabase_uri
+            
+        # Por defecto construimos la URI desde los componentes (local)
         return str(PostgresDsn.build(
             scheme="postgresql",
             username=info.data.get("POSTGRES_USER"),
@@ -52,5 +64,17 @@ class Settings(BaseSettings):
     
     # Frontend URL para enlaces en correos
     FRONTEND_URL: str = "http://localhost:5173"
+
+    # CORS Origins
+    BACKEND_CORS_ORIGINS: Any = ["http://localhost:5173", "http://localhost:3000"]
+
+    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
+    @classmethod
+    def assemble_cors_origins(cls, v: Any) -> list[str]:
+        if isinstance(v, str) and not v.startswith("["):
+            return [i.strip() for i in v.split(",")]
+        elif isinstance(v, (list, str)):
+            return v
+        raise ValueError(v)
 
 settings = Settings()
