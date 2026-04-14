@@ -31,7 +31,6 @@ export default function Login() {
     try {
       await login(form.email, form.password)
       toast.success('¡Bienvenido de vuelta!')
-      navigate('/')
     } catch (err) {
       const msg = err.response?.data?.detail || 'Credenciales inválidas'
       if (msg === 'Cuenta no registrada') {

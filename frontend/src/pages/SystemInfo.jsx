@@ -5,10 +5,12 @@ import toast from 'react-hot-toast'
 import { useAuth } from '../context/AuthContext'
 
 export default function SystemInfo() {
-  const { user } = useAuth()
+  const { user, fetchMe } = useAuth()
   const [health, setHealth] = useState(null)
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
+
+  const [updatingAutoGen, setUpdatingAutoGen] = useState(false)
 
   const fetchHealth = async () => {
     setLoading(true)
@@ -24,6 +26,20 @@ export default function SystemInfo() {
       toast.error('Error al conectar con el servidor')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleAutoGenToggle = async () => {
+    const newValue = !health?.user_can_autogen // Nota: Usaremos el estado local o del usuario
+    setUpdatingAutoGen(true)
+    try {
+      await api.patch('/users/me/', { can_autogenerate_lists: !user.can_autogenerate_lists })
+      await fetchMe() // Refresca el contexto global
+      toast.success(!user.can_autogenerate_lists ? 'Generación automática activada para tu cuenta' : 'Generación automática desactivada para tu cuenta')
+    } catch (err) {
+      toast.error('Error al actualizar tu preferencia')
+    } finally {
+      setUpdatingAutoGen(false)
     }
   }
 
@@ -132,10 +148,30 @@ export default function SystemInfo() {
           
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <p className="text-sm text-dark-100 font-medium">Generación Manual de Listas</p>
+              <p className="text-sm text-dark-100 font-medium">Mi Preferencia Personal</p>
               <p className="text-xs text-dark-400 mt-1 max-w-md">
-                Dispara el motor de recomendaciones inmediatamente para todos los usuarios. 
-                Usa esto solo si hay retrasos en las tareas programadas.
+                Indica si deseas que el sistema genere listas automáticas para **tu propia cuenta** de administrador.
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className={`text-xs font-bold ${user?.can_autogenerate_lists ? 'text-emerald-400' : 'text-dark-500'}`}>
+                {user?.can_autogenerate_lists ? 'ACTIVADO' : 'DESACTIVADO'}
+              </span>
+              <button 
+                disabled={updatingAutoGen}
+                onClick={handleAutoGenToggle}
+                className={`w-10 h-5 rounded-full relative transition-colors ${user?.can_autogenerate_lists ? 'bg-primary-500' : 'bg-dark-700'} ${updatingAutoGen ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                <div className={`w-3.5 h-3.5 bg-white rounded-full absolute top-[3px] transition-all duration-300 ${user?.can_autogenerate_lists ? 'left-[22px]' : 'left-[4px]'}`} />
+              </button>
+            </div>
+          </div>
+
+          <div className="border-t border-primary-500/10 pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <p className="text-sm text-dark-100 font-medium">Ejecución Manual (Global)</p>
+              <p className="text-xs text-dark-400 mt-1 max-w-md">
+                Dispara el motor de recomendaciones inmediatamente para todos los usuarios que tengan la opción activa.
               </p>
             </div>
             <button
