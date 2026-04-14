@@ -32,7 +32,7 @@ export default function PendingVerification() {
     if (cooldown > 0) return
     setSending(true)
     try {
-      await api.post('/users/resend-verification')
+      await api.post('/users/resend-verification/')
       toast.success('¡Enlace enviado! Revisa tu bandeja de entrada')
       
       // Iniciar cooldown de 60 segundos

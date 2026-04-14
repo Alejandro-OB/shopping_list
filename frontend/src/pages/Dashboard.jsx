@@ -82,7 +82,7 @@ export default function Dashboard() {
   const fetchMonthlySpending = async (year, month) => {
     setMonthlyLoading(true)
     try {
-      const res = await api.get(`/metrics/monthly?year=${year}&month=${month}`)
+      const res = await api.get(`/metrics/monthly/?year=${year}&month=${month}`)
       setMonthlyDetail(res.data)
     } catch (err) {
       console.error('Error al cargar gasto mensual:', err)
@@ -95,8 +95,8 @@ export default function Dashboard() {
     const fetchData = async () => {
       try {
         const [metricsRes, listsRes] = await Promise.all([
-          api.get('/metrics/summary').catch(() => ({ data: null })),
-          api.get('/lists?limit=5').catch(() => ({ data: [] })),
+          api.get('/metrics/summary/').catch(() => ({ data: null })),
+          api.get('/lists/?limit=5').catch(() => ({ data: [] })),
         ])
         setMetrics(metricsRes.data)
         setLists(Array.isArray(listsRes.data) ? listsRes.data : [])
@@ -115,7 +115,7 @@ export default function Dashboard() {
   const handleGenerateLists = async () => {
     setGenLoading(true)
     try {
-      const { data } = await api.post('/system/generate-lists')
+      const { data } = await api.post('/system/generate-lists/')
       toast.success(
         `Generación completada: ${data.data.lists_created} lista(s) creadas, ${data.data.items_added} ítem(s) añadidas`
       )

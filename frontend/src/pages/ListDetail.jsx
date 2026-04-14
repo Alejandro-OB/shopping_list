@@ -193,7 +193,7 @@ export default function ListDetail() {
   const fetchList = async () => {
     setLoading(true)
     try {
-      const { data } = await api.get(`/lists/${id}`)
+      const { data } = await api.get(`/lists/${id}/`)
       // El backend no garantiza el orden, así que ordenamos por tienda en el frontend
       if (data.items) {
         data.items.sort((a, b) => a.store_name.localeCompare(b.store_name))
@@ -213,7 +213,7 @@ export default function ListDetail() {
 
   const handleCheckItem = async (itemId, priceReal) => {
     try {
-      await api.patch(`/lists/items/${itemId}/check`, {
+      await api.patch(`/lists/items/${itemId}/check/`, {
         price_real: priceReal,
         checked: true
       })
@@ -227,7 +227,7 @@ export default function ListDetail() {
 
   const handleDeleteItem = async (itemId) => {
     try {
-      await api.delete(`/lists/items/${itemId}`)
+      await api.delete(`/lists/items/${itemId}/`)
       toast.success('Producto eliminado de la lista')
       fetchList()
     } catch (err) {
@@ -243,7 +243,7 @@ export default function ListDetail() {
     if (newQty === item.quantity) return
 
     try {
-      await api.patch(`/lists/items/${itemId}`, { quantity: newQty })
+      await api.patch(`/lists/items/${itemId}/`, { quantity: newQty })
       setList(prev => ({
         ...prev,
         items: prev.items.map(i => i.id === itemId ? { ...i, quantity: newQty } : i)
@@ -256,7 +256,7 @@ export default function ListDetail() {
   const handleComplete = async () => {
     setCompleting(true)
     try {
-      await api.post(`/lists/${id}/complete`)
+      await api.post(`/lists/${id}/complete/`)
       toast.success('¡Compra finalizada con éxito!', {
         icon: '🚀',
         duration: 5000
@@ -281,7 +281,7 @@ export default function ListDetail() {
 
     setUpdatingName(true)
     try {
-      await api.patch(`/lists/${id}`, { name: newName.trim() })
+      await api.patch(`/lists/${id}/`, { name: newName.trim() })
       toast.success('Nombre de la lista actualizado')
       setList(prev => ({ ...prev, name: newName.trim() }))
       setIsEditingName(false)
@@ -301,7 +301,7 @@ export default function ListDetail() {
 
     setUpdatingDate(true)
     try {
-      await api.patch(`/lists/${id}`, { date: newDate })
+      await api.patch(`/lists/${id}/`, { date: newDate })
       toast.success('Fecha de la lista actualizada')
       setList(prev => ({ ...prev, date: newDate }))
       setIsEditingDate(false)
@@ -316,7 +316,7 @@ export default function ListDetail() {
   const handleExportPDF = async () => {
     setExporting(true)
     try {
-      const response = await api.get(`/lists/${id}/export`, {
+      const response = await api.get(`/lists/${id}/export/`, {
         responseType: 'blob'
       })
       const blob = new Blob([response.data], { type: 'application/pdf' })
@@ -363,7 +363,7 @@ export default function ListDetail() {
   const handleExportExcel = async () => {
     setExportingExcel(true)
     try {
-      const response = await api.get(`/lists/${id}/export-excel`, {
+      const response = await api.get(`/lists/${id}/export-excel/`, {
         responseType: 'blob'
       })
       const blob = new Blob([response.data], { 

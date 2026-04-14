@@ -31,8 +31,8 @@ export default function Metrics() {
     
     try {
       const [summaryRes, mostBoughtRes] = await Promise.all([
-        api.get('/metrics/summary'),
-        api.get('/metrics/most-bought?limit=5')
+        api.get('/metrics/summary/'),
+        api.get('/metrics/most-bought/?limit=5')
       ])
       
       setSummary(summaryRes.data)
@@ -54,7 +54,7 @@ export default function Metrics() {
   const fetchMonthlySpending = async (year, month) => {
     setMonthlyLoading(true)
     try {
-      const res = await api.get(`/metrics/monthly?year=${year}&month=${month}`)
+      const res = await api.get(`/metrics/monthly/?year=${year}&month=${month}`)
       setMonthlyDetail(res.data)
     } catch (err) {
       console.error('Error al cargar gasto mensual:', err)

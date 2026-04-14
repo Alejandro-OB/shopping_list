@@ -36,7 +36,7 @@ def create_product(
     product_repo = ProductRepository(db)
     return product_repo.create(obj_in=product_in, user_id=current_user.id)
 
-@router.get("/{id}", response_model=ProductOut)
+@router.get("/{id}/", response_model=ProductOut)
 def read_product(
     *,
     db: Session = Depends(get_db),
@@ -52,7 +52,7 @@ def read_product(
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     return product
 
-@router.put("/{id}", response_model=ProductOut)
+@router.put("/{id}/", response_model=ProductOut)
 def update_product(
     *,
     db: Session = Depends(get_db),
@@ -69,7 +69,7 @@ def update_product(
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     return product_repo.update(db_obj=product, obj_in=product_in)
 
-@router.delete("/{id}", response_model=ProductOut)
+@router.delete("/{id}/", response_model=ProductOut)
 def delete_product(
     *,
     db: Session = Depends(get_db),

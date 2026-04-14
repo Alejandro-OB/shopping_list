@@ -109,7 +109,7 @@ export default function ShoppingLists() {
   const fetchLists = async () => {
     setLoading(true)
     try {
-      const { data } = await api.get('/lists')
+      const { data } = await api.get('/lists/')
       setLists(Array.isArray(data) ? data : [])
     } catch {
       toast.error('Error al cargar las listas')
@@ -120,7 +120,7 @@ export default function ShoppingLists() {
 
   const handleDeleteList = async (listId) => {
     try {
-      await api.delete(`/lists/${listId}`)
+      await api.delete(`/lists/${listId}/`)
       toast.success('Lista eliminada')
       setLists(prev => prev.filter(l => l.id !== listId))
     } catch (err) {

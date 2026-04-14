@@ -16,7 +16,7 @@ from app.schemas.user import PasswordRecoveryRequest, PasswordResetRequest
 
 router = APIRouter()
 
-@router.post("/login", response_model=Token)
+@router.post("/login/", response_model=Token)
 def login_access_token(
     db: Session = Depends(get_db),
     email: str = Body(...),
@@ -64,7 +64,7 @@ def login_access_token(
         "token_type": "bearer",
     }
 
-@router.post("/recover-password", response_model=None)
+@router.post("/recover-password/", response_model=None)
 def recover_password(
     *,
     db: Session = Depends(get_db),
@@ -84,7 +84,7 @@ def recover_password(
     # Siempre retornamos éxito por seguridad (evitar enumeración de usuarios)
     return {"message": "Si el correo existe en nuestro sistema, recibirás una clave de recuperación en breve."}
 
-@router.post("/reset-password", response_model=None)
+@router.post("/reset-password/", response_model=None)
 def reset_password(
     *,
     db: Session = Depends(get_db),
@@ -109,7 +109,7 @@ def reset_password(
     
     return {"message": "Contraseña actualizada correctamente. Ya puedes iniciar sesión."}
 
-@router.post("/refresh", response_model=Token)
+@router.post("/refresh/", response_model=Token)
 def refresh_token(
     db: Session = Depends(get_db),
     refresh_token: str = Body(...)
@@ -135,7 +135,7 @@ def refresh_token(
         "token_type": "bearer",
     }
 
-@router.post("/logout")
+@router.post("/logout/")
 def logout(
     db: Session = Depends(get_db),
     refresh_token: str = Body(...)
@@ -149,7 +149,7 @@ def logout(
         db.commit()
     return {"message": "Logged out successfully"}
 
-@router.post("/logout-all")
+@router.post("/logout-all/")
 def logout_all(
     db: Session = Depends(get_db),
     current_user: Any = Depends(get_current_user)

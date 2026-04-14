@@ -43,7 +43,7 @@ def create_user(
     
     return new_user
 
-@router.get("/verify", response_model=None)
+@router.get("/verify/", response_model=None)
 def verify_email(
     *,
     db: Session = Depends(get_db),
@@ -69,7 +69,7 @@ def verify_email(
     
     return {"message": "Cuenta verificada con éxito. Ya puedes iniciar sesión."}
 
-@router.post("/resend-verification", response_model=None)
+@router.post("/resend-verification/", response_model=None)
 def resend_verification(
     *,
     db: Session = Depends(get_db),
@@ -87,7 +87,7 @@ def resend_verification(
     
     return {"message": "Se ha enviado un nuevo enlace de verificación a tu correo."}
 
-@router.get("/me", response_model=UserOut)
+@router.get("/me/", response_model=UserOut)
 def read_user_me(
     current_user: User = Depends(get_current_active_user),
 ) -> Any:
@@ -96,7 +96,7 @@ def read_user_me(
     """
     return current_user
 
-@router.patch("/me", response_model=UserOut)
+@router.patch("/me/", response_model=UserOut)
 def update_user_me(
     *,
     db: Session = Depends(get_db),
@@ -120,7 +120,7 @@ def update_user_me(
     updated_user = user_repo.update(db_obj=current_user, obj_in=user_in)
     return updated_user
 
-@router.patch("/me/password", status_code=status.HTTP_200_OK)
+@router.patch("/me/password/", status_code=status.HTTP_200_OK)
 def update_password_me(
     *,
     db: Session = Depends(get_db),
@@ -144,7 +144,7 @@ def update_password_me(
     )
     return {"detail": "Contraseña actualizada exitosamente"}
 
-@router.delete("/me", status_code=status.HTTP_200_OK)
+@router.delete("/me/", status_code=status.HTTP_200_OK)
 def delete_user_me(
     *,
     db: Session = Depends(get_db),

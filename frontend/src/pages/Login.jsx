@@ -50,7 +50,7 @@ export default function Login() {
     if (!recoverEmail) return
     setRecovering(true)
     try {
-      await api.post('/recover-password', { email: recoverEmail })
+      await api.post('/login/recover-password/', { email: recoverEmail })
       toast.success('Si el correo existe, recibirás un enlace pronto', { duration: 6000 })
       setShowRecover(false)
       setRecoverEmail('')

@@ -18,7 +18,7 @@ function StoreModal({ store, onClose, onSaved }) {
     setLoading(true)
     try {
       if (isEdit) {
-        await api.put(`/stores/${store.id}`, { name })
+        await api.put(`/stores/${store.id}/`, { name })
         toast.success('Tienda actualizada')
       } else {
         await api.post('/stores/', { name })
@@ -143,7 +143,7 @@ export default function Stores() {
 
   const handleDelete = async (id) => {
     try {
-      await api.delete(`/stores/${id}`)
+      await api.delete(`/stores/${id}/`)
       toast.success('Tienda eliminada')
       setStores(prev => prev.filter(s => s.id !== id))
     } catch (err) {

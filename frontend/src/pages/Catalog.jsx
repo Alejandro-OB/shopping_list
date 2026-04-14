@@ -195,7 +195,7 @@ export default function Catalog() {
         product_store_id: ps_id,
         quantity
       }))
-      await api.post(`/lists/${activeList.id}/items`, items)
+      await api.post(`/lists/${activeList.id}/items/`, items)
       toast.success(`${selected.size} producto(s) agregado(s) a la lista activa`)
       setSelected(new Map())
       navigate(`/lists/${activeList.id}`)

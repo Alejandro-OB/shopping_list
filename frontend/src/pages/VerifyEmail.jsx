@@ -21,7 +21,7 @@ export default function VerifyEmail() {
 
     const verify = async () => {
       try {
-        const { data } = await api.get(`/users/verify?token=${token}`)
+        const { data } = await api.get(`/users/verify/?token=${token}`)
         setStatus('success')
         setMessage(data.message || '¡Cuenta verificada con éxito!')
         

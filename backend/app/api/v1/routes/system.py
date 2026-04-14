@@ -8,7 +8,7 @@ from app.services.shopping_list_service import ShoppingListService
 
 router = APIRouter()
 
-@router.get("/health", response_model=HealthCheck)
+@router.get("/health/", response_model=HealthCheck)
 def health_check(db: Session = Depends(deps.get_db)):
     """
     Verifica la salud del sistema y la conexión a la base de datos a través del servicio.
@@ -22,7 +22,7 @@ def health_check(db: Session = Depends(deps.get_db)):
         "version": "1.0.0"
     }
 
-@router.post("/heartbeat", response_model=Heartbeat, status_code=status.HTTP_201_CREATED)
+@router.post("/heartbeat/", response_model=Heartbeat, status_code=status.HTTP_201_CREATED)
 def post_heartbeat(
     db: Session = Depends(deps.get_db)
 ):
@@ -32,7 +32,7 @@ def post_heartbeat(
     service = SystemService(db)
     return service.create_heartbeat()
 
-@router.post("/generate-lists", status_code=status.HTTP_200_OK)
+@router.post("/generate-lists/", status_code=status.HTTP_200_OK)
 def trigger_generation(
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user)

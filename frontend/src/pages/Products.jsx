@@ -40,7 +40,7 @@ function ProductModal({ product, stores, onClose, onSaved }) {
     try {
       let savedProduct
       if (isEdit) {
-        const { data } = await api.put(`/products/${product.id}`, form)
+        const { data } = await api.put(`/products/${product.id}/`, form)
         savedProduct = data
         toast.success('Producto actualizado')
       } else {
@@ -53,14 +53,14 @@ function ProductModal({ product, stores, onClose, onSaved }) {
 
       // 1. Eliminar desvinculados
       if (removedLinks.length > 0) {
-        await Promise.all(removedLinks.map(id => api.delete(`/stores/product-store/${id}`)))
+        await Promise.all(removedLinks.map(id => api.delete(`/stores/product-store/${id}/`)))
       }
 
       // 2. Crear nuevos o actualizar precios de existentes
       await Promise.all(storeLinks.map(link => {
         if (!link.id) {
           // Es un vínculo NUEVO agregado en el modal
-          return api.post('/stores/product-store', {
+          return api.post('/stores/product-store/', {
             product_id,
             store_id: link.store_id,
             price_catalog: Number(link.price_catalog),
@@ -69,7 +69,7 @@ function ProductModal({ product, stores, onClose, onSaved }) {
           // Es un vínculo EXISTENTE: verificamos si el precio cambió
           const original = product.product_stores.find(ps => ps.id === link.id)
           if (original && Number(original.price_catalog) !== Number(link.price_catalog)) {
-            return api.patch(`/stores/product-store/${link.id}`, {
+            return api.patch(`/stores/product-store/${link.id}/`, {
               price_catalog: Number(link.price_catalog)
             })
           }
@@ -348,7 +348,7 @@ export default function Products() {
 
   const handleDelete = async (id) => {
     try {
-      await api.delete(`/products/${id}`)
+      await api.delete(`/products/${id}/`)
       toast.success('Producto eliminado')
       setProducts(prev => prev.filter(p => p.id !== id))
     } catch (err) {

@@ -52,7 +52,7 @@ export default function SettingsPage() {
     setAutoGen(newValue)
     setUpdatingAutoGen(true)
     try {
-      await api.patch('/users/me', { can_autogenerate_lists: newValue })
+      await api.patch('/users/me/', { can_autogenerate_lists: newValue })
       await fetchMe()
       toast.success(newValue ? 'Generación automática activada' : 'Generación automática pausada')
     } catch (err) {
@@ -70,7 +70,7 @@ export default function SettingsPage() {
     
     setDeletingAccount(true)
     try {
-      await api.delete('/users/me')
+      await api.delete('/users/me/')
       toast.success('Cuenta eliminada. Lamentamos verte partir.')
       logout()
     } catch (err) {
@@ -83,7 +83,7 @@ export default function SettingsPage() {
     e.preventDefault()
     setSavingProfile(true)
     try {
-      await api.patch('/users/me', profileData)
+      await api.patch('/users/me/', profileData)
       await fetchMe() // Refresca el contexto global
       toast.success('Perfil actualizado correctamente')
     } catch (err) {
@@ -104,7 +104,7 @@ export default function SettingsPage() {
 
     setSavingPassword(true)
     try {
-      await api.patch('/users/me/password', {
+      await api.patch('/users/me/password/', {
         current_password: passwords.current_password,
         new_password: passwords.new_password
       })

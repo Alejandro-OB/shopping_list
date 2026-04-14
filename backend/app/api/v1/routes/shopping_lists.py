@@ -16,7 +16,7 @@ from app.schemas.shopping_list import ShoppingListOut, ShoppingListItemUpdate, S
 
 router = APIRouter()
 
-@router.post("/generate", response_model=None)
+@router.post("/generate/", response_model=None)
 def generate_lists(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -102,7 +102,7 @@ def create_shopping_list(
     db.commit()
     return ShoppingListRepository(db).get(new_list.id)
 
-@router.post("/{id}/items", response_model=ShoppingListOut)
+@router.post("/{id}/items/", response_model=ShoppingListOut)
 def add_items_to_list(
     *,
     db: Session = Depends(get_db),
@@ -163,7 +163,7 @@ def read_shopping_lists(
     repo = ShoppingListRepository(db)
     return repo.get_by_user(current_user.id, skip=skip, limit=limit)
 
-@router.patch("/{id}", response_model=ShoppingListOut)
+@router.patch("/{id}/", response_model=ShoppingListOut)
 def update_shopping_list(
     *,
     db: Session = Depends(get_db),
@@ -194,7 +194,7 @@ def update_shopping_list(
     from app.repositories.shopping_list_repo import ShoppingListRepository
     return ShoppingListRepository(db).get(id)
 
-@router.get("/{id}", response_model=ShoppingListOut)
+@router.get("/{id}/", response_model=ShoppingListOut)
 def read_shopping_list(
     *,
     db: Session = Depends(get_db),
@@ -211,7 +211,7 @@ def read_shopping_list(
         raise HTTPException(status_code=404, detail="Lista no encontrada")
     return shopping_list
 
-@router.patch("/items/{item_id}/check", response_model=ShoppingListItemOut)
+@router.patch("/items/{item_id}/check/", response_model=ShoppingListItemOut)
 def check_shopping_item(
     *,
     db: Session = Depends(get_db),
@@ -234,7 +234,7 @@ def check_shopping_item(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.patch("/items/{item_id}", response_model=ShoppingListItemOut)
+@router.patch("/items/{item_id}/", response_model=ShoppingListItemOut)
 def update_shopping_item(
     *,
     db: Session = Depends(get_db),
@@ -263,7 +263,7 @@ def update_shopping_item(
     db.refresh(item)
     return item
 
-@router.delete("/items/{item_id}")
+@router.delete("/items/{item_id}/")
 def delete_shopping_item(
     *,
     db: Session = Depends(get_db),
@@ -287,7 +287,7 @@ def delete_shopping_item(
     db.commit()
     return {"message": "Producto eliminado de la lista"}
 
-@router.get("/{list_id}/export", response_class=Response)
+@router.get("/{list_id}/export/", response_class=Response)
 def export_shopping_list_pdf(
     list_id: int,
     db: Session = Depends(get_db),
@@ -348,7 +348,7 @@ def export_shopping_list_pdf(
         }
     )
 
-@router.get("/{id}/export-excel")
+@router.get("/{id}/export-excel/")
 def export_shopping_list_excel(
     *,
     db: Session = Depends(get_db),
@@ -510,7 +510,7 @@ def export_shopping_list_excel(
         }
     )
 
-@router.post("/{id}/complete", response_model=ShoppingListOut)
+@router.post("/{id}/complete/", response_model=ShoppingListOut)
 def complete_shopping_list(
     *,
     db: Session = Depends(get_db),
@@ -530,7 +530,7 @@ def complete_shopping_list(
         
     return service.complete_list(id)
 
-@router.delete("/{id}", response_model=ShoppingListOut)
+@router.delete("/{id}/", response_model=ShoppingListOut)
 def delete_shopping_list(
     *,
     db: Session = Depends(get_db),

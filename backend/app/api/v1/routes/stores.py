@@ -36,7 +36,7 @@ def create_store(
     store_repo = StoreRepository(db)
     return store_repo.create(obj_in=store_in, user_id=current_user.id)
 
-@router.get("/{id}", response_model=StoreOut)
+@router.get("/{id}/", response_model=StoreOut)
 def read_store(
     *,
     db: Session = Depends(get_db),
@@ -52,7 +52,7 @@ def read_store(
         raise HTTPException(status_code=404, detail="Tienda no encontrada")
     return store
 
-@router.put("/{id}", response_model=StoreOut)
+@router.put("/{id}/", response_model=StoreOut)
 def update_store(
     *,
     db: Session = Depends(get_db),
@@ -69,7 +69,7 @@ def update_store(
         raise HTTPException(status_code=404, detail="Tienda no encontrada")
     return store_repo.update(db_obj=store, obj_in=store_in)
 
-@router.delete("/{id}", response_model=StoreOut)
+@router.delete("/{id}/", response_model=StoreOut)
 def delete_store(
     *,
     db: Session = Depends(get_db),
@@ -85,7 +85,7 @@ def delete_store(
         raise HTTPException(status_code=404, detail="Tienda no encontrada")
     return store_repo.soft_delete(id=id)
 
-@router.post("/product-store", response_model=ProductStoreOut)
+@router.post("/product-store/", response_model=ProductStoreOut)
 def associate_product_store(
     *,
     db: Session = Depends(get_db),
@@ -106,7 +106,7 @@ def associate_product_store(
     db.refresh(db_obj)
     return db_obj
 
-@router.patch("/product-store/{id}", response_model=ProductStoreOut)
+@router.patch("/product-store/{id}/", response_model=ProductStoreOut)
 def update_product_store_price(
     *,
     db: Session = Depends(get_db),
@@ -129,7 +129,7 @@ def update_product_store_price(
     db.refresh(db_obj)
     return db_obj
 
-@router.delete("/product-store/{id}", response_model=ProductStoreOut)
+@router.delete("/product-store/{id}/", response_model=ProductStoreOut)
 def delete_product_store(
     *,
     db: Session = Depends(get_db),

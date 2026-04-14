@@ -11,7 +11,7 @@ from app.schemas.metrics import BudgetSummary, MonthlySpending, ProductQuantity
 
 router = APIRouter()
 
-@router.get("/summary", response_model=BudgetSummary)
+@router.get("/summary/", response_model=BudgetSummary)
 def read_budget_summary(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -22,7 +22,7 @@ def read_budget_summary(
     service = MetricsService(db)
     return service.get_budget_summary(current_user.id)
 
-@router.get("/monthly", response_model=MonthlySpending)
+@router.get("/monthly/", response_model=MonthlySpending)
 def read_monthly_spending(
     year: int,
     month: int,
@@ -40,7 +40,7 @@ def read_monthly_spending(
         "total": total
     }
 
-@router.get("/most-bought", response_model=List[ProductQuantity])
+@router.get("/most-bought/", response_model=List[ProductQuantity])
 def read_most_bought(
     limit: int = 5,
     db: Session = Depends(get_db),

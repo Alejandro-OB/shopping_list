@@ -19,7 +19,7 @@ export function AuthProvider({ children }) {
 
   const fetchMe = useCallback(async () => {
     try {
-      const { data } = await api.get('/users/me')
+      const { data } = await api.get('/users/me/')
       setUser(data)
     } catch {
       localStorage.clear()
@@ -30,7 +30,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   const login = useCallback(async (email, password) => {
-    const { data } = await api.post('/login', { email, password })
+    const { data } = await api.post('/login/', { email, password })
 
     localStorage.setItem('access_token', data.access_token)
     if (data.refresh_token) {
