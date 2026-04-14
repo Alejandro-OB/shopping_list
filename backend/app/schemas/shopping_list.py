@@ -1,7 +1,8 @@
-from pydantic import BaseModel, ConfigDict, Field, computed_field
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 from datetime import datetime
 from typing import Optional, List, Any
 from enum import Enum
+from app.core.timezone import to_utc
 
 class ListStatus(str, Enum):
     draft = "draft"
@@ -46,6 +47,15 @@ class ShoppingListBase(BaseModel):
     name: Optional[str] = Field(None, max_length=255)
     date: datetime
 
+    @field_validator("date", mode="before")
+    @classmethod
+    def validate_date(cls, v: Any) -> datetime:
+        if isinstance(v, str):
+            v = datetime.fromisoformat(v.replace("Z", "+00:00"))
+        if isinstance(v, datetime):
+            return to_utc(v)
+        return v
+
 class ShoppingListCreate(ShoppingListBase):
     pass
 
@@ -58,6 +68,17 @@ class ShoppingListUpdate(BaseModel):
     name: Optional[str] = None
     date: Optional[datetime] = None
     status: Optional[ListStatus] = None
+
+    @field_validator("date", mode="before")
+    @classmethod
+    def validate_date(cls, v: Any) -> Optional[datetime]:
+        if v is None:
+            return v
+        if isinstance(v, str):
+            v = datetime.fromisoformat(v.replace("Z", "+00:00"))
+        if isinstance(v, datetime):
+            return to_utc(v)
+        return v
 
 class ShoppingListOut(ShoppingListBase):
     id: int
