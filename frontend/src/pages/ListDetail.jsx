@@ -176,6 +176,11 @@ export default function ListDetail() {
   const [isEditingName, setIsEditingName] = useState(false)
   const [newName, setNewName] = useState('')
   const [updatingName, setUpdatingName] = useState(false)
+  
+  const [isEditingDate, setIsEditingDate] = useState(false)
+  const [newDate, setNewDate] = useState('')
+  const [updatingDate, setUpdatingDate] = useState(false)
+
   const [exporting, setExporting] = useState(false)
   const [exportingExcel, setExportingExcel] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -195,6 +200,9 @@ export default function ListDetail() {
       }
       setList(data)
       setNewName(data.name)
+      if (data.date) {
+        setNewDate(data.date.split('T')[0])
+      }
     } catch (err) {
       toast.error('No se pudo cargar la lista')
       navigate('/lists')
@@ -264,7 +272,7 @@ export default function ListDetail() {
     }
   }
 
-  const handleUpdateName = async () => {
+   const handleUpdateName = async () => {
     if (!newName.trim() || newName === list.name) {
       setIsEditingName(false)
       setNewName(list.name)
@@ -282,6 +290,26 @@ export default function ListDetail() {
       toast.error(msg)
     } finally {
       setUpdatingName(false)
+    }
+  }
+
+  const handleUpdateDate = async () => {
+    if (!newDate || newDate === list.date.split('T')[0]) {
+      setIsEditingDate(false)
+      return
+    }
+
+    setUpdatingDate(true)
+    try {
+      await api.patch(`/lists/${id}`, { date: newDate })
+      toast.success('Fecha de la lista actualizada')
+      setList(prev => ({ ...prev, date: newDate }))
+      setIsEditingDate(false)
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Error al actualizar la fecha'
+      toast.error(msg)
+    } finally {
+      setUpdatingDate(false)
     }
   }
 
@@ -599,14 +627,53 @@ export default function ListDetail() {
                   )}
                 </div>
               )}
-              <div className="flex items-center gap-3 mt-1.5">
+               <div className="flex items-center gap-3 mt-1.5">
                 <span className={`badge-purple ${isCompleted ? 'badge-green' : 'badge-yellow'}`}>
                   {isCompleted ? 'Completada' : 'En curso'}
                 </span>
-                <span className="text-xs text-dark-500 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-dark-700" />
-                  {new Date(list.date).toLocaleDateString('es-CO', { day: '2-digit', month: 'long' })}
-                </span>
+                
+                {!isCompleted && isEditingDate ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="date"
+                      value={newDate}
+                      onChange={(e) => setNewDate(e.target.value)}
+                      className="input py-0.5 px-2 text-[10px] w-auto bg-dark-900 border-primary-500/50 focus:border-primary-500 text-white h-7"
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleUpdateDate()
+                        if (e.key === 'Escape') setIsEditingDate(false)
+                      }}
+                    />
+                    <button 
+                      onClick={handleUpdateDate} 
+                      disabled={updatingDate}
+                      className="text-primary-400 hover:text-primary-300 transition-colors"
+                    >
+                       {updatingDate ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                    </button>
+                    <button 
+                      onClick={() => setIsEditingDate(false)}
+                      className="text-dark-500 hover:text-dark-300 transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5"/>
+                    </button>
+                  </div>
+                ) : (
+                  <span className="text-xs text-dark-500 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-dark-700" />
+                    {new Date(list.date).toLocaleDateString('es-CO', { day: '2-digit', month: 'long' })}
+                    {!isCompleted && (
+                      <button 
+                        onClick={() => setIsEditingDate(true)} 
+                        className="ml-1 text-dark-500 hover:text-primary-400 transition-colors p-1"
+                        title="Editar fecha"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                    )}
+                  </span>
+                )}
               </div>
             </div>
           </div>

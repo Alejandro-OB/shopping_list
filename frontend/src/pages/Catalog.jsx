@@ -33,21 +33,18 @@ function getNextAvailableTuesday(existingLists) {
   )
 
   let candidate = new Date()
-  // Avanzar al próximo martes (siempre al menos +1 día)
-  do {
-    candidate.setDate(candidate.getDate() + 1)
-  } while (candidate.getDay() !== 2) // 2 = martes
+  candidate.setHours(0, 0, 0, 0)
 
-  // Si la semana del candidato está ocupada, saltar a la siguiente semana
-  while (occupiedWeeks.has(getWeekStart(candidate).toISOString())) {
-    candidate.setDate(candidate.getDate() + 7)
-    // Reajustar al martes de esa semana
-    const day = candidate.getDay()
-    const diff = day <= 2 ? 2 - day : 9 - day
-    candidate.setDate(candidate.getDate() + diff)
+  // Empezar a buscar desde hoy inclusive hasta encontrar un martes
+  while (candidate.getDay() !== 2) {
+    candidate.setDate(candidate.getDate() + 1)
   }
 
-  candidate.setHours(0, 0, 0, 0)
+  // Si la semana del candidato está ocupada, saltar de 7 en 7 hasta encontrar una libre
+  while (occupiedWeeks.has(getWeekStart(candidate).toISOString())) {
+    candidate.setDate(candidate.getDate() + 7)
+  }
+
   return candidate
 }
 

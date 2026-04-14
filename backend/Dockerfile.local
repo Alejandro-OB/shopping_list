@@ -25,11 +25,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copia los requerimientos e instala las dependencias de Python
-COPY backend/requirements.txt .
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copia el resto del código de la aplicación
-COPY backend/ .
+COPY . .
 
 # Asegurar que el usuario tenga permisos sobre su directorio de trabajo
 RUN chown -R appuser:appgroup /app
@@ -40,5 +40,5 @@ USER appuser
 # Expone el puerto 8000 para FastAPI
 EXPOSE 8000
 
-# Comando para ejecutar la aplicación con uvicorn reconociendo headers de proxy
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]
+# Comando para ejecutar la aplicación con uvicorn
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

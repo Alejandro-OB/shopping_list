@@ -1,6 +1,11 @@
 import axios from 'axios'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
+let API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
+
+// Auto-corrección para Mixed Content: Si estamos en HTTPS (producción) y la URL es HTTP, la forzamos a HTTPS
+if (window.location.protocol === 'https:' && API_BASE_URL.startsWith('http://') && !API_BASE_URL.includes('localhost')) {
+  API_BASE_URL = API_BASE_URL.replace('http://', 'https://')
+}
 
 const api = axios.create({
   baseURL: API_BASE_URL,

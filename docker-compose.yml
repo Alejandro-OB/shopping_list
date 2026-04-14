@@ -17,8 +17,10 @@ services:
       retries: 5
 
   api:
-    build: ./backend
     container_name: shopping_list_api
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.local
     depends_on:
       db:
         condition: service_healthy
@@ -30,7 +32,6 @@ services:
     environment:
       # Sobrescribimos el host del servidor para que apunte al contenedor 'db'
       POSTGRES_SERVER: db
-      ENVIRONMENT: ${ENVIRONMENT:-local}
       TZ: America/Bogota
     volumes:
       - ./backend:/app
