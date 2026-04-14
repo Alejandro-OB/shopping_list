@@ -25,11 +25,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copia los requerimientos e instala las dependencias de Python
-COPY requirements.txt .
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copia el resto del código de la aplicación
-COPY . .
+COPY backend/ .
 
 # Asegurar que el usuario tenga permisos sobre su directorio de trabajo
 RUN chown -R appuser:appgroup /app
