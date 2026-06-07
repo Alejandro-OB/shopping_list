@@ -7,16 +7,6 @@ export function AuthProvider({ children }) {
   const [user, setUser]     = useState(null)
   const [loading, setLoading] = useState(true)
 
-  // Cargar usuario al iniciar
-  useEffect(() => {
-    const token = localStorage.getItem('access_token')
-    if (token) {
-      fetchMe()
-    } else {
-      setLoading(false)
-    }
-  }, [])
-
   const fetchMe = useCallback(async () => {
     try {
       const { data } = await api.get('/users/me/')
@@ -44,6 +34,23 @@ export function AuthProvider({ children }) {
     localStorage.clear()
     setUser(null)
   }, [])
+
+  // Cargar usuario al iniciar
+  useEffect(() => {
+    // Timeout de seguridad: no dejar al usuario en la pantalla de carga más de 3s
+    const timer = setTimeout(() => {
+      if (loading) setLoading(false)
+    }, 3000)
+
+    const token = localStorage.getItem('access_token')
+    if (token) {
+      fetchMe().finally(() => clearTimeout(timer))
+    } else {
+      setLoading(false)
+      clearTimeout(timer)
+    }
+    return () => clearTimeout(timer)
+  }, [fetchMe])
 
   return (
     <AuthContext.Provider value={{ user, loading, login, logout, fetchMe }}>

@@ -34,6 +34,7 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
   const navigate = useNavigate()
 
   const handleLogout = () => {
+    if (onMobileClose) onMobileClose()
     logout()
     toast.success('Sesión cerrada')
     navigate('/login')
@@ -123,7 +124,7 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
       {mobileOpen && (
         <div className="lg:hidden fixed inset-0 z-50 flex">
           <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 bg-black/80"
             onClick={onMobileClose}
           />
           <aside className="relative flex flex-col w-64 h-full bg-dark-900 border-r border-dark-800 animate-slide-in">

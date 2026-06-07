@@ -166,8 +166,8 @@ export default function Login() {
 
       {/* Recovery Modal */}
       {showRecover && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-dark-950/80 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-dark-900 border border-dark-800 rounded-3xl p-8 max-w-sm w-full shadow-2xl relative animate-in zoom-in-95 duration-300">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-dark-950/90 duration-300">
+          <div className="bg-dark-900 border border-dark-800 rounded-3xl p-8 max-w-sm w-full shadow-2xl relative duration-300">
             <button 
               onClick={() => setShowRecover(false)}
               className="absolute top-4 right-4 text-dark-500 hover:text-white transition-colors"
