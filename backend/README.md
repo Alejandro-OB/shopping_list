@@ -1,4 +1,4 @@
-# 🛒 Shopping List API - Sistema Multiusuario
+# 🛒 CompraYa API - Sistema Multiusuario
 
 Una API robusta y profesional construida con **FastAPI** para la gestión inteligente de listas de compras. Diseñada para soportar múltiples usuarios con aislamiento total de datos, generación automática de listas basada en frecuencias proyectadas y análisis financiero detallado.
 

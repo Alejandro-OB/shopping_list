@@ -15,7 +15,7 @@ async def lifespan(app: FastAPI):
     scheduler_manager.shutdown()
 
 app = FastAPI(
-    title="Shopping List API",
+    title="CompraYa API",
     description="API for multi-user shopping list management with automated generation.",
     version="1.0.0",
     lifespan=lifespan
