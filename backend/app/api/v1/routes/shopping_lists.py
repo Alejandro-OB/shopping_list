@@ -16,6 +16,38 @@ from app.schemas.shopping_list import ShoppingListOut, ShoppingListItemUpdate, S
 
 router = APIRouter()
 
+
+def _compute_store_breakdown(items: list) -> list[dict]:
+    """
+    Snapshot del desglose por tienda en el momento de exportar.
+    Devuelve una lista de dicts: { store_name, count, checked_count, estimated, paid, is_free }
+    ordenada por estimated desc; items libres al final.
+    """
+    buckets: dict[str, dict] = {}
+    for it in items:
+        if it.product_store and it.product_store.store:
+            key = it.product_store.store.name
+            is_free = False
+        else:
+            key = "Sin tienda"
+            is_free = True
+        bucket = buckets.setdefault(key, {
+            "store_name": key,
+            "is_free": is_free,
+            "count": 0,
+            "checked_count": 0,
+            "estimated": 0.0,
+            "paid": 0.0,
+        })
+        bucket["count"] += 1
+        bucket["estimated"] += float(it.price_catalog_snapshot or 0) * it.quantity
+        if it.checked:
+            bucket["checked_count"] += 1
+            bucket["paid"] += float(it.price_real or 0) * it.quantity
+    rows = list(buckets.values())
+    rows.sort(key=lambda r: (r["is_free"], -r["estimated"]))
+    return rows
+
 @router.post("/generate/", response_model=None)
 def generate_lists(
     db: Session = Depends(get_db),
@@ -343,16 +375,20 @@ def export_shopping_list_pdf(
     total_projected = sum((item.price_catalog_snapshot or 0) * item.quantity for item in items if item.price_catalog_snapshot)
     total_real      = sum((item.price_real or 0) * item.quantity for item in items if item.checked)
 
+    # Desglose por tienda — snapshot del momento de exportar
+    store_breakdown = _compute_store_breakdown(items)
+
     # 3. Renderizar HTML con Jinja2
     template_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "templates")
     env = Environment(loader=FileSystemLoader(template_dir))
     template = env.get_template("export_list.html")
-    
+
     html_content = template.render(
         shopping_list=shopping_list,
         items=items,
         total_projected=total_projected,
         total_real=total_real,
+        store_breakdown=store_breakdown,
         user=current_user,
         today=datetime.now().strftime("%d/%m/%Y %H:%M"),
         current_year=datetime.now().year
@@ -529,6 +565,29 @@ def export_shopping_list_excel(
     # Fórmula: Suma de la columna Subtotal Real (columna G = index 6)
     total_formula = f"=SUM(G{data_start_row}:G{data_end_row})"
     worksheet.write_formula(current_row + 2, 5, total_formula, total_value_format)
+
+    # 6.b Desglose por tienda (informativo, snapshot del momento)
+    store_breakdown = _compute_store_breakdown(items)
+    if len(store_breakdown) > 1:
+        section_row = current_row + 4
+        worksheet.merge_range(section_row, 0, section_row, 6, "DESGLOSE POR TIENDA", title_format)
+        section_row += 1
+        breakdown_headers = ["Tienda", "Items", "", "", "Estimado", "Pagado", ""]
+        for col, text in enumerate(breakdown_headers):
+            if text:
+                worksheet.write(section_row, col, text, header_format)
+        section_row += 1
+        for s in store_breakdown:
+            label = s["store_name"] + (" (libres)" if s["is_free"] else "")
+            count_text = f"{s['checked_count']}/{s['count']}" if s["checked_count"] else str(s["count"])
+            worksheet.write(section_row, 0, label, cell_format)
+            worksheet.write(section_row, 1, count_text, cell_format)
+            worksheet.write(section_row, 4, s["estimated"], price_format)
+            if s["paid"] > 0:
+                worksheet.write(section_row, 5, s["paid"], price_format)
+            else:
+                worksheet.write(section_row, 5, "—", cell_format)
+            section_row += 1
 
     # 7. Finalizar y enviar
     workbook.close()

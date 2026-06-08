@@ -159,8 +159,45 @@
         </tbody>
     </table>
 
+    {% if store_breakdown and store_breakdown|length > 1 %}
+    <table style="width: 100%; border-collapse: collapse; margin-top: 24px; font-size: 10pt;">
+        <thead>
+            <tr style="background-color: #f1f5f9;">
+                <th colspan="4" style="text-align: left; padding: 8px 12px; font-size: 11pt; font-weight: 700; color: #1e293b; border-bottom: 1px solid #e2e8f0;">
+                    📊 Desglose por tienda
+                </th>
+            </tr>
+            <tr style="background-color: #f8fafc; color: #64748b; font-size: 8pt; text-transform: uppercase; letter-spacing: 0.5px;">
+                <th style="text-align: left; padding: 6px 12px; border-bottom: 1px solid #e2e8f0;">Tienda</th>
+                <th style="text-align: center; padding: 6px 8px; border-bottom: 1px solid #e2e8f0;">Items</th>
+                <th style="text-align: right; padding: 6px 12px; border-bottom: 1px solid #e2e8f0;">Estimado</th>
+                <th style="text-align: right; padding: 6px 12px; border-bottom: 1px solid #e2e8f0;">Pagado</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in store_breakdown %}
+            <tr>
+                <td style="padding: 6px 12px; border-bottom: 1px solid #f1f5f9;">
+                    {{ s.store_name }}
+                    {% if s.is_free %}<span style="color: #a855f7; font-size: 8pt; margin-left: 4px;">(libres)</span>{% endif %}
+                </td>
+                <td style="text-align: center; padding: 6px 8px; border-bottom: 1px solid #f1f5f9; color: #64748b;">
+                    {% if s.checked_count %}{{ s.checked_count }}/{% endif %}{{ s.count }}
+                </td>
+                <td style="text-align: right; padding: 6px 12px; border-bottom: 1px solid #f1f5f9; font-weight: 700;">
+                    ${{ "{:,.0f}".format(s.estimated) }}
+                </td>
+                <td style="text-align: right; padding: 6px 12px; border-bottom: 1px solid #f1f5f9; color: #059669;">
+                    {% if s.paid %}${{ "{:,.0f}".format(s.paid) }}{% else %}—{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
     <div class="footer">
-        Este documento es una guía de compra generada automáticamente por ShopList Pro.<br>
+        Este documento es una guía de compra generada automáticamente por CompraYa.<br>
         &copy; {{ current_year }} Todos los derechos reservados.
     </div>
 </body>
