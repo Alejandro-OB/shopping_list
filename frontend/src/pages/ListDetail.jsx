@@ -1083,6 +1083,20 @@ export default function ListDetail() {
     )
   }
 
+  // Si la carga falló (CORS, red, 5xx) el catch de fetchList navega fuera pero
+  // el componente puede intentar renderizar antes — guardamos contra null.
+  if (!list || !list.items) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
+        <AlertCircle className="w-10 h-10 text-amber-500" />
+        <p className="text-dark-300 font-medium">No se pudo cargar la lista.</p>
+        <button onClick={() => navigate('/lists')} className="btn-secondary text-sm">
+          Volver a listas
+        </button>
+      </div>
+    )
+  }
+
   const itemsBought = list.items.filter(i => i.checked).length
   const totalItems = list.items.length
   const progress = (itemsBought / totalItems) * 100

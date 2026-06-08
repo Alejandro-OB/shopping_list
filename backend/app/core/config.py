@@ -65,8 +65,13 @@ class Settings(BaseSettings):
     # Frontend URL para enlaces en correos
     FRONTEND_URL: str = "http://localhost:5175"
 
-    # CORS Origins
-    BACKEND_CORS_ORIGINS: Any = ["http://localhost:5175", "http://localhost:5173", "http://localhost:3000"]
+    # CORS Origins — el env var BACKEND_CORS_ORIGINS sobreescribe este default
+    BACKEND_CORS_ORIGINS: Any = [
+        "http://localhost:5175",
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "https://compraya.vercel.app",
+    ]
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod

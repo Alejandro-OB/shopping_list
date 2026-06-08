@@ -15,8 +15,8 @@ class ShoppingListRepository(BaseRepository[ShoppingList, ShoppingListCreate, Sh
     def get(self, id: int) -> Optional[ShoppingList]:
         """
         Obtiene una lista con sus ítems y relaciones cargadas (eager loading).
-        `price_history` se carga con selectinload para alimentar el computed
-        field `last_price_real` sin N+1.
+        `price_history` se carga junto al product_store para alimentar el
+        computed field `last_price_real` sin N+1.
         """
         from sqlalchemy.orm import joinedload, selectinload
         from app.models.shopping_list_item import ShoppingListItem
@@ -27,9 +27,8 @@ class ShoppingListRepository(BaseRepository[ShoppingList, ShoppingListCreate, Sh
                 joinedload(ShoppingListItem.product_store).options(
                     joinedload(ProductStore.product),
                     joinedload(ProductStore.store),
+                    selectinload(ProductStore.price_history),
                 ),
-                # price_history como selectinload (uno-a-muchos): un IN query
-                selectinload(ShoppingListItem.product_store).selectinload(ProductStore.price_history),
             )
         ).filter(self.model.id == id)
 
@@ -48,14 +47,15 @@ class ShoppingListRepository(BaseRepository[ShoppingList, ShoppingListCreate, Sh
 
         # selectinload para la colección items evita el producto cartesiano que generaba
         # joinedload y permite aplicar LIMIT sobre las listas (no sobre el join resultante).
+        # price_history se anida en el mismo joinedload(product_store) para no declarar
+        # dos loader strategies distintas sobre el mismo path (SQLAlchemy lo rechaza).
         query = select(self.model).options(
             selectinload(self.model.items).options(
                 joinedload(ShoppingListItem.product_store).options(
                     joinedload(ProductStore.product),
                     joinedload(ProductStore.store),
+                    selectinload(ProductStore.price_history),
                 ),
-                # price_history para sugerencia de precio (last_price_real)
-                selectinload(ShoppingListItem.product_store).selectinload(ProductStore.price_history),
             )
         ).filter(self.model.user_id == user_id).order_by(self.model.date.desc()).offset(skip).limit(limit)
 
