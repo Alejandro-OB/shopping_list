@@ -172,12 +172,12 @@ function PriceRow({ item }) {
   const isFlat  = diff === 0
 
   const TrendIcon  = isFlat ? Minus : isUp ? TrendingUp : TrendingDown
-  const trendColor = isFlat ? 'text-dark-500' : isUp ? 'text-red-400' : 'text-emerald-400'
+  const trendColor = isFlat ? 'text-dark-500' : isUp ? 'text-red-400' : 'text-teal-400'
   const badgeClass = isFlat
     ? 'badge-blue'
     : isUp
       ? 'bg-red-500/10 text-red-400 border border-red-500/20'
-      : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+      : 'bg-teal-500/10 text-teal-400 border border-teal-500/20'
 
   return (
     <tr className="hover:bg-dark-800/40 transition-colors group">
@@ -195,7 +195,7 @@ function PriceRow({ item }) {
 
       {/* Mín */}
       <td className="px-4 py-3 text-right">
-        <span className="text-emerald-500 font-medium text-xs">
+        <span className="text-teal-500 font-medium text-xs">
           {formatCurrency(Math.min(...prices))}
         </span>
       </td>

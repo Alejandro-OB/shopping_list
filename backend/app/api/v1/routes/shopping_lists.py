@@ -12,7 +12,7 @@ from app.api.deps import get_current_user
 from app.models.user import User
 from app.services.shopping_list_service import ShoppingListService
 from app.repositories.shopping_list_repo import ShoppingListRepository
-from app.schemas.shopping_list import ShoppingListOut, ShoppingListItemUpdate, ShoppingListItemOut, ListStatus, ShoppingListManualCreate, ShoppingListUpdate, ShoppingListItemCreate, StoreComparisonOut
+from app.schemas.shopping_list import ShoppingListOut, ShoppingListItemUpdate, ShoppingListItemOut, ListStatus, ShoppingListManualCreate, ShoppingListUpdate, ShoppingListItemCreate, StoreComparisonOut, SavingsOut
 
 router = APIRouter()
 
@@ -603,6 +603,25 @@ def export_shopping_list_excel(
         }
     )
 
+@router.get("/{list_id}/savings/", response_model=SavingsOut)
+def find_savings(
+    list_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Any:
+    """
+    Oportunidades de ahorro: para cada item de la lista, si el mismo producto está
+    vinculado a otra tienda más barata, sugerir el cambio.
+    Útil cuando el usuario va a varias tiendas igual y solo quiere optimizar
+    el precio individual de cada producto.
+    """
+    service = ShoppingListService(db)
+    try:
+        return service.find_savings_for_list(list_id, current_user.id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
 @router.get("/{list_id}/store-comparison/", response_model=StoreComparisonOut)
 def compare_stores(
     list_id: int,
@@ -610,8 +629,9 @@ def compare_stores(
     current_user: User = Depends(get_current_user),
 ) -> Any:
     """
-    Calcula cuánto costaría comprar la lista en cada tienda relevante,
-    para sugerir dónde conviene comprar esta semana.
+    [Legacy] Calcula cuánto costaría comprar la lista en cada tienda relevante.
+    Mantenido por compatibilidad; reemplazado por /savings/ que es más útil
+    cuando hay que ir a múltiples tiendas igualmente.
     """
     service = ShoppingListService(db)
     try:

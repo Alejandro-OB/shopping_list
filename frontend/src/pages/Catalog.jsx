@@ -71,8 +71,8 @@ function CatalogRow({ row, productObj, isChecked, quantity, onToggle, onQuantity
       {/* Tienda */}
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-md bg-amber-500/10 flex items-center justify-center flex-shrink-0">
-            <Store className="w-3.5 h-3.5 text-amber-600" />
+          <div className="w-7 h-7 rounded-md bg-fuchsia-500/10 flex items-center justify-center flex-shrink-0">
+            <Store className="w-3.5 h-3.5 text-fuchsia-600" />
           </div>
           <span className="text-sm text-dark-200">{row.store}</span>
         </div>
@@ -403,17 +403,17 @@ export default function Catalog() {
 
         {/* Banner: lista activa */}
         {activeList && (
-          <div className="flex items-center gap-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-4 py-3">
-            <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
-              <ShoppingCart className="w-4 h-4 text-emerald-600" />
+          <div className="flex items-center gap-3 rounded-xl bg-teal-500/10 border border-teal-500/20 px-4 py-3">
+            <div className="w-8 h-8 rounded-lg bg-teal-500/20 flex items-center justify-center flex-shrink-0">
+              <ShoppingCart className="w-4 h-4 text-teal-600" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-dark-200">Lista activa: <span className="text-emerald-700">{activeList.name}</span></p>
+              <p className="text-sm font-semibold text-dark-200">Lista activa: <span className="text-teal-700">{activeList.name}</span></p>
               <div className="flex items-center gap-2 mt-0.5">
                 <p className="text-xs text-dark-400">Selecciona productos del catálogo y agrégalos directamente.</p>
                 <button
                   onClick={() => navigate(`/lists/${activeList.id}`)}
-                  className="text-xs text-emerald-600 underline underline-offset-2 hover:text-emerald-500 transition-colors shrink-0"
+                  className="text-xs text-teal-600 underline underline-offset-2 hover:text-teal-500 transition-colors shrink-0"
                 >
                   Ver
                 </button>
@@ -423,7 +423,7 @@ export default function Catalog() {
               <button
                 onClick={handleAddToActive}
                 disabled={adding}
-                className="btn-secondary shrink-0 border-emerald-500/30 text-emerald-700 hover:bg-emerald-500/10"
+                className="btn-secondary shrink-0 border-teal-500/30 text-teal-700 hover:bg-teal-500/10"
               >
                 {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlusCircle className="w-4 h-4" />}
                 Agregar ({selected.size})
@@ -458,8 +458,8 @@ export default function Catalog() {
 
         {/* Aviso sin catálogo */}
         {!loading && rows.length === 0 && (
-          <div className="card flex items-start gap-4 border-amber-500/20 bg-amber-500/5">
-            <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+          <div className="card flex items-start gap-4 border-fuchsia-500/20 bg-fuchsia-500/5">
+            <AlertCircle className="w-5 h-5 text-fuchsia-600 flex-shrink-0 mt-0.5" />
             <div>
               <p className="text-sm font-semibold text-dark-200">El catálogo está vacío</p>
               <p className="text-xs text-dark-400 mt-0.5">

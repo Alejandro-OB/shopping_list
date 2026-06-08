@@ -125,22 +125,22 @@ export default function Metrics() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         
         {/* Mes Actual */}
-        <div className="card relative overflow-hidden group hover:border-emerald-500/30 transition-all p-6">
+        <div className="card relative overflow-hidden group hover:border-teal-500/30 transition-all p-6">
           <div className="flex items-start justify-between">
             <div className="space-y-1">
               <p className="text-dark-400 text-sm font-medium">Gasto Mes Actual</p>
               <h3 className="text-2xl font-bold text-dark-200">{formatCurrency(summary?.current_month_real_spending)}</h3>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-              <Wallet className="w-5 h-5 text-emerald-600" />
+            <div className="w-10 h-10 rounded-xl bg-teal-500/10 flex items-center justify-center">
+              <Wallet className="w-5 h-5 text-teal-600" />
             </div>
           </div>
-          <div className="mt-4 flex items-center gap-2 text-xs text-emerald-600/80">
+          <div className="mt-4 flex items-center gap-2 text-xs text-teal-600/80">
             <TrendingUp className="w-3.5 h-3.5" />
             <span>En base a listas completadas</span>
           </div>
           {/* Background decoration */}
-          <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl group-hover:bg-emerald-500/10 transition-colors" />
+          <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-teal-500/5 rounded-full blur-2xl group-hover:bg-teal-500/10 transition-colors" />
         </div>
 
         {/* Semana Actual */}
@@ -186,7 +186,7 @@ export default function Metrics() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-dark-200 flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-emerald-600" /> 
+              <Calendar className="w-5 h-5 text-teal-600" /> 
               Consultar Gasto Historico
             </h2>
           </div>
@@ -214,7 +214,7 @@ export default function Metrics() {
                   <p className="text-4xl md:text-5xl font-black text-dark-200">{formatCurrency(monthlyDetail.total)}</p>
                   <div className="mt-6 flex items-center justify-center gap-2">
                     <div className="h-2 w-32 bg-dark-800 rounded-full overflow-hidden">
-                      <div className="h-full bg-emerald-500 rounded-full" style={{ width: '80%' }} />
+                      <div className="h-full bg-teal-500 rounded-full" style={{ width: '80%' }} />
                     </div>
                   </div>
                 </div>
@@ -236,7 +236,7 @@ export default function Metrics() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-dark-200 flex items-center gap-2">
-              <Package className="w-5 h-5 text-amber-600" /> 
+              <Package className="w-5 h-5 text-fuchsia-600" /> 
               Productos Más Comprados
             </h2>
             <span className="text-xs text-dark-500 uppercase tracking-widest font-bold">Top 5</span>
@@ -283,8 +283,8 @@ export default function Metrics() {
           </div>
 
           <div className="bg-dark-800/50 border border-dark-700 rounded-xl p-4 flex items-start gap-4">
-            <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
-              <TrendingDown className="w-4 h-4 text-amber-600" />
+            <div className="w-8 h-8 rounded-lg bg-fuchsia-500/10 flex items-center justify-center flex-shrink-0">
+              <TrendingDown className="w-4 h-4 text-fuchsia-600" />
             </div>
             <div>
               <p className="text-xs font-bold text-dark-200 uppercase tracking-wider mb-1">Dato curioso</p>

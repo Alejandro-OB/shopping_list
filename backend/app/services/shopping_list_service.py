@@ -254,3 +254,90 @@ class ShoppingListService:
             "free_items_total": free_total,
             "items_total": len(shopping_list.items),
         }
+
+    def find_savings_for_list(self, list_id: int, user_id: int):
+        """
+        Para cada item vinculado de la lista, si el mismo Producto está vinculado
+        a otra tienda con menor precio_catalog, calcular el ahorro potencial al
+        moverlo a la tienda más barata. Útil para el caso real donde el usuario
+        va a varias tiendas: en lugar de elegir "una mejor", optimiza ítem por ítem.
+        """
+        from sqlalchemy.orm import joinedload
+        from sqlalchemy import select
+        from app.models.product_store import ProductStore
+
+        shopping_list = self.list_repo.get(list_id)
+        if not shopping_list or shopping_list.user_id != user_id:
+            raise ValueError("Lista no encontrada")
+
+        linked_items = [i for i in shopping_list.items if i.product_store_id and i.product_store]
+        if not linked_items:
+            return {
+                "list_id": list_id,
+                "opportunities": [],
+                "total_potential": 0.0,
+                "items_with_alternatives": 0,
+                "items_optimal": 0,
+            }
+
+        product_ids = list({i.product_store.product_id for i in linked_items})
+
+        # Una sola query: todos los product_stores de los productos involucrados
+        all_product_stores = self.db.execute(
+            select(ProductStore).options(
+                joinedload(ProductStore.store),
+            ).filter(
+                ProductStore.product_id.in_(product_ids),
+                ProductStore.is_deleted == False,  # noqa: E712
+            )
+        ).scalars().all()
+
+        # Indexar product_stores por product_id
+        by_product: dict[int, list] = {}
+        for ps in all_product_stores:
+            by_product.setdefault(ps.product_id, []).append(ps)
+
+        opportunities = []
+        items_optimal = 0
+        for item in linked_items:
+            product_id = item.product_store.product_id
+            candidates = by_product.get(product_id, [])
+            if len(candidates) <= 1:
+                # Producto vinculado a una sola tienda — no hay alternativa
+                continue
+
+            current_price = float(item.product_store.price_catalog)
+            cheapest = min(candidates, key=lambda ps: ps.price_catalog)
+            cheapest_price = float(cheapest.price_catalog)
+
+            if cheapest.id == item.product_store_id or cheapest_price >= current_price:
+                # Ya estás comprándolo en la tienda más barata
+                items_optimal += 1
+                continue
+
+            savings_per_unit = current_price - cheapest_price
+            savings_total = savings_per_unit * item.quantity
+
+            opportunities.append({
+                "item_id": item.id,
+                "product_name": item.product_store.product.name,
+                "quantity": item.quantity,
+                "current_store_name": item.product_store.store.name,
+                "current_price": current_price,
+                "cheaper_store_id": cheapest.store_id,
+                "cheaper_store_name": cheapest.store.name,
+                "cheaper_price": cheapest_price,
+                "savings_per_unit": savings_per_unit,
+                "savings_total": savings_total,
+            })
+
+        opportunities.sort(key=lambda o: -o["savings_total"])
+        total_potential = sum(o["savings_total"] for o in opportunities)
+
+        return {
+            "list_id": list_id,
+            "opportunities": opportunities,
+            "total_potential": total_potential,
+            "items_with_alternatives": len(opportunities),
+            "items_optimal": items_optimal,
+        }

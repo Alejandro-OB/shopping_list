@@ -64,7 +64,7 @@ export default function ResetPassword() {
     return (
       <div className="min-h-screen bg-dark-950 flex items-center justify-center p-4">
         <div className="max-w-md w-full glass rounded-3xl p-8 text-center space-y-6 animate-in fade-in zoom-in duration-500">
-          <div className="w-20 h-20 bg-emerald-500/20 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="w-20 h-20 bg-teal-500/20 text-teal-600 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle2 className="w-12 h-12" />
           </div>
           <h1 className="text-3xl font-bold text-dark-200">¡Listo!</h1>
@@ -165,7 +165,7 @@ export default function ResetPassword() {
 
 function ValidationItem({ fulfilled, text }) {
   return (
-    <div className={`flex items-center gap-2 text-sm transition-colors ${fulfilled ? 'text-emerald-600' : 'text-dark-500'}`}>
+    <div className={`flex items-center gap-2 text-sm transition-colors ${fulfilled ? 'text-teal-600' : 'text-dark-500'}`}>
       {fulfilled ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4 opacity-30" />}
       {text}
     </div>

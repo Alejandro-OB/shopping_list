@@ -49,7 +49,7 @@ export default function VerifyEmail() {
 
         {status === 'success' && (
           <div className="flex flex-col items-center gap-4 py-4 animate-in fade-in zoom-in duration-500">
-            <div className="w-20 h-20 bg-emerald-500/20 text-emerald-600 rounded-full flex items-center justify-center mb-2">
+            <div className="w-20 h-20 bg-teal-500/20 text-teal-600 rounded-full flex items-center justify-center mb-2">
               <CheckCircle2 className="w-12 h-12" />
             </div>
             <h1 className="text-3xl font-bold text-dark-200">¡Bienvenido!</h1>

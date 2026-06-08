@@ -70,10 +70,10 @@
     @apply badge bg-primary-100 text-primary-700;
   }
   .badge-green {
-    @apply badge bg-emerald-100 text-emerald-700;
+    @apply badge bg-teal-100 text-teal-700;
   }
   .badge-yellow {
-    @apply badge bg-amber-100 text-amber-700;
+    @apply badge bg-fuchsia-100 text-fuchsia-700;
   }
   .badge-red {
     @apply badge bg-red-100 text-red-700;

@@ -21,8 +21,8 @@ const MONTHS = [
 function StatCard({ label, value, icon: Icon, color = 'purple', sub, onClick }) {
   const colorMap = {
     purple: 'bg-primary-100 text-primary-700',
-    green:  'bg-emerald-100 text-emerald-700',
-    amber:  'bg-amber-100 text-amber-700',
+    green:  'bg-teal-100 text-teal-700',
+    amber:  'bg-fuchsia-100 text-fuchsia-700',
     blue:   'bg-blue-100 text-blue-700',
   }
   return (
@@ -255,7 +255,7 @@ export default function Dashboard() {
           <div className="card min-h-[290px] flex flex-col justify-between p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-dark-200 flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-emerald-600" /> 
+                <Calendar className="w-5 h-5 text-teal-600" /> 
                 Historial de Gastos
               </h2>
             </div>
@@ -281,7 +281,7 @@ export default function Dashboard() {
                   <p className="text-4xl lg:text-5xl font-black text-dark-200">{formatCurrency(monthlyDetail.total)}</p>
                   <div className="mt-6 flex items-center justify-center gap-2">
                     <div className="h-2 w-32 bg-dark-800 rounded-full overflow-hidden">
-                      <div className="h-full bg-emerald-500 rounded-full" style={{ width: '100%' }} />
+                      <div className="h-full bg-teal-500 rounded-full" style={{ width: '100%' }} />
                     </div>
                   </div>
                 </div>
@@ -324,7 +324,7 @@ export default function Dashboard() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-dark-200 flex items-center gap-2">
-                <Package className="w-5 h-5 text-amber-600" /> 
+                <Package className="w-5 h-5 text-fuchsia-600" /> 
                 Más Comprados
               </h2>
               <span className="text-xs text-dark-500 uppercase tracking-widest font-bold">Top</span>
@@ -379,8 +379,8 @@ export default function Dashboard() {
             {/* Dato curioso */}
             {mostBoughtData.length > 0 && (
               <div className="bg-dark-800/50 border border-dark-700 rounded-xl p-4 flex items-start gap-4">
-                <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
-                  <TrendingDown className="w-4 h-4 text-amber-600" />
+                <div className="w-8 h-8 rounded-lg bg-fuchsia-500/10 flex items-center justify-center flex-shrink-0">
+                  <TrendingDown className="w-4 h-4 text-fuchsia-600" />
                 </div>
                 <div>
                   <p className="text-xs font-bold text-dark-200 uppercase tracking-wider mb-1">Dato curioso</p>
@@ -394,7 +394,7 @@ export default function Dashboard() {
 
           <div className="card space-y-3">
             <h2 className="text-sm font-semibold text-dark-200 flex items-center gap-2">
-              <TrendingDown className="w-4 h-4 text-amber-500" />
+              <TrendingDown className="w-4 h-4 text-fuchsia-500" />
               Presupuesto Próxima Semana
             </h2>
             <p className="text-xs text-dark-400">

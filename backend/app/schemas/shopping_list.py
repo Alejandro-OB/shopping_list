@@ -149,3 +149,25 @@ class StoreComparisonOut(BaseModel):
     stores: List[StoreInComparison]     # ordenadas: más disponibles → menor subtotal
     free_items_total: float             # ítems libres (no atribuibles a una tienda)
     items_total: int                    # total de items en la lista (contexto)
+
+
+# ── Oportunidades de ahorro (recomienda mover items a tiendas más baratas) ──
+class SavingOpportunity(BaseModel):
+    item_id: int
+    product_name: str
+    quantity: int
+    current_store_name: str
+    current_price: float
+    cheaper_store_id: int
+    cheaper_store_name: str
+    cheaper_price: float
+    savings_per_unit: float
+    savings_total: float                # savings_per_unit × quantity
+
+
+class SavingsOut(BaseModel):
+    list_id: int
+    opportunities: List[SavingOpportunity]   # ordenadas por savings_total desc
+    total_potential: float                   # suma de todos los savings_total
+    items_with_alternatives: int             # items que tienen oportunidad de ahorro
+    items_optimal: int                       # items que ya están al mejor precio

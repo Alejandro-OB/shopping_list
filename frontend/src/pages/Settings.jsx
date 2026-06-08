@@ -137,7 +137,7 @@ export default function SettingsPage() {
           {/* Profile Details */}
           <div className="card space-y-5">
             <h2 className="text-sm font-semibold text-dark-200 flex items-center gap-2 border-b border-dark-800 pb-3">
-              <User className="w-4 h-4 text-emerald-600" />
+              <User className="w-4 h-4 text-teal-600" />
               Perfil Personal
             </h2>
             <form onSubmit={handleProfileUpdate} className="space-y-4">
@@ -202,7 +202,7 @@ export default function SettingsPage() {
                       required
                       value={passwords.new_password}
                       onChange={(e) => setPasswords({ ...passwords, new_password: e.target.value })}
-                      className={`input pr-10 ${passwords.new_password && (allRulesMet ? 'border-emerald-500/50' : 'border-amber-500/50')}`}
+                      className={`input pr-10 ${passwords.new_password && (allRulesMet ? 'border-teal-500/50' : 'border-fuchsia-500/50')}`}
                       placeholder="Mínimo 8 caracteres"
                     />
                     <button
@@ -241,11 +241,11 @@ export default function SettingsPage() {
                     required
                     value={passwords.confirm_password}
                     onChange={(e) => setPasswords({ ...passwords, confirm_password: e.target.value })}
-                    className={`input ${passwords.confirm_password && (passMatches ? 'border-emerald-500/50' : 'border-red-500/50')}`}
+                    className={`input ${passwords.confirm_password && (passMatches ? 'border-teal-500/50' : 'border-red-500/50')}`}
                     placeholder="Repita la contraseña"
                   />
                   {passwords.confirm_password && (
-                    <p className={`text-[10px] font-bold px-1 transition-all ${passMatches ? 'text-emerald-600' : 'text-red-600'}`}>
+                    <p className={`text-[10px] font-bold px-1 transition-all ${passMatches ? 'text-teal-600' : 'text-red-600'}`}>
                       {passMatches ? '✓ Coinciden' : '✕ No coinciden'}
                     </p>
                   )}
@@ -270,7 +270,7 @@ export default function SettingsPage() {
         <div className="space-y-6">
           <div className="card space-y-4">
             <h2 className="text-sm font-semibold text-dark-200 flex items-center gap-2 border-b border-dark-800 pb-3">
-              <Settings className="w-4 h-4 text-amber-600" />
+              <Settings className="w-4 h-4 text-fuchsia-600" />
               Preferencias del Sistema
             </h2>
             

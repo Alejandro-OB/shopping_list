@@ -154,7 +154,7 @@ export default function SystemInfo() {
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <span className={`text-xs font-bold ${user?.can_autogenerate_lists ? 'text-emerald-600' : 'text-dark-500'}`}>
+              <span className={`text-xs font-bold ${user?.can_autogenerate_lists ? 'text-teal-600' : 'text-dark-500'}`}>
                 {user?.can_autogenerate_lists ? 'ACTIVADO' : 'DESACTIVADO'}
               </span>
               <button 
@@ -185,9 +185,9 @@ export default function SystemInfo() {
               </button>
             </div>
 
-            <div className="flex items-start gap-2 px-3 py-2 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-              <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
-              <p className="text-[11px] text-amber-700 leading-relaxed">
+            <div className="flex items-start gap-2 px-3 py-2 bg-fuchsia-500/10 border border-fuchsia-500/30 rounded-lg">
+              <AlertTriangle className="w-3.5 h-3.5 text-fuchsia-600 shrink-0 mt-0.5" />
+              <p className="text-[11px] text-fuchsia-700 leading-relaxed">
                 <strong>Nota:</strong> Esta acción puede tomar unos segundos dependiendo de la cantidad de usuarios activos.
                 No recargues la página mientras se procesa.
               </p>

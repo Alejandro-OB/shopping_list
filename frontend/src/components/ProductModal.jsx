@@ -236,7 +236,7 @@ export default function ProductModal({ product, stores, onClose, onSaved, initia
             )}
 
             {localStores.length === 0 ? (
-              <div className="flex items-center gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 p-3 text-xs text-amber-300">
+              <div className="flex items-center gap-2 rounded-lg bg-fuchsia-500/10 border border-fuchsia-500/20 p-3 text-xs text-fuchsia-300">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
                 Crea al menos una tienda para poder vincularla.
               </div>
@@ -246,7 +246,7 @@ export default function ProductModal({ product, stores, onClose, onSaved, initia
                   {storeLinks.map((link, i) => (
                     <div key={i} className="flex items-center justify-between bg-dark-800 rounded-lg px-3 py-2 text-sm border border-dark-700/50">
                       <div className="flex items-center gap-2">
-                        <Store className="w-3.5 h-3.5 text-amber-600" />
+                        <Store className="w-3.5 h-3.5 text-fuchsia-600" />
                         <span className="text-dark-200 truncate max-w-[150px]">{link.store?.name || link.store_name}</span>
                       </div>
                       <div className="flex items-center gap-2">

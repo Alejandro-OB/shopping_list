@@ -56,7 +56,7 @@ export default function OfflineBanner() {
   if (online && pending === 0) return null
 
   const colorCls = online
-    ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+    ? 'bg-fuchsia-500/15 text-fuchsia-300 border-fuchsia-500/30'
     : 'bg-red-500/15 text-red-300 border-red-500/30'
 
   return (
@@ -73,7 +73,7 @@ export default function OfflineBanner() {
         <button
           onClick={flush}
           disabled={retrying}
-          className="ml-2 flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/20 hover:bg-amber-500/30 transition-colors disabled:opacity-50"
+          className="ml-2 flex items-center gap-1 px-2 py-0.5 rounded-md bg-fuchsia-500/20 hover:bg-fuchsia-500/30 transition-colors disabled:opacity-50"
         >
           {retrying
             ? <Loader2 className="w-3 h-3 animate-spin" />

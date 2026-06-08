@@ -90,7 +90,7 @@ export default function Register() {
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-500 group-focus-within:text-primary-500 transition-colors" />
                 <input
                   required type={showPassword ? 'text' : 'password'} placeholder="••••••••"
-                  className={`input pl-10 pr-10 ${formData.password && (allRulesMet ? 'border-emerald-500/50' : 'border-amber-500/50')}`}
+                  className={`input pl-10 pr-10 ${formData.password && (allRulesMet ? 'border-teal-500/50' : 'border-fuchsia-500/50')}`}
                   value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 />
                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-400 hover:text-dark-200 transition-colors">
@@ -121,12 +121,12 @@ export default function Register() {
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-500 group-focus-within:text-primary-500 transition-colors" />
                 <input
                   required type={showPassword ? 'text' : 'password'} placeholder="••••••••"
-                  className={`input pl-10 ${formData.confirmPassword && (passMatches ? 'border-emerald-500/50' : 'border-red-400/50')}`}
+                  className={`input pl-10 ${formData.confirmPassword && (passMatches ? 'border-teal-500/50' : 'border-red-400/50')}`}
                   value={formData.confirmPassword} onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                 />
               </div>
               {formData.confirmPassword && (
-                <p className={`text-[10px] font-semibold px-1 ${passMatches ? 'text-emerald-600' : 'text-red-500'}`}>
+                <p className={`text-[10px] font-semibold px-1 ${passMatches ? 'text-teal-600' : 'text-red-500'}`}>
                   {passMatches ? '✓ Las contraseñas coinciden' : '✕ Las contraseñas no coinciden'}
                 </p>
               )}

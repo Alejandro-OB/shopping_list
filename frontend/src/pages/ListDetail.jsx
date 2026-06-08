@@ -1,138 +1,150 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
-  ArrowLeft, ShoppingCart, Store, CheckCircle2, Check, X,
+  ArrowLeft, ArrowRight, ShoppingCart, Store, CheckCircle2, Check, X,
   Circle, AlertCircle, Loader2, Sparkles, Pencil, Save,
   TrendingDown, TrendingUp, Minus, Plus, Trash2, FileText, Download,
   FileSpreadsheet, MessageSquare, Search, Filter, Tag, RefreshCw, PackagePlus, ChevronDown,
-  BookmarkPlus, Scale,
+  BookmarkPlus,
 } from 'lucide-react'
 import api from '../api/axios'
 import { apiCache } from '../api/cache'
 import toast from 'react-hot-toast'
 import ProductModal from '../components/ProductModal'
 
-// ── Modal: Comparar tiendas ────────────────────────────────────────────────────
-function StoreComparisonModal({ listId, onClose }) {
+// ── Modal: Oportunidades de ahorro ─────────────────────────────────────────────
+function SavingsModal({ listId, onClose }) {
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState(null)
-  const [expanded, setExpanded] = useState(new Set()) // store_ids con missing expandido
 
   useEffect(() => {
-    api.get(`/lists/${listId}/store-comparison/`)
+    api.get(`/lists/${listId}/savings/`)
       .then(({ data }) => setData(data))
-      .catch(() => toast.error('No se pudo calcular la comparación'))
+      .catch(() => toast.error('No se pudo calcular oportunidades'))
       .finally(() => setLoading(false))
   }, [listId])
 
-  const toggleExpanded = (storeId) => setExpanded(prev => {
-    const next = new Set(prev)
-    next.has(storeId) ? next.delete(storeId) : next.add(storeId)
-    return next
-  })
-
-  const cheapest = data?.stores?.[0]
+  const hasOpportunities = data && data.opportunities.length > 0
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm">
       <div className="bg-dark-900 border border-dark-700 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg flex flex-col max-h-[85vh]">
         <div className="flex items-center justify-between px-4 py-3.5 border-b border-dark-800">
           <h2 className="text-sm font-bold text-dark-200 flex items-center gap-2">
-            <Scale className="w-4 h-4 text-primary-600" />
-            Comparar tiendas
+            <TrendingDown className="w-4 h-4 text-teal-500" />
+            Oportunidades de ahorro
           </h2>
           <button onClick={onClose} className="btn-ghost p-1.5"><X className="w-4 h-4" /></button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        {/* Header con ahorro total */}
+        {!loading && data && (
+          <div className={`px-4 py-3 border-b border-dark-800 ${
+            hasOpportunities ? 'bg-teal-500/5' : 'bg-dark-950/40'
+          }`}>
+            {hasOpportunities ? (
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] text-dark-500 uppercase font-bold tracking-wider">Ahorro potencial</p>
+                  <p className="text-lg font-bold font-mono text-teal-500">
+                    ${data.total_potential.toLocaleString('es-CO')}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] text-dark-500 uppercase font-bold tracking-wider">
+                    {data.items_with_alternatives} oportunidad{data.items_with_alternatives > 1 ? 'es' : ''}
+                  </p>
+                  {data.items_optimal > 0 && (
+                    <p className="text-[10px] text-dark-500 mt-0.5">
+                      {data.items_optimal} ya al mejor precio
+                    </p>
+                  )}
+                </div>
+              </div>
+            ) : data.items_optimal > 0 ? (
+              <div className="flex items-center gap-2 text-teal-500">
+                <Sparkles className="w-4 h-4" />
+                <p className="text-xs font-medium">
+                  ¡Ya estás comprando todo al mejor precio!
+                </p>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-dark-400">
+                <AlertCircle className="w-4 h-4" />
+                <p className="text-xs">
+                  Vincula tus productos a varias tiendas para ver ahorros posibles.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-2">
           {loading ? (
             <div className="flex items-center justify-center py-16">
               <Loader2 className="w-6 h-6 text-primary-500 animate-spin" />
             </div>
-          ) : !data || data.stores.length === 0 ? (
-            <div className="py-12 text-center space-y-2">
-              <Store className="w-10 h-10 text-dark-700 mx-auto" />
-              <p className="text-dark-500 text-sm">No hay tiendas para comparar.</p>
-              <p className="text-dark-600 text-xs">Vincula tus productos a varias tiendas en el Catálogo.</p>
+          ) : !data || data.opportunities.length === 0 ? (
+            <div className="py-8 text-center space-y-2">
+              {data && data.items_optimal > 0 ? (
+                <>
+                  <Sparkles className="w-8 h-8 text-teal-500 mx-auto" />
+                  <p className="text-dark-400 text-sm">Todos tus productos ya están al mejor precio disponible.</p>
+                </>
+              ) : (
+                <>
+                  <Store className="w-8 h-8 text-dark-600 mx-auto" />
+                  <p className="text-dark-400 text-sm">No hay productos con tiendas alternativas.</p>
+                  <p className="text-dark-600 text-xs">
+                    Vincula tus productos a varias tiendas en el Catálogo para descubrir ahorros.
+                  </p>
+                </>
+              )}
             </div>
           ) : (
-            <>
-              {data.stores.map((s) => {
-                const isCheapest = s.store_id === cheapest.store_id
-                const fullCoverage = s.missing_count === 0
-                return (
-                  <div
-                    key={s.store_id}
-                    className={`rounded-xl border p-4 transition-colors ${
-                      isCheapest
-                        ? 'border-primary-500/50 bg-primary-600/8'
-                        : 'border-dark-800 bg-dark-950/50'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                          isCheapest ? 'bg-primary-500/20' : 'bg-amber-500/10'
-                        }`}>
-                          <Store className={`w-4 h-4 ${isCheapest ? 'text-primary-500' : 'text-amber-600'}`} />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm font-bold text-dark-100 truncate">{s.store_name}</p>
-                            {isCheapest && (
-                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary-500/20 text-primary-500 font-bold uppercase tracking-wider">
-                                Recomendado
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-dark-500">
-                            {s.available_count} de {s.available_count + s.missing_count} productos
-                            {fullCoverage && <span className="text-emerald-500 font-medium"> · completo</span>}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className={`text-base font-bold font-mono ${isCheapest ? 'text-primary-500' : 'text-dark-200'}`}>
-                          ${s.subtotal.toLocaleString('es-CO')}
-                        </p>
-                        {!isCheapest && cheapest && (
-                          <p className="text-[10px] text-dark-500">
-                            +${(s.subtotal - cheapest.subtotal).toLocaleString('es-CO')}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    {s.missing_count > 0 && (
-                      <button
-                        onClick={() => toggleExpanded(s.store_id)}
-                        className="mt-3 text-xs text-amber-500 hover:text-amber-400 flex items-center gap-1 transition-colors"
-                      >
-                        <AlertCircle className="w-3 h-3" />
-                        Te faltarían {s.missing_count}
-                        <ChevronDown className={`w-3 h-3 transition-transform ${expanded.has(s.store_id) ? 'rotate-180' : ''}`} />
-                      </button>
+            data.opportunities.map((op) => (
+              <div
+                key={op.item_id}
+                className="rounded-xl border border-dark-800 bg-dark-950/50 p-3"
+              >
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <p className="text-sm font-bold text-dark-100 truncate flex-1">
+                    {op.product_name}
+                    {op.quantity > 1 && (
+                      <span className="text-xs text-dark-500 font-normal ml-1">× {op.quantity}</span>
                     )}
-                    {expanded.has(s.store_id) && s.missing_product_names.length > 0 && (
-                      <ul className="mt-2 space-y-0.5 text-xs text-dark-400 pl-4">
-                        {s.missing_product_names.map((name, i) => (
-                          <li key={i} className="list-disc">{name}</li>
-                        ))}
-                      </ul>
-                    )}
+                  </p>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-sm font-bold font-mono text-teal-500">
+                      -${op.savings_total.toLocaleString('es-CO')}
+                    </p>
+                    <p className="text-[10px] text-dark-500">
+                      ${op.savings_per_unit.toLocaleString('es-CO')} c/u
+                    </p>
                   </div>
-                )
-              })}
-
-              {data.free_items_total > 0 && (
-                <div className="mt-2 px-3 py-2 rounded-lg bg-dark-950/50 border border-dark-800 text-xs text-dark-400 flex items-center justify-between">
-                  <span>+ Productos libres (suman a cualquier tienda)</span>
-                  <span className="font-mono font-bold text-dark-300">
-                    ${data.free_items_total.toLocaleString('es-CO')}
-                  </span>
                 </div>
-              )}
-            </>
+
+                {/* Vertical en mobile (más legible) → horizontal en sm+ */}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2 text-xs">
+                  <div className="px-2 py-1 rounded bg-dark-800 text-dark-300 flex-1 min-w-0 truncate">
+                    <span className="text-dark-500">Hoy en </span>
+                    <span className="font-medium">{op.current_store_name}</span>
+                    <span className="text-dark-500"> · </span>
+                    <span className="font-mono">${op.current_price.toLocaleString('es-CO')}</span>
+                  </div>
+                  <ArrowRight className="hidden sm:block w-3 h-3 text-teal-500 flex-shrink-0" />
+                  <div className="sm:hidden flex items-center justify-center text-teal-500 py-0.5">
+                    <ArrowRight className="w-3 h-3 rotate-90" />
+                  </div>
+                  <div className="px-2 py-1 rounded bg-teal-500/10 border border-teal-500/30 text-teal-300 flex-1 min-w-0 truncate">
+                    <span className="text-teal-400/70">Mover a </span>
+                    <span className="font-medium">{op.cheaper_store_name}</span>
+                    <span className="text-teal-400/70"> · </span>
+                    <span className="font-mono">${op.cheaper_price.toLocaleString('es-CO')}</span>
+                  </div>
+                </div>
+              </div>
+            ))
           )}
         </div>
       </div>
@@ -518,7 +530,7 @@ function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteT
           <button
             onClick={handleCheck}
             disabled={isDisabled || item.checked || loading}
-            className={`flex-shrink-0 transition-transform active:scale-90 ${item.checked ? 'text-emerald-500' : 'text-dark-600 hover:text-primary-500'}`}
+            className={`flex-shrink-0 transition-transform active:scale-90 ${item.checked ? 'text-teal-500' : 'text-dark-600 hover:text-primary-500'}`}
           >
             {loading ? (
               <Loader2 className="w-6 h-6 animate-spin" />
@@ -619,7 +631,7 @@ function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteT
                   onClick={handleUpdateCatalogPrice}
                   disabled={updatingCatalog}
                   title="Guardar este precio como nuevo precio de referencia del producto"
-                  className="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-dark-800 text-dark-400 hover:text-amber-600 hover:bg-amber-500/10 transition-colors disabled:opacity-50"
+                  className="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-dark-800 text-dark-400 hover:text-fuchsia-600 hover:bg-fuchsia-500/10 transition-colors disabled:opacity-50"
                 >
                   {updatingCatalog
                     ? <Loader2 className="w-2.5 h-2.5 animate-spin" />
@@ -646,7 +658,7 @@ function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteT
         {item.checked ? (
           <div className="flex flex-col items-end">
             <p className="text-[10px] text-dark-500 uppercase font-bold mb-0.5">Ahorro</p>
-            <div className={`flex items-center gap-1 text-sm font-bold ${isSaving ? 'text-emerald-600' : isExpensive ? 'text-red-600' : 'text-dark-400'}`}>
+            <div className={`flex items-center gap-1 text-sm font-bold ${isSaving ? 'text-teal-600' : isExpensive ? 'text-red-600' : 'text-dark-400'}`}>
               {isSaving ? <TrendingDown className="w-3 h-3" /> : isExpensive ? <TrendingUp className="w-3 h-3" /> : <Minus className="w-3 h-3" />}
               ${Math.abs(diff).toLocaleString('es-CO')}
             </div>
@@ -1125,7 +1137,7 @@ export default function ListDetail() {
   if (!list || !list.items) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
-        <AlertCircle className="w-10 h-10 text-amber-500" />
+        <AlertCircle className="w-10 h-10 text-fuchsia-500" />
         <p className="text-dark-300 font-medium">No se pudo cargar la lista.</p>
         <button onClick={() => navigate('/lists')} className="btn-secondary text-sm">
           Volver a listas
@@ -1167,7 +1179,7 @@ export default function ListDetail() {
       )}
 
       {showCompareModal && (
-        <StoreComparisonModal
+        <SavingsModal
           listId={id}
           onClose={() => setShowCompareModal(false)}
         />
@@ -1199,14 +1211,15 @@ export default function ListDetail() {
             <div className="flex">
               <button
                 onClick={handleShareWhatsApp}
-                className="btn-secondary flex items-center gap-2 rounded-r-none border-r-0 border-green-500/30 hover:border-green-500/50 hover:bg-green-500/5 text-green-600"
+                className="btn-secondary flex items-center gap-2 rounded-r-none border-r-0 border-teal-500/30 hover:border-teal-500/50 hover:bg-teal-500/5 text-teal-600"
               >
                 <MessageSquare className="w-4 h-4" />
-                <span className="hidden sm:inline">Compartir</span>
+                {/* En mobile, mostrar el texto solo si no hay otros botones (lista completada) */}
+                <span className={isCompleted ? '' : 'hidden sm:inline'}>Compartir</span>
               </button>
               <button
                 onClick={() => setShowExportMenu(v => !v)}
-                className="btn-secondary px-2 rounded-l-none border-green-500/30 hover:border-green-500/50 hover:bg-green-500/5 text-green-600"
+                className="btn-secondary px-2 rounded-l-none border-teal-500/30 hover:border-teal-500/50 hover:bg-teal-500/5 text-teal-600"
               >
                 <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showExportMenu ? 'rotate-180' : ''}`} />
               </button>
@@ -1236,7 +1249,7 @@ export default function ListDetail() {
                     disabled={exportingExcel}
                     className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-dark-300 hover:bg-dark-800 hover:text-dark-100 transition-colors disabled:opacity-50"
                   >
-                    {exportingExcel ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4 text-emerald-500" />}
+                    {exportingExcel ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4 text-teal-500" />}
                     Descargar Excel
                   </button>
                 </div>
@@ -1247,10 +1260,10 @@ export default function ListDetail() {
             <button
               onClick={() => setShowCompareModal(true)}
               className="btn-secondary flex items-center gap-2"
-              title="Comparar tiendas para esta lista"
+              title="Ver oportunidades de ahorro"
             >
-              <Scale className="w-4 h-4" />
-              <span className="hidden sm:inline">Comparar</span>
+              <TrendingDown className="w-4 h-4 text-teal-500" />
+              <span className="hidden sm:inline">Ahorros</span>
             </button>
           )}
           {!isCompleted && (
@@ -1279,7 +1292,7 @@ export default function ListDetail() {
                     onClick={handleComplete}
                     disabled={completing}
                     title="Confirmar"
-                    className="w-8 h-8 rounded-lg flex items-center justify-center text-dark-400 hover:text-emerald-600 hover:bg-emerald-500/10 transition-colors disabled:opacity-50"
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-dark-400 hover:text-teal-600 hover:bg-teal-500/10 transition-colors disabled:opacity-50"
                   >
                     {completing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                   </button>
@@ -1288,11 +1301,11 @@ export default function ListDetail() {
                 <button
                   onClick={() => setShowConfirm(true)}
                   disabled={completing || itemsBought === 0}
-                  title={itemsBought === 0 ? 'Debes marcar al menos un producto antes de finalizar' : ''}
+                  title={itemsBought === 0 ? 'Debes marcar al menos un producto antes de finalizar' : 'Finalizar Compra'}
                   className="btn-primary"
                 >
                   <CheckCircle2 className="w-4 h-4" />
-                  Finalizar Compra
+                  <span className="hidden sm:inline">Finalizar Compra</span>
                 </button>
               )}
             </div>
@@ -1311,7 +1324,7 @@ export default function ListDetail() {
 
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-start gap-4">
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${isCompleted ? 'bg-emerald-500/10 text-emerald-600' : 'bg-primary-600/10 text-primary-600'}`}>
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${isCompleted ? 'bg-teal-500/10 text-teal-600' : 'bg-primary-600/10 text-primary-600'}`}>
               {isCompleted ? <CheckCircle2 className="w-6 h-6" /> : <ShoppingCart className="w-6 h-6" />}
             </div>
             <div className="flex-1">
@@ -1424,12 +1437,12 @@ export default function ListDetail() {
               <p className="text-lg font-bold text-primary-600/50">${totalProjected.toLocaleString('es-CO')}</p>
             </div>
             <div className="text-center md:text-right">
-              <p className="text-[10px] text-emerald-500 uppercase font-bold tracking-wider mb-0.5">Total Pagado</p>
-              <p className="text-lg font-bold text-emerald-600 font-mono tracking-tight">${totalReal.toLocaleString('es-CO')}</p>
+              <p className="text-[10px] text-teal-500 uppercase font-bold tracking-wider mb-0.5">Total Pagado</p>
+              <p className="text-lg font-bold text-teal-600 font-mono tracking-tight">${totalReal.toLocaleString('es-CO')}</p>
             </div>
             <div className="text-center md:text-right">
                <p className="text-[10px] text-dark-500 uppercase font-bold tracking-wider mb-0.5">Ahorro Total</p>
-               <p className={`text-lg font-bold ${totalSaved >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+               <p className={`text-lg font-bold ${totalSaved >= 0 ? 'text-teal-600' : 'text-red-600'}`}>
                  ${totalSaved.toLocaleString('es-CO')}
                </p>
             </div>
@@ -1439,11 +1452,11 @@ export default function ListDetail() {
 
       {/* Warning for completed list */}
       {isCompleted && (
-        <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 flex items-start gap-3">
-          <Sparkles className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+        <div className="bg-teal-500/10 border border-teal-500/20 rounded-xl p-4 flex items-start gap-3">
+          <Sparkles className="w-5 h-5 text-teal-600 flex-shrink-0" />
           <div>
             <p className="text-sm font-semibold text-dark-200">¡Compra Finalizada!</p>
-            <p className="text-xs text-emerald-600/80 mt-0.5">Los precios reales han sido registrados en tu historial para futuras sugerencias.</p>
+            <p className="text-xs text-teal-600/80 mt-0.5">Los precios reales han sido registrados en tu historial para futuras sugerencias.</p>
           </div>
         </div>
       )}
@@ -1464,16 +1477,16 @@ export default function ListDetail() {
                   key={s.storeName}
                   className={`rounded-lg border p-2.5 transition-colors ${
                     fullyChecked
-                      ? 'border-emerald-500/30 bg-emerald-500/5'
+                      ? 'border-teal-500/30 bg-teal-500/5'
                       : 'border-dark-800 bg-dark-900/60 hover:bg-dark-800/40'
                   }`}
                 >
                   <div className="flex items-center gap-1.5 mb-1">
                     {s.isFree
                       ? <Tag className="w-3 h-3 text-primary-500 flex-shrink-0" />
-                      : <Store className="w-3 h-3 text-amber-600 flex-shrink-0" />}
+                      : <Store className="w-3 h-3 text-fuchsia-600 flex-shrink-0" />}
                     <p className="text-xs font-semibold text-dark-100 truncate flex-1">{s.storeName}</p>
-                    {fullyChecked && <Check className="w-3 h-3 text-emerald-500 flex-shrink-0" />}
+                    {fullyChecked && <Check className="w-3 h-3 text-teal-500 flex-shrink-0" />}
                   </div>
                   <div className="flex items-baseline justify-between gap-1">
                     <span className="text-[10px] text-dark-500">
@@ -1485,7 +1498,7 @@ export default function ListDetail() {
                   </div>
                   {s.paid > 0 && (
                     <div className="text-right mt-0.5">
-                      <span className="text-[10px] font-mono text-emerald-600">
+                      <span className="text-[10px] font-mono text-teal-600">
                         ✓ ${s.paid.toLocaleString('es-CO')}
                       </span>
                     </div>
@@ -1521,39 +1534,40 @@ export default function ListDetail() {
           )}
         </div>
 
-        {/* Store Filter */}
-        <div className="relative w-full sm:w-64">
-          <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-dark-500">
-            <Store className="w-5 h-5" />
+        {/* Store Filter + Toggle agrupar en la misma fila */}
+        <div className="flex gap-2 w-full sm:w-auto">
+          <div className="relative flex-1 sm:w-64">
+            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-dark-500">
+              <Store className="w-5 h-5" />
+            </div>
+            <select
+              value={selectedStore}
+              onChange={(e) => setSelectedStore(e.target.value)}
+              className="input pl-11 py-3 bg-dark-900 border-dark-800 focus:border-primary-500/50 focus:ring-4 focus:ring-primary-500/5 w-full appearance-none pr-10"
+            >
+              <option value="all">Todas las tiendas</option>
+              {Array.from(new Set(list.items.filter(i => i.store_name).map(i => i.store_name))).sort().map(store => (
+                <option key={store} value={store}>{store}</option>
+              ))}
+            </select>
+            <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-dark-500">
+              <Filter className="w-4 h-4" />
+            </div>
           </div>
-          <select
-            value={selectedStore}
-            onChange={(e) => setSelectedStore(e.target.value)}
-            className="input pl-11 py-3 bg-dark-900 border-dark-800 focus:border-primary-500/50 focus:ring-4 focus:ring-primary-500/5 w-full appearance-none pr-10"
-          >
-            <option value="all">Todas las tiendas</option>
-            {Array.from(new Set(list.items.filter(i => i.store_name).map(i => i.store_name))).sort().map(store => (
-              <option key={store} value={store}>{store}</option>
-            ))}
-          </select>
-          <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-dark-500">
-            <Filter className="w-4 h-4" />
-          </div>
-        </div>
 
-        {/* Toggle agrupar por categoría */}
-        <button
-          onClick={() => setGroupByCategory(v => !v)}
-          className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
-            groupByCategory
-              ? 'bg-primary-600/15 text-primary-500 border border-primary-500/30'
-              : 'bg-dark-900 text-dark-400 border border-dark-800 hover:text-dark-200 hover:border-dark-700'
-          }`}
-          title="Agrupar items por categoría (pasillos)"
-        >
-          <Tag className="w-4 h-4" />
-          <span className="hidden sm:inline">{groupByCategory ? 'Agrupado' : 'Agrupar'}</span>
-        </button>
+          <button
+            onClick={() => setGroupByCategory(v => !v)}
+            className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-colors flex-shrink-0 ${
+              groupByCategory
+                ? 'bg-primary-600/15 text-primary-500 border border-primary-500/30'
+                : 'bg-dark-900 text-dark-400 border border-dark-800 hover:text-dark-200 hover:border-dark-700'
+            }`}
+            title={groupByCategory ? 'Agrupado por categoría' : 'Agrupar por categoría'}
+          >
+            <Tag className="w-4 h-4" />
+            <span className="hidden sm:inline">{groupByCategory ? 'Agrupado' : 'Agrupar'}</span>
+          </button>
+        </div>
       </div>
 
       {/* Items Table */}

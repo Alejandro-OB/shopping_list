@@ -91,8 +91,8 @@ function StoreRow({ store, onEdit, onDelete }) {
     <tr className="border-b border-dark-800 hover:bg-dark-800/40 transition-colors group">
       <td className="px-4 py-3">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
-            <Store className="w-4 h-4 text-amber-600" />
+          <div className="w-8 h-8 rounded-lg bg-fuchsia-500/10 flex items-center justify-center flex-shrink-0">
+            <Store className="w-4 h-4 text-fuchsia-600" />
           </div>
           <span className="text-sm font-medium text-dark-100">{store.name}</span>
         </div>
@@ -177,7 +177,7 @@ export default function Stores() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-xl font-bold text-dark-200 flex items-center gap-2">
-              <Store className="w-5 h-5 text-amber-600" />
+              <Store className="w-5 h-5 text-fuchsia-600" />
               Tiendas
             </h1>
             <p className="text-dark-400 text-sm mt-0.5">{stores.length} tienda(s) registrada(s)</p>
