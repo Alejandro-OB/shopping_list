@@ -2,23 +2,47 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import api from '../api/axios'
 
 const AuthContext = createContext(null)
+const USER_KEY = 'user'
+
+// Lee el user persistido en localStorage (resistencia a cold start offline)
+function readCachedUser() {
+  try {
+    const raw = localStorage.getItem(USER_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
 
 export function AuthProvider({ children }) {
-  const [user, setUser]     = useState(null)
+  // Inicializar desde cache para evitar flash de "Cargando sesión..." cuando ya hay user
+  const [user, setUser]       = useState(() => readCachedUser())
   const [loading, setLoading] = useState(true)
+
+  const persistUser = (data) => {
+    if (data) localStorage.setItem(USER_KEY, JSON.stringify(data))
+    else localStorage.removeItem(USER_KEY)
+  }
 
   const fetchMe = useCallback(async () => {
     try {
       const { data } = await api.get('/users/me/')
       setUser(data)
+      persistUser(data)
     } catch (err) {
-      // Solo limpiar storage si hubo respuesta y fue un error de auth.
-      // Errores de red (sin response) o 5xx pueden ser transitorios — no destruir la sesión.
+      // Solo limpiar storage si fue un error de auth confirmado.
       const status = err?.response?.status
       if (status === 401 || status === 403) {
         localStorage.clear()
+        setUser(null)
+      } else {
+        // Sin response (red caída, cold start offline, 5xx): conservar la sesión cacheada.
+        // Si hay user en localStorage, lo usamos como fallback — la app arranca igual,
+        // las mutaciones se encolan y el refresh corre cuando vuelva la red.
+        const cached = readCachedUser()
+        if (cached) setUser(cached)
+        else setUser(null)
       }
-      setUser(null)
     } finally {
       setLoading(false)
     }
@@ -40,10 +64,7 @@ export function AuthProvider({ children }) {
     setUser(null)
   }, [])
 
-  // Cargar usuario al iniciar.
-  // No usar timeout artificial: si la API tarda, esperamos. El interceptor de axios
-  // ya refresca el token con /refresh/ ante 401 y, si todo falla, el catch en
-  // fetchMe limpia el storage y desbloquea el flujo hacia /login.
+  // Cargar usuario al iniciar. Si hay token, validar con la API; si no, marcar listo.
   useEffect(() => {
     const token = localStorage.getItem('access_token')
     if (token) {
