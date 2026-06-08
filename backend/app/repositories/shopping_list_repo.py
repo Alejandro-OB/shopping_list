@@ -15,21 +15,25 @@ class ShoppingListRepository(BaseRepository[ShoppingList, ShoppingListCreate, Sh
     def get(self, id: int) -> Optional[ShoppingList]:
         """
         Obtiene una lista con sus ítems y relaciones cargadas (eager loading).
+        `price_history` se carga con selectinload para alimentar el computed
+        field `last_price_real` sin N+1.
         """
-        from sqlalchemy.orm import joinedload
+        from sqlalchemy.orm import joinedload, selectinload
         from app.models.shopping_list_item import ShoppingListItem
         from app.models.product_store import ProductStore
-        
+
         query = select(self.model).options(
-            joinedload(self.model.items)
-                .joinedload(ShoppingListItem.product_store)
-                .joinedload(ProductStore.product),
-            joinedload(self.model.items)
-                .joinedload(ShoppingListItem.product_store)
-                .joinedload(ProductStore.store)
+            selectinload(self.model.items).options(
+                joinedload(ShoppingListItem.product_store).options(
+                    joinedload(ProductStore.product),
+                    joinedload(ProductStore.store),
+                ),
+                # price_history como selectinload (uno-a-muchos): un IN query
+                selectinload(ShoppingListItem.product_store).selectinload(ProductStore.price_history),
+            )
         ).filter(self.model.id == id)
-        
-        result = self.db.execute(query).unique().scalars().first()
+
+        result = self.db.execute(query).scalars().first()
         if result and result.items:
             result.items.sort(key=lambda x: (x.product_store.store.name if x.product_store and x.product_store.store else ""))
         return result
@@ -49,7 +53,9 @@ class ShoppingListRepository(BaseRepository[ShoppingList, ShoppingListCreate, Sh
                 joinedload(ShoppingListItem.product_store).options(
                     joinedload(ProductStore.product),
                     joinedload(ProductStore.store),
-                )
+                ),
+                # price_history para sugerencia de precio (last_price_real)
+                selectinload(ShoppingListItem.product_store).selectinload(ProductStore.price_history),
             )
         ).filter(self.model.user_id == user_id).order_by(self.model.date.desc()).offset(skip).limit(limit)
 

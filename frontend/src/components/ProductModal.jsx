@@ -1,15 +1,32 @@
 import { useState } from 'react'
 import {
-  Package, Plus, X, Check, Loader2, Store, Link2, AlertCircle,
+  Package, Plus, X, Check, Loader2, Store, Link2, AlertCircle, Tag,
 } from 'lucide-react'
 import api from '../api/axios'
 import { apiCache } from '../api/cache'
 import toast from 'react-hot-toast'
 
+// Categorías predefinidas (orden típico de pasillos de supermercado en Colombia)
+export const PRODUCT_CATEGORIES = [
+  'Frutas y verduras',
+  'Carnes y embutidos',
+  'Lácteos',
+  'Panadería',
+  'Granos y abarrotes',
+  'Congelados',
+  'Bebidas',
+  'Snacks',
+  'Aseo personal',
+  'Aseo del hogar',
+  'Mascotas',
+  'Otros',
+]
+
 export default function ProductModal({ product, stores, onClose, onSaved, initialName }) {
   const isEdit = !!product
   const [form, setForm] = useState({
     name: product?.name ?? initialName ?? '',
+    category: product?.category ?? '',
     frequency: product?.frequency ?? 'weekly',
     frequency_start_date: product?.frequency_start_date
       ? new Date(product.frequency_start_date).toISOString().split('T')[0]
@@ -52,13 +69,15 @@ export default function ProductModal({ product, stores, onClose, onSaved, initia
     e.preventDefault()
     setLoading(true)
     try {
+      // Normalizar payload: enviar category=null si está vacío (en vez de "")
+      const payload = { ...form, category: form.category || null }
       let savedProduct
       if (isEdit) {
-        const { data } = await api.put(`/products/${product.id}/`, form)
+        const { data } = await api.put(`/products/${product.id}/`, payload)
         savedProduct = data
         toast.success('Producto actualizado')
       } else {
-        const { data } = await api.post('/products/', form)
+        const { data } = await api.post('/products/', payload)
         savedProduct = data
         toast.success('Producto creado')
       }
@@ -144,6 +163,20 @@ export default function ProductModal({ product, stores, onClose, onSaved, initia
               placeholder="Ej: Leche entera, Arroz, Jabón..."
               className="input"
             />
+          </div>
+
+          <div>
+            <label className="label flex items-center gap-1.5">
+              <Tag className="w-3.5 h-3.5 text-dark-500" />
+              Categoría
+              <span className="text-dark-600 font-normal text-[10px] ml-1">(opcional, para agrupar por pasillo)</span>
+            </label>
+            <select name="category" value={form.category} onChange={handleChange} className="input">
+              <option value="">— Sin categoría —</option>
+              {PRODUCT_CATEGORIES.map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

@@ -112,7 +112,7 @@ def reset_password(
 @router.post("/refresh/", response_model=Token)
 def refresh_token(
     db: Session = Depends(get_db),
-    refresh_token: str = Body(...)
+    refresh_token: str = Body(..., embed=True),
 ) -> Any:
     """
     Get a new access token using a valid refresh token.
@@ -155,7 +155,7 @@ def refresh_token(
 @router.post("/logout/")
 def logout(
     db: Session = Depends(get_db),
-    refresh_token: str = Body(...)
+    refresh_token: str = Body(..., embed=True),
 ) -> Any:
     """
     Revokes a specific refresh token.

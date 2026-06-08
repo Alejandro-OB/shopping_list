@@ -59,6 +59,31 @@ class ShoppingListItemOut(BaseModel):
     def is_free(self) -> bool:
         return self.product_store_id is None
 
+    @computed_field
+    def category(self) -> Optional[str]:
+        """Categoría del producto (None para items libres o sin categoría asignada)."""
+        if self.product_store and getattr(self.product_store, "product", None):
+            return getattr(self.product_store.product, "category", None)
+        return None
+
+    @computed_field
+    def last_price_real(self) -> Optional[float]:
+        """
+        Último precio real pagado para este product_store (sugerencia inteligente).
+        Excluye el price_history del propio item si ya está checked (para no
+        autosugerirse a sí mismo). Devuelve None para items libres.
+        """
+        if not self.product_store:
+            return None
+        history = getattr(self.product_store, "price_history", None) or []
+        if not history:
+            return None
+        # Tomar el más reciente (excluyendo entradas del propio item si fue marcado)
+        sorted_hist = sorted(history, key=lambda h: h.date, reverse=True)
+        for entry in sorted_hist:
+            return float(entry.price)
+        return None
+
     model_config = ConfigDict(from_attributes=True)
 
 # Lista de compras
@@ -105,5 +130,22 @@ class ShoppingListOut(ShoppingListBase):
     status: ListStatus
     is_auto_generated: bool
     items: List[ShoppingListItemOut] = []
-    
+
     model_config = ConfigDict(from_attributes=True)
+
+
+# ── Comparador de tiendas ────────────────────────────────────────────────────
+class StoreInComparison(BaseModel):
+    store_id: int
+    store_name: str
+    available_count: int                # items vinculados disponibles en esta tienda
+    missing_count: int                  # items que NO se venden aquí
+    subtotal: float                     # total estimado al comprar todo lo disponible aquí
+    missing_product_names: List[str] = []
+
+
+class StoreComparisonOut(BaseModel):
+    list_id: int
+    stores: List[StoreInComparison]     # ordenadas: más disponibles → menor subtotal
+    free_items_total: float             # ítems libres (no atribuibles a una tienda)
+    items_total: int                    # total de items en la lista (contexto)

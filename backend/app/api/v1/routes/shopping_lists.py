@@ -12,7 +12,7 @@ from app.api.deps import get_current_user
 from app.models.user import User
 from app.services.shopping_list_service import ShoppingListService
 from app.repositories.shopping_list_repo import ShoppingListRepository
-from app.schemas.shopping_list import ShoppingListOut, ShoppingListItemUpdate, ShoppingListItemOut, ListStatus, ShoppingListManualCreate, ShoppingListUpdate, ShoppingListItemCreate
+from app.schemas.shopping_list import ShoppingListOut, ShoppingListItemUpdate, ShoppingListItemOut, ListStatus, ShoppingListManualCreate, ShoppingListUpdate, ShoppingListItemCreate, StoreComparisonOut
 
 router = APIRouter()
 
@@ -543,6 +543,23 @@ def export_shopping_list_excel(
             "Content-Disposition": f"attachment; filename={filename}"
         }
     )
+
+@router.get("/{list_id}/store-comparison/", response_model=StoreComparisonOut)
+def compare_stores(
+    list_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Any:
+    """
+    Calcula cuánto costaría comprar la lista en cada tienda relevante,
+    para sugerir dónde conviene comprar esta semana.
+    """
+    service = ShoppingListService(db)
+    try:
+        return service.compare_stores_for_list(list_id, current_user.id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
 
 @router.post("/{id}/complete/", response_model=ShoppingListOut)
 def complete_shopping_list(

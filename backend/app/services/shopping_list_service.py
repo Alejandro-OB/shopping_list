@@ -54,10 +54,12 @@ class ShoppingListService:
             products_to_add = []
             for product in products:
                 if should_appear_today(product.frequency.value, product.frequency_start_date, today_bogota):
-                    # Tomar la primera tienda activa
-                    active_store = next((ps for ps in product.product_stores if not ps.is_deleted), None)
-                    if active_store:
-                        products_to_add.append(active_store)
+                    # Tomar la tienda activa más barata (price_catalog mínimo).
+                    # Si está vinculado a una sola tienda, esa gana por defecto.
+                    active_stores = [ps for ps in product.product_stores if not ps.is_deleted]
+                    if active_stores:
+                        cheapest = min(active_stores, key=lambda ps: ps.price_catalog)
+                        products_to_add.append(cheapest)
 
             if not products_to_add:
                 continue
@@ -173,3 +175,82 @@ class ShoppingListService:
         self.db.commit()
         self.db.refresh(shopping_list)
         return shopping_list
+
+    def compare_stores_for_list(self, list_id: int, user_id: int):
+        """
+        Para una lista, calcula cuánto costaría comprar todo en cada tienda
+        relevante (tiendas donde al menos un producto de la lista está vinculado).
+        Indica disponibles vs faltantes por tienda.
+        """
+        from sqlalchemy.orm import joinedload
+        from sqlalchemy import select
+        from app.models.product_store import ProductStore
+
+        shopping_list = self.list_repo.get(list_id)
+        if not shopping_list or shopping_list.user_id != user_id:
+            raise ValueError("Lista no encontrada")
+
+        linked_items = [i for i in shopping_list.items if i.product_store_id]
+        free_items = [i for i in shopping_list.items if not i.product_store_id]
+        free_total = sum(float(i.price_catalog_snapshot or 0) * i.quantity for i in free_items)
+
+        if not linked_items:
+            return {
+                "list_id": list_id,
+                "stores": [],
+                "free_items_total": free_total,
+                "items_total": len(shopping_list.items),
+            }
+
+        product_ids = list({i.product_store.product_id for i in linked_items if i.product_store})
+
+        # Una sola query: todos los product_stores de los productos de la lista
+        all_product_stores = self.db.execute(
+            select(ProductStore).options(
+                joinedload(ProductStore.store),
+                joinedload(ProductStore.product),
+            ).filter(
+                ProductStore.product_id.in_(product_ids),
+                ProductStore.is_deleted == False,  # noqa: E712
+            )
+        ).scalars().all()
+
+        # Indexar precios por (product_id, store_id) y descubrir tiendas relevantes
+        price_map = {}
+        stores_seen = {}
+        for ps in all_product_stores:
+            price_map[(ps.product_id, ps.store_id)] = float(ps.price_catalog)
+            stores_seen[ps.store_id] = ps.store.name
+
+        result = []
+        for store_id, store_name in stores_seen.items():
+            available_count = 0
+            missing_count = 0
+            subtotal = 0.0
+            missing_names = []
+            for item in linked_items:
+                pid = item.product_store.product_id
+                if (pid, store_id) in price_map:
+                    available_count += 1
+                    subtotal += price_map[(pid, store_id)] * item.quantity
+                else:
+                    missing_count += 1
+                    missing_names.append(item.product_store.product.name)
+            result.append({
+                "store_id": store_id,
+                "store_name": store_name,
+                "available_count": available_count,
+                "missing_count": missing_count,
+                "subtotal": subtotal,
+                "missing_product_names": missing_names,
+            })
+
+        # Ordenar: más cobertura primero, ante empate menor subtotal
+        result.sort(key=lambda r: (-r["available_count"], r["subtotal"]))
+
+        return {
+            "list_id": list_id,
+            "stores": result,
+            "free_items_total": free_total,
+            "items_total": len(shopping_list.items),
+        }

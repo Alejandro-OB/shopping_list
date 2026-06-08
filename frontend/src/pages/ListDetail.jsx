@@ -5,12 +5,140 @@ import {
   Circle, AlertCircle, Loader2, Sparkles, Pencil, Save,
   TrendingDown, TrendingUp, Minus, Plus, Trash2, FileText, Download,
   FileSpreadsheet, MessageSquare, Search, Filter, Tag, RefreshCw, PackagePlus, ChevronDown,
-  BookmarkPlus,
+  BookmarkPlus, Scale,
 } from 'lucide-react'
 import api from '../api/axios'
 import { apiCache } from '../api/cache'
 import toast from 'react-hot-toast'
 import ProductModal from '../components/ProductModal'
+
+// ── Modal: Comparar tiendas ────────────────────────────────────────────────────
+function StoreComparisonModal({ listId, onClose }) {
+  const [loading, setLoading] = useState(true)
+  const [data, setData] = useState(null)
+  const [expanded, setExpanded] = useState(new Set()) // store_ids con missing expandido
+
+  useEffect(() => {
+    api.get(`/lists/${listId}/store-comparison/`)
+      .then(({ data }) => setData(data))
+      .catch(() => toast.error('No se pudo calcular la comparación'))
+      .finally(() => setLoading(false))
+  }, [listId])
+
+  const toggleExpanded = (storeId) => setExpanded(prev => {
+    const next = new Set(prev)
+    next.has(storeId) ? next.delete(storeId) : next.add(storeId)
+    return next
+  })
+
+  const cheapest = data?.stores?.[0]
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm">
+      <div className="bg-dark-900 border border-dark-700 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg flex flex-col max-h-[85vh]">
+        <div className="flex items-center justify-between px-4 py-3.5 border-b border-dark-800">
+          <h2 className="text-sm font-bold text-dark-200 flex items-center gap-2">
+            <Scale className="w-4 h-4 text-primary-600" />
+            Comparar tiendas
+          </h2>
+          <button onClick={onClose} className="btn-ghost p-1.5"><X className="w-4 h-4" /></button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="w-6 h-6 text-primary-500 animate-spin" />
+            </div>
+          ) : !data || data.stores.length === 0 ? (
+            <div className="py-12 text-center space-y-2">
+              <Store className="w-10 h-10 text-dark-700 mx-auto" />
+              <p className="text-dark-500 text-sm">No hay tiendas para comparar.</p>
+              <p className="text-dark-600 text-xs">Vincula tus productos a varias tiendas en el Catálogo.</p>
+            </div>
+          ) : (
+            <>
+              {data.stores.map((s) => {
+                const isCheapest = s.store_id === cheapest.store_id
+                const fullCoverage = s.missing_count === 0
+                return (
+                  <div
+                    key={s.store_id}
+                    className={`rounded-xl border p-4 transition-colors ${
+                      isCheapest
+                        ? 'border-primary-500/50 bg-primary-600/8'
+                        : 'border-dark-800 bg-dark-950/50'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                          isCheapest ? 'bg-primary-500/20' : 'bg-amber-500/10'
+                        }`}>
+                          <Store className={`w-4 h-4 ${isCheapest ? 'text-primary-500' : 'text-amber-600'}`} />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-bold text-dark-100 truncate">{s.store_name}</p>
+                            {isCheapest && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary-500/20 text-primary-500 font-bold uppercase tracking-wider">
+                                Recomendado
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-dark-500">
+                            {s.available_count} de {s.available_count + s.missing_count} productos
+                            {fullCoverage && <span className="text-emerald-500 font-medium"> · completo</span>}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className={`text-base font-bold font-mono ${isCheapest ? 'text-primary-500' : 'text-dark-200'}`}>
+                          ${s.subtotal.toLocaleString('es-CO')}
+                        </p>
+                        {!isCheapest && cheapest && (
+                          <p className="text-[10px] text-dark-500">
+                            +${(s.subtotal - cheapest.subtotal).toLocaleString('es-CO')}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {s.missing_count > 0 && (
+                      <button
+                        onClick={() => toggleExpanded(s.store_id)}
+                        className="mt-3 text-xs text-amber-500 hover:text-amber-400 flex items-center gap-1 transition-colors"
+                      >
+                        <AlertCircle className="w-3 h-3" />
+                        Te faltarían {s.missing_count}
+                        <ChevronDown className={`w-3 h-3 transition-transform ${expanded.has(s.store_id) ? 'rotate-180' : ''}`} />
+                      </button>
+                    )}
+                    {expanded.has(s.store_id) && s.missing_product_names.length > 0 && (
+                      <ul className="mt-2 space-y-0.5 text-xs text-dark-400 pl-4">
+                        {s.missing_product_names.map((name, i) => (
+                          <li key={i} className="list-disc">{name}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )
+              })}
+
+              {data.free_items_total > 0 && (
+                <div className="mt-2 px-3 py-2 rounded-lg bg-dark-950/50 border border-dark-800 text-xs text-dark-400 flex items-center justify-between">
+                  <span>+ Productos libres (suman a cualquier tienda)</span>
+                  <span className="font-mono font-bold text-dark-300">
+                    ${data.free_items_total.toLocaleString('es-CO')}
+                  </span>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // ── Modal: Agregar productos a la lista ────────────────────────────────────────
 function AddItemsModal({ listId, existingItems, onClose, onAdded }) {
@@ -319,8 +447,12 @@ function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteT
   const storageKey = `pendingPrice:${listId}:${item.id}`
   const [price, setPrice] = useState(() => {
     if (item.checked) return item.price_real || ''
+    // 1. Borrador en localStorage tiene la máxima prioridad
     const cached = localStorage.getItem(storageKey)
     if (cached !== null) return cached
+    // 2. Sugerencia inteligente: último precio_real pagado para este product_store
+    if (item.last_price_real) return String(item.last_price_real)
+    // 3. Fallback: lo que venga del backend (suele ser 0)
     return item.price_real || ''
   })
   const updatePrice = (val) => {
@@ -571,6 +703,7 @@ export default function ListDetail() {
   const [completing, setCompleting] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showCompareModal, setShowCompareModal] = useState(false)
   
   const [isEditingName, setIsEditingName] = useState(false)
   const [newName, setNewName] = useState('')
@@ -585,6 +718,7 @@ export default function ListDetail() {
   const [exportingExcel, setExportingExcel] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedStore, setSelectedStore] = useState('all')
+  const [groupByCategory, setGroupByCategory] = useState(false)
 
   // Modal para guardar producto libre como producto en BD
   const [productModalInitial, setProductModalInitial] = useState(null) // string | null
@@ -981,6 +1115,13 @@ export default function ListDetail() {
         />
       )}
 
+      {showCompareModal && (
+        <StoreComparisonModal
+          listId={id}
+          onClose={() => setShowCompareModal(false)}
+        />
+      )}
+
       {productModalInitial !== null && (
         <ProductModal
           product={null}
@@ -1051,6 +1192,16 @@ export default function ListDetail() {
               </>
             )}
           </div>
+          {!isCompleted && (
+            <button
+              onClick={() => setShowCompareModal(true)}
+              className="btn-secondary flex items-center gap-2"
+              title="Comparar tiendas para esta lista"
+            >
+              <Scale className="w-4 h-4" />
+              <span className="hidden sm:inline">Comparar</span>
+            </button>
+          )}
           {!isCompleted && (
             <button
               onClick={() => setShowAddModal(true)}
@@ -1281,7 +1432,7 @@ export default function ListDetail() {
             className="input pl-11 py-3 bg-dark-900 border-dark-800 focus:border-primary-500/50 focus:ring-4 focus:ring-primary-500/5 w-full appearance-none pr-10"
           >
             <option value="all">Todas las tiendas</option>
-            {Array.from(new Set(list.items.map(i => i.store_name))).sort().map(store => (
+            {Array.from(new Set(list.items.filter(i => i.store_name).map(i => i.store_name))).sort().map(store => (
               <option key={store} value={store}>{store}</option>
             ))}
           </select>
@@ -1289,6 +1440,20 @@ export default function ListDetail() {
             <Filter className="w-4 h-4" />
           </div>
         </div>
+
+        {/* Toggle agrupar por categoría */}
+        <button
+          onClick={() => setGroupByCategory(v => !v)}
+          className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+            groupByCategory
+              ? 'bg-primary-600/15 text-primary-500 border border-primary-500/30'
+              : 'bg-dark-900 text-dark-400 border border-dark-800 hover:text-dark-200 hover:border-dark-700'
+          }`}
+          title="Agrupar items por categoría (pasillos)"
+        >
+          <Tag className="w-4 h-4" />
+          <span className="hidden sm:inline">{groupByCategory ? 'Agrupado' : 'Agrupar'}</span>
+        </button>
       </div>
 
       {/* Items Table */}
@@ -1344,18 +1509,55 @@ export default function ListDetail() {
                      );
                    }
 
-                   return filteredItems.map(item => (
-                     <ItemRow
-                       key={item.id}
-                       item={item}
-                       listId={id}
-                       onCheck={handleCheckItem}
-                       onDelete={handleDeleteItem}
-                       onUpdateQuantity={handleUpdateQuantity}
-                       onPromoteToProduct={(name) => setProductModalInitial(name)}
-                       isDisabled={isCompleted}
-                     />
-                   ));
+                   if (!groupByCategory) {
+                     return filteredItems.map(item => (
+                       <ItemRow
+                         key={item.id}
+                         item={item}
+                         listId={id}
+                         onCheck={handleCheckItem}
+                         onDelete={handleDeleteItem}
+                         onUpdateQuantity={handleUpdateQuantity}
+                         onPromoteToProduct={(name) => setProductModalInitial(name)}
+                         isDisabled={isCompleted}
+                       />
+                     ));
+                   }
+
+                   // Agrupar por categoría — items sin categoría van al final
+                   const buckets = new Map()
+                   filteredItems.forEach(item => {
+                     const key = item.category || 'Sin categoría'
+                     if (!buckets.has(key)) buckets.set(key, [])
+                     buckets.get(key).push(item)
+                   })
+                   const sortedCategories = [...buckets.keys()].sort((a, b) => {
+                     if (a === 'Sin categoría') return 1
+                     if (b === 'Sin categoría') return -1
+                     return a.localeCompare(b)
+                   })
+
+                   return sortedCategories.flatMap(cat => [
+                     <tr key={`hdr-${cat}`} className="bg-dark-950/70 border-b border-dark-800">
+                       <td colSpan={4} className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-primary-500 flex items-center gap-1.5">
+                         <Tag className="w-3 h-3" />
+                         {cat}
+                         <span className="ml-1 text-dark-500 font-normal normal-case">· {buckets.get(cat).length}</span>
+                       </td>
+                     </tr>,
+                     ...buckets.get(cat).map(item => (
+                       <ItemRow
+                         key={item.id}
+                         item={item}
+                         listId={id}
+                         onCheck={handleCheckItem}
+                         onDelete={handleDeleteItem}
+                         onUpdateQuantity={handleUpdateQuantity}
+                         onPromoteToProduct={(name) => setProductModalInitial(name)}
+                         isDisabled={isCompleted}
+                       />
+                     )),
+                   ]);
                  })()
                )}
              </tbody>

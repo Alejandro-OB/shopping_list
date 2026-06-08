@@ -11,6 +11,7 @@ class FrequencyEnum(str, Enum):
 
 class ProductBase(BaseModel):
     name: str = Field(..., max_length=255)
+    category: Optional[str] = Field(None, max_length=50)
     frequency: FrequencyEnum
     frequency_start_date: datetime
 
@@ -19,6 +20,7 @@ class ProductCreate(ProductBase):
 
 class ProductUpdate(BaseModel):
     name: Optional[str] = None
+    category: Optional[str] = Field(None, max_length=50)
     frequency: Optional[FrequencyEnum] = None
     frequency_start_date: Optional[datetime] = None
     is_deleted: Optional[bool] = None

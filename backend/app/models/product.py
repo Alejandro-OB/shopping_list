@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import List, TYPE_CHECKING
+from typing import List, Optional, TYPE_CHECKING
 from sqlalchemy import BigInteger, DateTime, ForeignKey, String, Boolean, Enum as SqlEnum
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 from app.core.db.base import Base
@@ -20,6 +20,7 @@ class Product(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    category: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     frequency: Mapped[FrequencyEnum] = mapped_column(SqlEnum(FrequencyEnum), nullable=False)
     frequency_start_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
