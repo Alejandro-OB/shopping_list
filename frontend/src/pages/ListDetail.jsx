@@ -590,6 +590,7 @@ function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteT
               type="number"
               value={price}
               onChange={(e) => updatePrice(e.target.value)}
+              onFocus={(e) => e.target.select()}
               disabled={isDisabled || item.checked}
               placeholder="0"
               className="input pl-5 py-1.5 text-right text-sm"
