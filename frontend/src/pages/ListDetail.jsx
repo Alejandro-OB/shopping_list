@@ -754,6 +754,32 @@ export default function ListDetail() {
     return () => window.removeEventListener('cy-queue-drained', onDrained)
   }, [])
 
+  // Desglose por tienda — agrupa items por store_name, suma estimado y pagado.
+  // Items libres (store_name=null) caen en "Sin tienda".
+  // IMPORTANTE: este useMemo debe estar antes de cualquier return condicional
+  // para no romper la regla de hooks (mismo orden en cada render).
+  const storeBreakdown = useMemo(() => {
+    const items = list?.items || []
+    const map = new Map()
+    for (const it of items) {
+      const key = it.store_name || 'Sin tienda'
+      const isFree = !it.store_name
+      const bucket = map.get(key) || { storeName: key, isFree, count: 0, checkedCount: 0, estimated: 0, paid: 0 }
+      bucket.count += 1
+      bucket.estimated += (it.price_catalog_snapshot || 0) * it.quantity
+      if (it.checked) {
+        bucket.checkedCount += 1
+        bucket.paid += (it.price_real || 0) * it.quantity
+      }
+      map.set(key, bucket)
+    }
+    return [...map.values()].sort((a, b) => {
+      if (a.isFree) return 1
+      if (b.isFree) return -1
+      return b.estimated - a.estimated
+    })
+  }, [list?.items])
+
   const fetchList = async () => {
     setLoading(true)
     try {
@@ -1115,29 +1141,6 @@ export default function ListDetail() {
     if (!curr.checked) return acc
     return acc + (((curr.price_catalog_snapshot || 0) - curr.price_real) * curr.quantity)
   }, 0)
-
-  // Desglose por tienda — agrupa items por store_name, suma estimado y pagado.
-  // Items libres (store_name=null) caen en "Sin tienda".
-  const storeBreakdown = useMemo(() => {
-    const map = new Map()
-    for (const it of list.items) {
-      const key = it.store_name || 'Sin tienda'
-      const isFree = !it.store_name
-      const bucket = map.get(key) || { storeName: key, isFree, count: 0, checkedCount: 0, estimated: 0, paid: 0 }
-      bucket.count += 1
-      bucket.estimated += (it.price_catalog_snapshot || 0) * it.quantity
-      if (it.checked) {
-        bucket.checkedCount += 1
-        bucket.paid += (it.price_real || 0) * it.quantity
-      }
-      map.set(key, bucket)
-    }
-    return [...map.values()].sort((a, b) => {
-      if (a.isFree) return 1
-      if (b.isFree) return -1
-      return b.estimated - a.estimated
-    })
-  }, [list.items])
 
   const isCompleted = list.status === 'completed'
 
