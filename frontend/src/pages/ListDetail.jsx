@@ -314,8 +314,23 @@ function AddItemsModal({ listId, existingItems, onClose, onAdded }) {
   )
 }
 
-function ItemRow({ item, onCheck, onDelete, onUpdateQuantity, onPromoteToProduct, isDisabled }) {
-  const [price, setPrice] = useState(item.price_real || '')
+function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteToProduct, isDisabled }) {
+  // Persistir el precio digitado en localStorage para no perderlo al refrescar
+  const storageKey = `pendingPrice:${listId}:${item.id}`
+  const [price, setPrice] = useState(() => {
+    if (item.checked) return item.price_real || ''
+    const cached = localStorage.getItem(storageKey)
+    if (cached !== null) return cached
+    return item.price_real || ''
+  })
+  const updatePrice = (val) => {
+    setPrice(val)
+    if (val === '' || val === null) {
+      localStorage.removeItem(storageKey)
+    } else {
+      localStorage.setItem(storageKey, val)
+    }
+  }
   const [loading, setLoading] = useState(false)
   const [updatingQty, setUpdatingQty] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -336,6 +351,8 @@ function ItemRow({ item, onCheck, onDelete, onUpdateQuantity, onPromoteToProduct
     setLoading(true)
     try {
       await onCheck(item.id, parseFloat(price))
+      // Tras éxito (sin throw), el item queda confirmado en backend — limpiar borrador local
+      localStorage.removeItem(storageKey)
     } finally {
       setLoading(false)
     }
@@ -343,7 +360,7 @@ function ItemRow({ item, onCheck, onDelete, onUpdateQuantity, onPromoteToProduct
 
   // Rellena el input con el precio del catálogo (cuando el precio no cambió)
   const handleFillFromCatalog = () => {
-    setPrice(item.price_catalog_snapshot)
+    updatePrice(String(item.price_catalog_snapshot))
   }
 
   // Actualiza el precio de referencia del catálogo con el precio ingresado
@@ -440,7 +457,7 @@ function ItemRow({ item, onCheck, onDelete, onUpdateQuantity, onPromoteToProduct
             <input
               type="number"
               value={price}
-              onChange={(e) => setPrice(e.target.value)}
+              onChange={(e) => updatePrice(e.target.value)}
               disabled={isDisabled || item.checked}
               placeholder="0"
               className="input pl-5 py-1.5 text-right text-sm"
@@ -623,12 +640,15 @@ export default function ListDetail() {
     } catch (err) {
       const msg = err.response?.data?.detail || 'Error al actualizar ítem'
       toast.error(msg)
+      throw err  // re-lanzar para que ItemRow no limpie el borrador local
     }
   }
 
   const handleDeleteItem = async (itemId) => {
     try {
       await api.delete(`/lists/items/${itemId}/`)
+      // Limpiar borrador local de precio si lo había
+      localStorage.removeItem(`pendingPrice:${id}:${itemId}`)
       toast.success('Producto eliminado de la lista')
       fetchList()
     } catch (err) {
@@ -1267,6 +1287,7 @@ export default function ListDetail() {
                      <ItemRow
                        key={item.id}
                        item={item}
+                       listId={id}
                        onCheck={handleCheckItem}
                        onDelete={handleDeleteItem}
                        onUpdateQuantity={handleUpdateQuantity}
