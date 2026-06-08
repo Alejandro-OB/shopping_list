@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
   ShoppingCart,
-  Package,
+  BookOpen,
   Store,
   BarChart3,
   Settings,
@@ -12,7 +12,6 @@ import {
   Menu,
   Sparkles,
   X,
-  BookOpen,
   Server,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
@@ -22,7 +21,6 @@ const NAV_ITEMS = [
   { label: 'Dashboard',      icon: LayoutDashboard, to: '/' },
   { label: 'Listas',         icon: ShoppingCart,    to: '/lists' },
   { label: 'Catálogo',       icon: BookOpen,        to: '/catalog' },
-  { label: 'Productos',      icon: Package,         to: '/products' },
   { label: 'Tiendas',        icon: Store,           to: '/stores' },
   { label: 'Sistema',        icon: Server,          to: '/system-info' },
   { label: 'Configuración',  icon: Settings,        to: '/settings' },

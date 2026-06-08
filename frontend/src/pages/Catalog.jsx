@@ -2,11 +2,13 @@ import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   BookOpen, Search, Loader2, Package, Store,
-  CalendarDays, ShoppingCart, Check, AlertCircle, Plus, PlusCircle
+  CalendarDays, ShoppingCart, Check, AlertCircle, Plus, PlusCircle,
+  Pencil, Trash2, X,
 } from 'lucide-react'
 import api from '../api/axios'
 import { apiCache } from '../api/cache'
 import toast from 'react-hot-toast'
+import ProductModal from '../components/ProductModal'
 
 const FREQ_LABELS = {
   weekly:     { label: 'Semanal',   cls: 'badge-purple' },
@@ -32,35 +34,142 @@ function getNextAvailableTuesday(existingLists) {
   const occupiedWeeks = new Set(
     existingLists.map(l => getWeekStart(new Date(l.date)).toISOString())
   )
-
   let candidate = new Date()
   candidate.setHours(0, 0, 0, 0)
-
-  // Empezar a buscar desde hoy inclusive hasta encontrar un martes
-  while (candidate.getDay() !== 2) {
-    candidate.setDate(candidate.getDate() + 1)
-  }
-
-  // Si la semana del candidato está ocupada, saltar de 7 en 7 hasta encontrar una libre
-  while (occupiedWeeks.has(getWeekStart(candidate).toISOString())) {
+  while (candidate.getDay() !== 2) candidate.setDate(candidate.getDate() + 1)
+  while (occupiedWeeks.has(getWeekStart(candidate).toISOString()))
     candidate.setDate(candidate.getDate() + 7)
-  }
-
   return candidate
 }
 
+// ── Fila: selección para lista + acciones CRUD ───────────────────────────────
+function CatalogRow({ row, productObj, isChecked, quantity, onToggle, onQuantityChange, onEdit, onDelete }) {
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const freq = FREQ_LABELS[row.frequency] ?? { label: row.frequency, cls: 'badge-purple' }
+
+  const handleDelete = async () => {
+    setDeleting(true)
+    try { await onDelete(row.product_id) }
+    finally { setDeleting(false); setConfirmDelete(false) }
+  }
+
+  return (
+    <tr
+      onClick={() => onToggle(row.ps_id)}
+      className={`border-b border-dark-800 cursor-pointer transition-colors group
+        ${isChecked ? 'bg-primary-600/10 hover:bg-primary-600/15' : 'hover:bg-dark-800/50'}`}
+    >
+      {/* Checkbox */}
+      <td className="px-4 py-3">
+        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all flex-shrink-0
+          ${isChecked ? 'bg-primary-600 border-primary-600' : 'border-dark-600'}`}>
+          {isChecked && <Check className="w-3 h-3 text-white" />}
+        </div>
+      </td>
+
+      {/* Tienda */}
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-md bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+            <Store className="w-3.5 h-3.5 text-amber-600" />
+          </div>
+          <span className="text-sm text-dark-200">{row.store}</span>
+        </div>
+      </td>
+
+      {/* Producto */}
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-md bg-primary-600/10 flex items-center justify-center flex-shrink-0">
+            <Package className="w-3.5 h-3.5 text-primary-600" />
+          </div>
+          <span className="text-sm font-medium text-dark-100">{row.product}</span>
+        </div>
+      </td>
+
+      {/* Precio */}
+      <td className="px-4 py-3 text-right hidden sm:table-cell">
+        <span className="text-sm font-mono text-dark-200">
+          ${row.price.toLocaleString('es-CO')}
+        </span>
+      </td>
+
+      {/* Frecuencia */}
+      <td className="px-4 py-3 hidden md:table-cell">
+        <span className={freq.cls}>{freq.label}</span>
+      </td>
+
+      {/* Cantidad */}
+      <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+        <div className={`flex items-center justify-center gap-2 transition-opacity
+          ${isChecked ? 'opacity-100' : 'opacity-30 pointer-events-none'}`}>
+          <button
+            onClick={() => onQuantityChange(row.ps_id, -1)}
+            className="w-7 h-7 rounded-lg border border-dark-700 flex items-center justify-center hover:bg-dark-800 transition-colors text-dark-300"
+          >
+            <Plus className="w-3.5 h-3.5 rotate-45" />
+          </button>
+          <span className="w-6 text-center text-sm font-bold text-dark-200">{quantity}</span>
+          <button
+            onClick={() => onQuantityChange(row.ps_id, 1)}
+            className="w-7 h-7 rounded-lg border border-dark-700 flex items-center justify-center hover:bg-dark-800 transition-colors text-dark-300"
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </td>
+
+      {/* Acciones CRUD */}
+      <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={() => onEdit(productObj)}
+            className="btn-ghost p-1.5"
+            title="Editar producto"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+          {confirmDelete ? (
+            <div className="flex items-center gap-1">
+              <button onClick={handleDelete} disabled={deleting} className="btn-ghost p-1.5 text-red-600 hover:text-red-600">
+                {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+              </button>
+              <button onClick={() => setConfirmDelete(false)} className="btn-ghost p-1.5">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <button onClick={() => setConfirmDelete(true)} className="btn-ghost p-1.5 hover:text-red-600" title="Eliminar producto">
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      </td>
+    </tr>
+  )
+}
+
+// ── Página principal ────────────────────────────────────────────────────────
 export default function Catalog() {
   const navigate = useNavigate()
-  const [rows, setRows]             = useState([])
-  const [loading, setLoading]       = useState(true)
-  const [search, setSearch]         = useState('')
-  const [freqFilter, setFreqFilter] = useState('all')
+
+  const [rows, setRows]               = useState([])
+  const [productsRaw, setProductsRaw] = useState([])
+  const [stores, setStores]           = useState([])
+  const [loading, setLoading]         = useState(true)
+
+  const [search, setSearch]           = useState('')
+  const [freqFilter, setFreqFilter]   = useState('all')
   const [storeFilter, setStoreFilter] = useState('all')
-  const [selected, setSelected]     = useState(new Map()) // ps_id -> quantity
-  const [creating, setCreating]     = useState(false)
-  const [adding, setAdding]         = useState(false)
-  const [activeList, setActiveList] = useState(null)
-  const [nextTuesday, setNextTuesday] = useState(null) // calculado tras cargar listas
+
+  const [selected, setSelected]       = useState(new Map()) // ps_id -> quantity
+  const [creating, setCreating]       = useState(false)
+  const [adding, setAdding]           = useState(false)
+  const [activeList, setActiveList]   = useState(null)
+  const [nextTuesday, setNextTuesday] = useState(null)
+
+  const [modal, setModal] = useState(null) // null | 'create' | objeto-producto
 
   const nextTuesdayLabel = nextTuesday
     ? nextTuesday.toLocaleDateString('es-CO', { weekday: 'long', day: '2-digit', month: 'long' })
@@ -68,35 +177,44 @@ export default function Catalog() {
 
   useEffect(() => { fetchData() }, [])
 
-  const fetchData = async () => {
+  const fetchData = async (force = false) => {
     setLoading(true)
     try {
-      const cachedProds = apiCache.get('/products/')
-      const [{ data: lists }, products] = await Promise.all([
+      const cachedProds  = !force && apiCache.get('/products/')
+      const cachedStores = !force && apiCache.get('/stores/')
+
+      const [{ data: lists }, products, storesRes] = await Promise.all([
         api.get('/lists/'),
         cachedProds
           ? Promise.resolve(cachedProds)
           : api.get('/products/').then(r => { apiCache.set('/products/', r.data); return r.data }),
+        cachedStores
+          ? Promise.resolve(cachedStores)
+          : api.get('/stores/').then(r => { apiCache.set('/stores/', r.data); return r.data }),
       ])
 
-      // Detectar lista activa
       const active = lists.find(l => l.status === 'active' || l.status === 'draft')
       setActiveList(active ?? null)
-
-      // Calcular el siguiente martes disponible (saltando semanas con listas existentes)
       setNextTuesday(getNextAvailableTuesday(lists))
 
-      // "Explotar" cada producto en filas por tienda
+      const validProducts = (Array.isArray(products) ? products : []).filter(p => !p.is_deleted)
+      const validStores   = (Array.isArray(storesRes) ? storesRes : []).filter(s => !s.is_deleted)
+
+      setProductsRaw(validProducts)
+      setStores(validStores)
+
+      // Aplanar productos en filas producto×tienda
       const flat = []
-      for (const p of (Array.isArray(products) ? products : []).filter(p => !p.is_deleted)) {
-        for (const ps of p.product_stores.filter(ps => !ps.is_deleted)) {
+      for (const p of validProducts) {
+        for (const ps of (p.product_stores ?? []).filter(ps => !ps.is_deleted)) {
           flat.push({
-            ps_id:     ps.id,
-            store_id:  ps.store_id,
-            store:     ps.store?.name ?? '—',
-            product:   p.name,
-            frequency: p.frequency,
-            price:     ps.price_catalog,
+            ps_id:      ps.id,
+            product_id: p.id,
+            store_id:   ps.store_id,
+            store:      ps.store?.name ?? '—',
+            product:    p.name,
+            frequency:  p.frequency,
+            price:      ps.price_catalog,
           })
         }
       }
@@ -109,18 +227,20 @@ export default function Catalog() {
     }
   }
 
+  // Lookup producto completo por id (para editar)
+  const productMap = useMemo(() => new Map(productsRaw.map(p => [p.id, p])), [productsRaw])
+
   // ── Filtrado ──────────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
     return rows.filter(r => {
-      const matchSearch = r.product.toLowerCase().includes(search.toLowerCase()) ||
-                          r.store.toLowerCase().includes(search.toLowerCase())
+      const q = search.toLowerCase()
+      const matchSearch = r.product.toLowerCase().includes(q) || r.store.toLowerCase().includes(q)
       const matchFreq   = freqFilter === 'all' || r.frequency === freqFilter
       const matchStore  = storeFilter === 'all' || String(r.store_id) === storeFilter
       return matchSearch && matchFreq && matchStore
     })
   }, [rows, search, freqFilter, storeFilter])
 
-  // Tiendas únicas para el filtro
   const storeOptions = useMemo(() => {
     const seen = new Map()
     rows.forEach(r => { if (!seen.has(r.store_id)) seen.set(r.store_id, r.store) })
@@ -138,15 +258,13 @@ export default function Catalog() {
       return next
     })
 
-  const updateQuantity = (psId, delta) => {
+  const updateQuantity = (psId, delta) =>
     setSelected(prev => {
       const next = new Map(prev)
       if (!next.has(psId)) return prev
-      const newVal = Math.max(1, (next.get(psId) || 1) + delta)
-      next.set(psId, newVal)
+      next.set(psId, Math.max(1, (next.get(psId) || 1) + delta))
       return next
     })
-  }
 
   const toggleAll = () => {
     if (allFilteredSelected) {
@@ -158,9 +276,7 @@ export default function Catalog() {
     } else {
       setSelected(prev => {
         const next = new Map(prev)
-        filtered.forEach(r => {
-          if (!next.has(r.ps_id)) next.set(r.ps_id, 1)
-        })
+        filtered.forEach(r => { if (!next.has(r.ps_id)) next.set(r.ps_id, 1) })
         return next
       })
     }
@@ -173,12 +289,12 @@ export default function Catalog() {
     try {
       const items = Array.from(selected.entries()).map(([ps_id, quantity]) => ({
         product_store_id: ps_id,
-        quantity
+        quantity,
       }))
       const { data } = await api.post('/lists/', {
         name: `Lista del ${nextTuesdayLabel}`,
         date: nextTuesday.toISOString(),
-        items: items,
+        items,
       })
       toast.success(`¡Lista creada con ${selected.size} producto(s)!`)
       setSelected(new Map())
@@ -197,7 +313,7 @@ export default function Catalog() {
     try {
       const items = Array.from(selected.entries()).map(([ps_id, quantity]) => ({
         product_store_id: ps_id,
-        quantity
+        quantity,
       }))
       await api.post(`/lists/${activeList.id}/items/`, items)
       toast.success(`${selected.size} producto(s) agregado(s) a la lista activa`)
@@ -210,276 +326,252 @@ export default function Catalog() {
     }
   }
 
+  // ── Eliminar producto ─────────────────────────────────────────────────────
+  const handleDelete = async (productId) => {
+    try {
+      await api.delete(`/products/${productId}/`)
+      toast.success('Producto eliminado')
+      apiCache.invalidate('/products/')
+      const psIdsToRemove = rows.filter(r => r.product_id === productId).map(r => r.ps_id)
+      setRows(prev => prev.filter(r => r.product_id !== productId))
+      setProductsRaw(prev => prev.filter(p => p.id !== productId))
+      setSelected(prev => {
+        const next = new Map(prev)
+        psIdsToRemove.forEach(id => next.delete(id))
+        return next
+      })
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Error al eliminar producto')
+    }
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="max-w-5xl mx-auto space-y-5">
-
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-dark-200 flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-primary-600" />
-            Catálogo de Productos
-          </h1>
-          <p className="text-dark-400 text-sm mt-0.5">
-            {rows.length} combinación(es) producto-tienda disponibles
-          </p>
-        </div>
-
-        {/* Acción crear lista — solo si no hay lista activa */}
-        {!activeList && (
-          <div className="flex flex-col items-end gap-1.5">
-            <button
-              onClick={handleCreateList}
-              disabled={!someSelected || creating}
-              className="btn-primary flex-shrink-0"
-            >
-              {creating
-                ? <Loader2 className="w-4 h-4 animate-spin" />
-                : <ShoppingCart className="w-4 h-4" />
-              }
-              {someSelected
-                ? `Crear lista (${selected.size} ítem${selected.size > 1 ? 's' : ''})`
-                : 'Selecciona productos'
-              }
-            </button>
-            {someSelected && (
-              <p className="text-xs text-dark-500 flex items-center gap-1">
-                <CalendarDays className="w-3.5 h-3.5" />
-                Fecha: <span className="text-primary-600 font-medium capitalize">{nextTuesdayLabel}</span>
-              </p>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Banner: lista activa detectada */}
-      {activeList && (
-        <div className="flex items-center gap-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-4 py-3">
-          <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
-            <ShoppingCart className="w-4 h-4 text-emerald-600" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-dark-200">Lista activa: <span className="text-emerald-700">{activeList.name}</span></p>
-            <p className="text-xs text-dark-400 mt-0.5">Selecciona productos del catálogo y agrégalos directamente.</p>
-          </div>
-          {someSelected && (
-            <button
-              onClick={handleAddToActive}
-              disabled={adding}
-              className="btn-secondary shrink-0 border-emerald-500/30 text-emerald-700 hover:bg-emerald-500/10"
-            >
-              {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlusCircle className="w-4 h-4" />}
-              Agregar ({selected.size})
-            </button>
-          )}
-        </div>
+    <>
+      {modal !== null && (
+        <ProductModal
+          product={modal === 'create' ? null : modal}
+          stores={stores}
+          onClose={() => setModal(null)}
+          onSaved={() => { setSelected(new Map()); fetchData(true) }}
+        />
       )}
 
-      {/* Filtros */}
-      <div className="card flex flex-col sm:flex-row gap-3 py-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-500" />
-          <input
-            type="text" value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar producto o tienda..."
-            className="input pl-9"
-          />
-        </div>
-        <select value={storeFilter} onChange={e => setStoreFilter(e.target.value)} className="input w-full sm:w-44">
-          <option value="all">Todas las tiendas</option>
-          {storeOptions.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
-        <select value={freqFilter} onChange={e => setFreqFilter(e.target.value)} className="input w-full sm:w-44">
-          <option value="all">Todas las frecuencias</option>
-          <option value="weekly">Semanal</option>
-          <option value="biweekly">Quincenal</option>
-          <option value="monthly">Mensual</option>
-          <option value="occasional">Ocasional</option>
-        </select>
-      </div>
+      <div className="max-w-5xl mx-auto space-y-5">
 
-      {/* Aviso sin catálogo */}
-      {!loading && rows.length === 0 && (
-        <div className="card flex items-start gap-4 border-amber-500/20 bg-amber-500/5">
-          <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div>
-            <p className="text-sm font-semibold text-dark-200">El catálogo está vacío</p>
-            <p className="text-xs text-dark-400 mt-0.5">
-              Ve a <strong>Productos</strong> y crea tus productos vinculándolos a una tienda para que aparezcan aquí.
+            <h1 className="text-xl font-bold text-dark-200 flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-primary-600" />
+              Catálogo de Productos
+            </h1>
+            <p className="text-dark-400 text-sm mt-0.5">
+              {rows.length} combinación(es) producto-tienda disponibles
             </p>
           </div>
-        </div>
-      )}
 
-      {/* Tabla */}
-      {(loading || rows.length > 0) && (
-        <div className="card p-0 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-dark-800 bg-dark-950/50">
-                  {/* Checkbox cabecera */}
-                  <th className="px-4 py-3 w-10">
-                    <button
-                      onClick={toggleAll}
-                      disabled={filtered.length === 0}
-                      className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all
-                        ${allFilteredSelected
-                          ? 'bg-primary-600 border-primary-600'
-                          : 'border-dark-600 hover:border-primary-500'
-                        }`}
-                    >
-                      {allFilteredSelected && <Check className="w-3 h-3 text-white" />}
-                    </button>
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-dark-400 uppercase tracking-wider">
-                    <span className="flex items-center gap-1.5"><Store className="w-3.5 h-3.5" />Tienda</span>
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-dark-400 uppercase tracking-wider">
-                    <span className="flex items-center gap-1.5"><Package className="w-3.5 h-3.5" />Producto</span>
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-dark-400 uppercase tracking-wider hidden sm:table-cell">
-                    Precio Catálogo
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-dark-400 uppercase tracking-wider hidden md:table-cell">
-                    Frecuencia
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-dark-400 uppercase tracking-wider">
-                    Cantidad
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  [...Array(5)].map((_, i) => (
-                    <tr key={i} className="border-b border-dark-800">
-                      <td colSpan={5} className="px-4 py-3">
-                        <div className="h-8 bg-dark-800 rounded animate-pulse" />
-                      </td>
-                    </tr>
-                  ))
-                ) : filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-4 py-14 text-center">
-                      <BookOpen className="w-10 h-10 text-dark-700 mx-auto mb-3" />
-                      <p className="text-dark-500 text-sm">No se encontraron productos con esos filtros.</p>
-                    </td>
-                  </tr>
-                ) : (
-                  filtered.map(row => {
-                    const isChecked = selected.has(row.ps_id)
-                    const freq = FREQ_LABELS[row.frequency] ?? { label: row.frequency, cls: 'badge-purple' }
-                    return (
-                      <tr
-                        key={row.ps_id}
-                        onClick={() => toggleRow(row.ps_id)}
-                        className={`border-b border-dark-800 cursor-pointer transition-colors
-                          ${isChecked
-                            ? 'bg-primary-600/10 hover:bg-primary-600/15'
-                            : 'hover:bg-dark-800/50'
-                          }`}
-                      >
-                        {/* Checkbox */}
-                        <td className="px-4 py-3">
-                          <div
-                            className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all flex-shrink-0
-                              ${isChecked
-                                ? 'bg-primary-600 border-primary-600'
-                                : 'border-dark-600'
-                              }`}
-                          >
-                            {isChecked && <Check className="w-3 h-3 text-white" />}
-                          </div>
-                        </td>
-
-                        {/* Tienda */}
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-md bg-amber-500/10 flex items-center justify-center flex-shrink-0">
-                              <Store className="w-3.5 h-3.5 text-amber-600" />
-                            </div>
-                            <span className="text-sm text-dark-200">{row.store}</span>
-                          </div>
-                        </td>
-
-                        {/* Producto */}
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-md bg-primary-600/10 flex items-center justify-center flex-shrink-0">
-                              <Package className="w-3.5 h-3.5 text-primary-600" />
-                            </div>
-                            <span className="text-sm font-medium text-dark-100">{row.product}</span>
-                          </div>
-                        </td>
-
-                        {/* Precio */}
-                        <td className="px-4 py-3 text-right hidden sm:table-cell">
-                          <span className="text-sm font-mono text-dark-200">
-                            ${row.price.toLocaleString('es-CO')}
-                          </span>
-                        </td>
-
-                        {/* Frecuencia */}
-                        <td className="px-4 py-3 hidden md:table-cell">
-                          <span className={freq.cls}>{freq.label}</span>
-                        </td>
-
-                        {/* Cantidad Selector */}
-                        <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                          <div className={`flex items-center justify-center gap-2 transition-opacity ${isChecked ? 'opacity-100' : 'opacity-30 pointer-events-none'}`}>
-                            <button
-                              onClick={() => updateQuantity(row.ps_id, -1)}
-                              className="w-7 h-7 rounded-lg border border-dark-700 flex items-center justify-center hover:bg-dark-800 transition-colors text-dark-300"
-                            >
-                              <Plus className="w-3.5 h-3.5 rotate-45" />
-                            </button>
-                            <span className="w-6 text-center text-sm font-bold text-dark-200">
-                              {selected.get(row.ps_id) || 1}
-                            </span>
-                            <button
-                              onClick={() => updateQuantity(row.ps_id, 1)}
-                              className="w-7 h-7 rounded-lg border border-dark-700 flex items-center justify-center hover:bg-dark-800 transition-colors text-dark-300"
-                            >
-                              <Plus className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Footer con resumen de selección */}
-          {someSelected && (
-            <div className="border-t border-dark-800 px-5 py-3 bg-dark-950/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-2 text-sm text-dark-300">
-                <ShoppingCart className="w-4 h-4 text-primary-600" />
-                <span><strong className="text-dark-200">{selected.size}</strong> producto(s) seleccionado(s)</span>
-                <span className="text-dark-600">·</span>
-                <CalendarDays className="w-4 h-4 text-primary-600" />
-                <span className="capitalize">{nextTuesdayLabel}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => setSelected(new Map())} className="btn-ghost text-xs py-1.5">
-                  Limpiar
-                </button>
-                <button onClick={handleCreateList} disabled={creating} className="btn-primary text-sm py-2">
+          <div className="flex items-start gap-3">
+            {/* Crear lista — solo si no hay lista activa */}
+            {!activeList && (
+              <div className="flex flex-col items-end gap-1.5">
+                <button
+                  onClick={handleCreateList}
+                  disabled={!someSelected || creating}
+                  className="btn-secondary flex-shrink-0"
+                >
                   {creating
                     ? <Loader2 className="w-4 h-4 animate-spin" />
                     : <ShoppingCart className="w-4 h-4" />
                   }
-                  Crear Lista
+                  {someSelected
+                    ? `Crear lista (${selected.size})`
+                    : 'Selecciona productos'
+                  }
                 </button>
+                {someSelected && (
+                  <p className="text-xs text-dark-500 flex items-center gap-1">
+                    <CalendarDays className="w-3.5 h-3.5" />
+                    Fecha: <span className="text-primary-600 font-medium capitalize">{nextTuesdayLabel}</span>
+                  </p>
+                )}
               </div>
-            </div>
-          )}
+            )}
+
+            <button onClick={() => setModal('create')} className="btn-primary flex-shrink-0">
+              <Plus className="w-4 h-4" /> Nuevo Producto
+            </button>
+          </div>
         </div>
-      )}
-    </div>
+
+        {/* Banner: lista activa */}
+        {activeList && (
+          <div className="flex items-center gap-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-4 py-3">
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+              <ShoppingCart className="w-4 h-4 text-emerald-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-dark-200">Lista activa: <span className="text-emerald-700">{activeList.name}</span></p>
+              <p className="text-xs text-dark-400 mt-0.5">Selecciona productos del catálogo y agrégalos directamente.</p>
+            </div>
+            {someSelected && (
+              <button
+                onClick={handleAddToActive}
+                disabled={adding}
+                className="btn-secondary shrink-0 border-emerald-500/30 text-emerald-700 hover:bg-emerald-500/10"
+              >
+                {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlusCircle className="w-4 h-4" />}
+                Agregar ({selected.size})
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Filtros */}
+        <div className="card flex flex-col sm:flex-row gap-3 py-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-500" />
+            <input
+              type="text" value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Buscar producto o tienda..."
+              className="input pl-9"
+            />
+          </div>
+          <select value={storeFilter} onChange={e => setStoreFilter(e.target.value)} className="input w-full sm:w-44">
+            <option value="all">Todas las tiendas</option>
+            {storeOptions.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+          <select value={freqFilter} onChange={e => setFreqFilter(e.target.value)} className="input w-full sm:w-44">
+            <option value="all">Todas las frecuencias</option>
+            <option value="weekly">Semanal</option>
+            <option value="biweekly">Quincenal</option>
+            <option value="monthly">Mensual</option>
+            <option value="occasional">Ocasional</option>
+          </select>
+        </div>
+
+        {/* Aviso sin catálogo */}
+        {!loading && rows.length === 0 && (
+          <div className="card flex items-start gap-4 border-amber-500/20 bg-amber-500/5">
+            <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-dark-200">El catálogo está vacío</p>
+              <p className="text-xs text-dark-400 mt-0.5">
+                Crea un producto con el botón <strong>Nuevo Producto</strong> y vincúlalo a una tienda para verlo aquí.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Tabla */}
+        {(loading || rows.length > 0) && (
+          <div className="card p-0 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-dark-800 bg-dark-950/50">
+                    <th className="px-4 py-3 w-10">
+                      <button
+                        onClick={toggleAll}
+                        disabled={filtered.length === 0}
+                        className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all
+                          ${allFilteredSelected
+                            ? 'bg-primary-600 border-primary-600'
+                            : 'border-dark-600 hover:border-primary-500'
+                          }`}
+                      >
+                        {allFilteredSelected && <Check className="w-3 h-3 text-white" />}
+                      </button>
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-dark-400 uppercase tracking-wider">
+                      <span className="flex items-center gap-1.5"><Store className="w-3.5 h-3.5" />Tienda</span>
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-dark-400 uppercase tracking-wider">
+                      <span className="flex items-center gap-1.5"><Package className="w-3.5 h-3.5" />Producto</span>
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-dark-400 uppercase tracking-wider hidden sm:table-cell">
+                      Precio Catálogo
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-dark-400 uppercase tracking-wider hidden md:table-cell">
+                      Frecuencia
+                    </th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-dark-400 uppercase tracking-wider">
+                      Cantidad
+                    </th>
+                    <th className="px-4 py-3 w-20" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    [...Array(5)].map((_, i) => (
+                      <tr key={i} className="border-b border-dark-800">
+                        <td colSpan={7} className="px-4 py-3">
+                          <div className="h-8 bg-dark-800 rounded animate-pulse" />
+                        </td>
+                      </tr>
+                    ))
+                  ) : filtered.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-14 text-center">
+                        <BookOpen className="w-10 h-10 text-dark-700 mx-auto mb-3" />
+                        <p className="text-dark-500 text-sm">No se encontraron productos con esos filtros.</p>
+                      </td>
+                    </tr>
+                  ) : (
+                    filtered.map(row => (
+                      <CatalogRow
+                        key={row.ps_id}
+                        row={row}
+                        productObj={productMap.get(row.product_id)}
+                        isChecked={selected.has(row.ps_id)}
+                        quantity={selected.get(row.ps_id) || 1}
+                        onToggle={toggleRow}
+                        onQuantityChange={updateQuantity}
+                        onEdit={p => setModal(p)}
+                        onDelete={handleDelete}
+                      />
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Footer con resumen */}
+            {someSelected && (
+              <div className="border-t border-dark-800 px-5 py-3 bg-dark-950/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-sm text-dark-300">
+                  <ShoppingCart className="w-4 h-4 text-primary-600" />
+                  <span><strong className="text-dark-200">{selected.size}</strong> producto(s) seleccionado(s)</span>
+                  {!activeList && (
+                    <>
+                      <span className="text-dark-600">·</span>
+                      <CalendarDays className="w-4 h-4 text-primary-600" />
+                      <span className="capitalize">{nextTuesdayLabel}</span>
+                    </>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setSelected(new Map())} className="btn-ghost text-xs py-1.5">
+                    Limpiar
+                  </button>
+                  {activeList ? (
+                    <button onClick={handleAddToActive} disabled={adding} className="btn-primary text-sm py-2">
+                      {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlusCircle className="w-4 h-4" />}
+                      Agregar a lista activa
+                    </button>
+                  ) : (
+                    <button onClick={handleCreateList} disabled={creating} className="btn-primary text-sm py-2">
+                      {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShoppingCart className="w-4 h-4" />}
+                      Crear Lista
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </>
   )
 }

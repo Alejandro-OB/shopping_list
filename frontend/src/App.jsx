@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from './context/AuthContext'
 import { ProtectedRoute, PublicRoute } from './components/ProtectedRoute'
@@ -7,9 +7,8 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import ListDetail from './pages/ListDetail'
 import Dashboard from './pages/Dashboard'
-import Catalog from './pages/Catalog'
 import ShoppingLists from './pages/ShoppingLists'
-import Products from './pages/Products'
+import Catalog from './pages/Catalog'
 import Stores from './pages/Stores'
 import SystemInfo from './pages/SystemInfo'
 import SettingsPage from './pages/Settings'
@@ -60,7 +59,7 @@ export default function App() {
               <Route path="/lists"     element={<ShoppingLists />} />
               <Route path="/lists/:id" element={<ListDetail />} />
               <Route path="/catalog"   element={<Catalog />} />
-              <Route path="/products"  element={<Products />} />
+              <Route path="/products"  element={<Navigate to="/catalog" replace />} />
               <Route path="/stores"    element={<Stores />} />
               <Route path="/system-info" element={<SystemInfo />} />
               <Route path="/settings"  element={<SettingsPage />} />

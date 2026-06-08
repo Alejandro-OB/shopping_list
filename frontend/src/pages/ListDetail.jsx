@@ -1,13 +1,219 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { 
+import {
   ArrowLeft, ShoppingCart, Store, CheckCircle2, Check, X,
   Circle, AlertCircle, Loader2, Sparkles, Pencil, Save,
   TrendingDown, TrendingUp, Minus, Plus, Trash2, FileText, Download,
-  FileSpreadsheet, MessageSquare, Search, Filter
+  FileSpreadsheet, MessageSquare, Search, Filter, Tag, RefreshCw, PackagePlus, ChevronDown
 } from 'lucide-react'
 import api from '../api/axios'
+import { apiCache } from '../api/cache'
 import toast from 'react-hot-toast'
+
+// ── Modal: Agregar productos a la lista ────────────────────────────────────────
+function AddItemsModal({ listId, existingItems, onClose, onAdded }) {
+  const [products, setProducts] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [selected, setSelected] = useState({}) // { product_store_id: quantity }
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    const cached = apiCache.get('/products/')
+    if (cached) { setProducts(cached); setLoading(false); return }
+    api.get('/products/')
+      .then(({ data }) => {
+        const prods = Array.isArray(data) ? data.filter(p => !p.is_deleted) : []
+        apiCache.set('/products/', prods)
+        setProducts(prods)
+      })
+      .catch(() => toast.error('Error al cargar productos'))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const existingPsIds = new Set(existingItems.map(i => i.product_store_id))
+
+  const flatItems = products.flatMap(p =>
+    p.product_stores
+      .filter(ps => !ps.is_deleted)
+      .map(ps => ({
+        product_store_id: ps.id,
+        product_name: p.name,
+        store_name: ps.store?.name ?? '—',
+        price: ps.price_catalog,
+        already_in_list: existingPsIds.has(ps.id),
+      }))
+  )
+
+  const filtered = flatItems.filter(item =>
+    item.product_name.toLowerCase().includes(search.toLowerCase()) ||
+    item.store_name.toLowerCase().includes(search.toLowerCase())
+  )
+
+  const toggle = (psId) => {
+    setSelected(prev => {
+      if (prev[psId]) { const next = { ...prev }; delete next[psId]; return next }
+      return { ...prev, [psId]: 1 }
+    })
+  }
+
+  const updateQty = (psId, delta) => {
+    setSelected(prev => ({ ...prev, [psId]: Math.max(1, (prev[psId] || 1) + delta) }))
+  }
+
+  const handleAdd = async () => {
+    const items = Object.entries(selected).map(([id, qty]) => ({
+      product_store_id: parseInt(id),
+      quantity: qty,
+    }))
+    if (!items.length) return
+    setSaving(true)
+    try {
+      await api.post(`/lists/${listId}/items/`, items)
+      apiCache.invalidate('/lists/')
+      toast.success(`${items.length} producto(s) agregado(s)`)
+      onAdded()
+      onClose()
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Error al agregar productos')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const selectedCount = Object.keys(selected).length
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm">
+      <div className="bg-dark-900 border border-dark-700 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg flex flex-col max-h-[85vh]">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3.5 border-b border-dark-800">
+          <h2 className="text-sm font-bold text-dark-200 flex items-center gap-2">
+            <PackagePlus className="w-4 h-4 text-primary-600" />
+            Agregar productos a la lista
+          </h2>
+          <button onClick={onClose} className="btn-ghost p-1.5"><X className="w-4 h-4" /></button>
+        </div>
+
+        {/* Search */}
+        <div className="px-3 py-2.5 border-b border-dark-800">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-500" />
+            <input
+              autoFocus
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Buscar producto o tienda..."
+              className="input pl-9 py-2 text-sm"
+            />
+            {search && (
+              <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-500 hover:text-dark-300">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Lista de productos */}
+        <div className="flex-1 overflow-y-auto">
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="w-6 h-6 text-primary-500 animate-spin" />
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="py-16 text-center">
+              <PackagePlus className="w-8 h-8 text-dark-700 mx-auto mb-2" />
+              <p className="text-dark-500 text-sm">No se encontraron productos.</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-dark-800/50">
+              {filtered.map(item => {
+                const isSelected = !!selected[item.product_store_id]
+                const qty = selected[item.product_store_id] || 1
+
+                return (
+                  <div
+                    key={item.product_store_id}
+                    className={`flex items-center gap-3 px-4 py-3 transition-colors ${
+                      item.already_in_list
+                        ? 'opacity-40 cursor-not-allowed'
+                        : isSelected
+                          ? 'bg-primary-600/8'
+                          : 'hover:bg-dark-800/40 cursor-pointer'
+                    }`}
+                    onClick={() => !item.already_in_list && toggle(item.product_store_id)}
+                  >
+                    {/* Checkbox */}
+                    <div className={`flex-shrink-0 w-4.5 h-4.5 rounded border-2 flex items-center justify-center transition-all ${
+                      isSelected
+                        ? 'bg-primary-600 border-primary-600'
+                        : 'border-dark-600 bg-dark-800'
+                    }`}>
+                      {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-dark-100 truncate">{item.product_name}</p>
+                      <p className="text-xs text-dark-500 flex items-center gap-1 mt-0.5">
+                        <Store className="w-3 h-3" />
+                        {item.store_name}
+                        {item.already_in_list && (
+                          <span className="ml-1 text-primary-600 font-medium">· ya en lista</span>
+                        )}
+                      </p>
+                    </div>
+
+                    {/* Precio + cantidad */}
+                    <div className="flex-shrink-0 text-right" onClick={e => e.stopPropagation()}>
+                      <p className="text-sm font-bold text-dark-300">
+                        ${item.price.toLocaleString('es-CO')}
+                      </p>
+                      {isSelected && (
+                        <div className="flex items-center gap-1 mt-1 justify-end">
+                          <button
+                            onClick={() => updateQty(item.product_store_id, -1)}
+                            className="w-5 h-5 rounded bg-dark-700 text-dark-400 hover:text-primary-600 hover:bg-dark-600 flex items-center justify-center transition-colors"
+                          >
+                            <Minus className="w-2.5 h-2.5" />
+                          </button>
+                          <span className="text-xs font-bold text-dark-200 w-5 text-center">{qty}</span>
+                          <button
+                            onClick={() => updateQty(item.product_store_id, 1)}
+                            className="w-5 h-5 rounded bg-dark-700 text-dark-400 hover:text-primary-600 hover:bg-dark-600 flex items-center justify-center transition-colors"
+                          >
+                            <Plus className="w-2.5 h-2.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-4 py-3 border-t border-dark-800 flex gap-2">
+          <button onClick={onClose} className="btn-secondary flex-1">Cancelar</button>
+          <button
+            onClick={handleAdd}
+            disabled={selectedCount === 0 || saving}
+            className="btn-primary flex-1"
+          >
+            {saving
+              ? <><Loader2 className="w-4 h-4 animate-spin" /> Agregando...</>
+              : <><Plus className="w-4 h-4" /> {selectedCount > 0 ? `Agregar (${selectedCount})` : 'Agregar'}</>
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function ItemRow({ item, onCheck, onDelete, onUpdateQuantity, isDisabled }) {
   const [price, setPrice] = useState(item.price_real || '')
@@ -15,6 +221,7 @@ function ItemRow({ item, onCheck, onDelete, onUpdateQuantity, isDisabled }) {
   const [updatingQty, setUpdatingQty] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
+  const [updatingCatalog, setUpdatingCatalog] = useState(false)
 
   const diff = item.checked ? (item.price_catalog_snapshot - item.price_real) * item.quantity : 0
   const isSaving = diff > 0
@@ -30,6 +237,27 @@ function ItemRow({ item, onCheck, onDelete, onUpdateQuantity, isDisabled }) {
       await onCheck(item.id, parseFloat(price))
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Rellena el input con el precio del catálogo (cuando el precio no cambió)
+  const handleFillFromCatalog = () => {
+    setPrice(item.price_catalog_snapshot)
+  }
+
+  // Actualiza el precio de referencia del catálogo con el precio ingresado
+  const handleUpdateCatalogPrice = async () => {
+    const newPrice = parseFloat(price)
+    if (!newPrice || newPrice <= 0) return
+    setUpdatingCatalog(true)
+    try {
+      await api.patch(`/stores/product-store/${item.product_store_id}/`, { price_catalog: newPrice })
+      apiCache.invalidate('/products/')
+      toast.success('Precio de referencia actualizado')
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'No se pudo actualizar el precio')
+    } finally {
+      setUpdatingCatalog(false)
     }
   }
 
@@ -93,19 +321,45 @@ function ItemRow({ item, onCheck, onDelete, onUpdateQuantity, isDisabled }) {
         <div className="flex flex-col items-end">
           <label className="text-[10px] text-dark-500 uppercase font-bold mb-1">Precio Real</label>
           <div className="relative max-w-[100px]">
-             <span className="absolute left-2 top-1/2 -translate-y-1/2 text-dark-500 text-sm">$</span>
-             <input
-               type="number"
-               value={price}
-               onChange={(e) => setPrice(e.target.value)}
-               disabled={isDisabled || item.checked}
-               placeholder="0"
-               className="input pl-5 py-1.5 text-right text-sm"
-             />
+            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-dark-500 text-sm">$</span>
+            <input
+              type="number"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              disabled={isDisabled || item.checked}
+              placeholder="0"
+              className="input pl-5 py-1.5 text-right text-sm"
+            />
           </div>
           {price > 0 && (
             <div className={`mt-1 text-[10px] font-bold ${item.checked ? 'text-dark-500' : 'text-primary-600'}`}>
-              Subtotal: ${ (parseFloat(price) * item.quantity).toLocaleString('es-CO') }
+              Subtotal: ${(parseFloat(price) * item.quantity).toLocaleString('es-CO')}
+            </div>
+          )}
+          {/* Acciones rápidas de precio — solo cuando el ítem no está marcado */}
+          {!item.checked && !isDisabled && (
+            <div className="flex gap-1 mt-1.5">
+              <button
+                onClick={handleFillFromCatalog}
+                title="Usar el precio del catálogo como precio real"
+                className="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-dark-800 text-dark-400 hover:text-primary-600 hover:bg-primary-600/10 transition-colors"
+              >
+                <Tag className="w-2.5 h-2.5" />
+                = Catálogo
+              </button>
+              {price > 0 && parseFloat(price) !== item.price_catalog_snapshot && (
+                <button
+                  onClick={handleUpdateCatalogPrice}
+                  disabled={updatingCatalog}
+                  title="Guardar este precio como nuevo precio de referencia del producto"
+                  className="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-dark-800 text-dark-400 hover:text-amber-600 hover:bg-amber-500/10 transition-colors disabled:opacity-50"
+                >
+                  {updatingCatalog
+                    ? <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                    : <RefreshCw className="w-2.5 h-2.5" />}
+                  Act. catálogo
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -172,6 +426,7 @@ export default function ListDetail() {
   const [loading, setLoading] = useState(true)
   const [completing, setCompleting] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
+  const [showAddModal, setShowAddModal] = useState(false)
   
   const [isEditingName, setIsEditingName] = useState(false)
   const [newName, setNewName] = useState('')
@@ -182,6 +437,7 @@ export default function ListDetail() {
   const [updatingDate, setUpdatingDate] = useState(false)
 
   const [exporting, setExporting] = useState(false)
+  const [showExportMenu, setShowExportMenu] = useState(false)
   const [exportingExcel, setExportingExcel] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedStore, setSelectedStore] = useState('all')
@@ -488,7 +744,16 @@ export default function ListDetail() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      
+
+      {showAddModal && (
+        <AddItemsModal
+          listId={id}
+          existingItems={list.items}
+          onClose={() => setShowAddModal(false)}
+          onAdded={fetchList}
+        />
+      )}
+
       {/* Top Navigation & Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <button 
@@ -500,33 +765,65 @@ export default function ListDetail() {
         </button>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleExportPDF}
-            disabled={exporting}
-            className="btn-secondary flex items-center gap-2"
-            title="Exportar a PDF"
-          >
-            {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
-            <span className="hidden sm:inline">PDF</span>
-          </button>
-          <button
-            onClick={handleExportExcel}
-            disabled={exportingExcel}
-            className="btn-secondary flex items-center gap-2 border-emerald-500/30 hover:border-emerald-500/50 hover:bg-emerald-500/5 text-emerald-600"
-            title="Exportar a Excel"
-          >
-            {exportingExcel ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />}
-            <span className="hidden sm:inline">Excel</span>
-          </button>
-          
-          <button
-            onClick={handleShareWhatsApp}
-            className="btn-secondary flex items-center gap-2 border-green-500/30 hover:border-green-500/50 hover:bg-green-500/5 text-green-400"
-            title="Compartir por WhatsApp"
-          >
-            <MessageSquare className="w-4 h-4" />
-            <span className="hidden sm:inline">WhatsApp</span>
-          </button>
+          {/* Dropdown compartir/exportar */}
+          <div className="relative">
+            <div className="flex">
+              <button
+                onClick={handleShareWhatsApp}
+                className="btn-secondary flex items-center gap-2 rounded-r-none border-r-0 border-green-500/30 hover:border-green-500/50 hover:bg-green-500/5 text-green-600"
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span className="hidden sm:inline">Compartir</span>
+              </button>
+              <button
+                onClick={() => setShowExportMenu(v => !v)}
+                className="btn-secondary px-2 rounded-l-none border-green-500/30 hover:border-green-500/50 hover:bg-green-500/5 text-green-600"
+              >
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showExportMenu ? 'rotate-180' : ''}`} />
+              </button>
+            </div>
+
+            {showExportMenu && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setShowExportMenu(false)} />
+                <div className="absolute right-0 mt-1 z-20 bg-dark-900 border border-dark-700 rounded-xl shadow-xl overflow-hidden min-w-[160px]">
+                  <button
+                    onClick={() => { handleShareWhatsApp(); setShowExportMenu(false) }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-dark-300 hover:bg-dark-800 hover:text-dark-100 transition-colors"
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                    WhatsApp
+                  </button>
+                  <button
+                    onClick={() => { handleExportPDF(); setShowExportMenu(false) }}
+                    disabled={exporting}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-dark-300 hover:bg-dark-800 hover:text-dark-100 transition-colors disabled:opacity-50"
+                  >
+                    {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4 text-red-500" />}
+                    Descargar PDF
+                  </button>
+                  <button
+                    onClick={() => { handleExportExcel(); setShowExportMenu(false) }}
+                    disabled={exportingExcel}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-dark-300 hover:bg-dark-800 hover:text-dark-100 transition-colors disabled:opacity-50"
+                  >
+                    {exportingExcel ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4 text-emerald-500" />}
+                    Descargar Excel
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+          {!isCompleted && (
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="btn-primary flex items-center gap-2"
+              title="Agregar productos a la lista"
+            >
+              <PackagePlus className="w-4 h-4" />
+              <span className="hidden sm:inline">Agregar</span>
+            </button>
+          )}
           {!isCompleted && (
             <div className="relative">
               {showConfirm ? (

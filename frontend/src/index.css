@@ -49,7 +49,7 @@
   .input {
     @apply w-full bg-dark-800 border border-dark-700 rounded-lg px-3.5 py-2.5
            text-dark-100 placeholder-dark-500 text-sm
-           focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500
+           focus:outline-none focus:ring-2 focus:ring-primary-600 focus:border-primary-600
            transition-all duration-200;
   }
   .label {
