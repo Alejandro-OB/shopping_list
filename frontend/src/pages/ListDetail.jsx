@@ -605,6 +605,20 @@ export default function ListDetail() {
     }).catch(() => {})
   }, [])
 
+  // Refrescar la lista cuando la cola offline termina de drenar:
+  // si alguna mutación se descartó o si se aplicaron varias, los datos del
+  // backend pueden divergir del estado optimista local.
+  useEffect(() => {
+    const onDrained = (e) => {
+      const { processed = 0, discarded = 0 } = e.detail || {}
+      if (processed > 0 || discarded > 0) {
+        fetchList()
+      }
+    }
+    window.addEventListener('cy-queue-drained', onDrained)
+    return () => window.removeEventListener('cy-queue-drained', onDrained)
+  }, [])
+
   const fetchList = async () => {
     setLoading(true)
     try {
@@ -987,7 +1001,7 @@ export default function ListDetail() {
           Volver a listas
         </button>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 self-center sm:self-auto">
           {/* Dropdown compartir/exportar */}
           <div className="relative">
             <div className="flex">
@@ -1199,19 +1213,19 @@ export default function ListDetail() {
           </div>
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:flex md:items-center md:gap-8 border-t border-dark-800 md:border-0 pt-4 md:pt-0">
-            <div className="text-right">
+            <div className="text-center md:text-right">
               <p className="text-[10px] text-dark-500 uppercase font-bold tracking-wider mb-0.5">Progreso</p>
               <p className="text-lg font-bold text-dark-200">{itemsBought} / {totalItems}</p>
             </div>
-            <div className="text-right">
+            <div className="text-center md:text-right">
               <p className="text-[10px] text-dark-500 uppercase font-bold tracking-wider mb-0.5">Valor Estimado</p>
               <p className="text-lg font-bold text-primary-600/50">${totalProjected.toLocaleString('es-CO')}</p>
             </div>
-            <div className="text-right">
+            <div className="text-center md:text-right">
               <p className="text-[10px] text-emerald-500 uppercase font-bold tracking-wider mb-0.5">Total Pagado</p>
               <p className="text-lg font-bold text-emerald-600 font-mono tracking-tight">${totalReal.toLocaleString('es-CO')}</p>
             </div>
-            <div className="text-right">
+            <div className="text-center md:text-right">
                <p className="text-[10px] text-dark-500 uppercase font-bold tracking-wider mb-0.5">Ahorro Total</p>
                <p className={`text-lg font-bold ${totalSaved >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                  ${totalSaved.toLocaleString('es-CO')}

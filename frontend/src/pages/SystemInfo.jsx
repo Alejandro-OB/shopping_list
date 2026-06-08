@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { CalendarDays, CheckCircle2, Server, RefreshCw, Loader2, Sparkles, AlertTriangle } from 'lucide-react'
 import api from '../api/axios'
 import toast from 'react-hot-toast'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/useAuth'
 
 export default function SystemInfo() {
   const { user, fetchMe } = useAuth()

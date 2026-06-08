@@ -4,7 +4,8 @@ from datetime import datetime
 
 class ProductQuantity(BaseModel):
     product_name: str
-    total_quantity: int
+    times_bought: int       # número de listas distintas donde apareció (frecuencia real de compra)
+    total_quantity: int     # suma de unidades, usado como tiebreaker visual
 
 class MonthlySpending(BaseModel):
     year: int

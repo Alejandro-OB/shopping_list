@@ -372,29 +372,24 @@ export default function Catalog() {
           </div>
 
           <div className="flex items-start gap-3">
-            {/* Crear lista — solo si no hay lista activa */}
-            {!activeList && (
+            {/* Crear lista — solo si no hay lista activa y hay productos seleccionados */}
+            {!activeList && someSelected && (
               <div className="flex flex-col items-end gap-1.5">
                 <button
                   onClick={handleCreateList}
-                  disabled={!someSelected || creating}
+                  disabled={creating}
                   className="btn-secondary flex-shrink-0"
                 >
                   {creating
                     ? <Loader2 className="w-4 h-4 animate-spin" />
                     : <ShoppingCart className="w-4 h-4" />
                   }
-                  {someSelected
-                    ? `Crear lista (${selected.size})`
-                    : 'Selecciona productos'
-                  }
+                  Crear lista ({selected.size})
                 </button>
-                {someSelected && (
-                  <p className="text-xs text-dark-500 flex items-center gap-1">
-                    <CalendarDays className="w-3.5 h-3.5" />
-                    Fecha: <span className="text-primary-600 font-medium capitalize">{nextTuesdayLabel}</span>
-                  </p>
-                )}
+                <p className="text-xs text-dark-500 flex items-center gap-1">
+                  <CalendarDays className="w-3.5 h-3.5" />
+                  Fecha: <span className="text-primary-600 font-medium capitalize">{nextTuesdayLabel}</span>
+                </p>
               </div>
             )}
 
@@ -412,7 +407,15 @@ export default function Catalog() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-dark-200">Lista activa: <span className="text-emerald-700">{activeList.name}</span></p>
-              <p className="text-xs text-dark-400 mt-0.5">Selecciona productos del catálogo y agrégalos directamente.</p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <p className="text-xs text-dark-400">Selecciona productos del catálogo y agrégalos directamente.</p>
+                <button
+                  onClick={() => navigate(`/lists/${activeList.id}`)}
+                  className="text-xs text-emerald-600 underline underline-offset-2 hover:text-emerald-500 transition-colors shrink-0"
+                >
+                  Ver
+                </button>
+              </div>
             </div>
             {someSelected && (
               <button

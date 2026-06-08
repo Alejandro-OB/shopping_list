@@ -256,15 +256,20 @@ export default function Metrics() {
                     <p className="text-sm font-semibold text-dark-100 group-hover:text-dark-200 transition-colors">
                       {item.product_name}
                     </p>
-                    <p className="text-xs text-dark-500">Unidades adquiridas</p>
+                    <p className="text-xs text-dark-500">
+                      Veces comprado
+                      {item.total_quantity > item.times_bought && (
+                        <span className="text-dark-600"> · {item.total_quantity} unidades en total</span>
+                      )}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-lg font-bold text-primary-600">{item.total_quantity}</span>
+                  <span className="text-lg font-bold text-primary-600">{item.times_bought}</span>
                   <div className="w-16 h-1.5 bg-dark-800 rounded-full overflow-hidden hidden sm:block">
-                    <div 
-                      className="h-full bg-primary-500" 
-                      style={{ width: `${(item.total_quantity / mostBought[0].total_quantity) * 100}%` }}
+                    <div
+                      className="h-full bg-primary-500"
+                      style={{ width: `${(item.times_bought / mostBought[0].times_bought) * 100}%` }}
                     />
                   </div>
                 </div>

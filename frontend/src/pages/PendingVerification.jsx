@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Mail, Loader2, ArrowRight, LogOut, Send } from 'lucide-react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/useAuth'
 import api from '../api/axios'
 import toast from 'react-hot-toast'
 

@@ -1,7 +1,7 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import api from '../api/axios'
+import { AuthContext } from './useAuth'
 
-const AuthContext = createContext(null)
 const USER_KEY = 'user'
 
 // Lee el user persistido en localStorage (resistencia a cold start offline)
@@ -81,8 +81,3 @@ export function AuthProvider({ children }) {
   )
 }
 
-export const useAuth = () => {
-  const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error('useAuth must be used inside AuthProvider')
-  return ctx
-}

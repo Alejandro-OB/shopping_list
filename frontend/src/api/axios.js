@@ -99,6 +99,7 @@ api.interceptors.response.use(
       const refreshToken = localStorage.getItem('refresh_token')
 
       if (!refreshToken) {
+        console.warn('[auth] 401 sin refresh_token guardado — limpiando sesión')
         isRefreshing = false
         localStorage.clear()
         window.location.href = '/login'
@@ -106,6 +107,7 @@ api.interceptors.response.use(
       }
 
       try {
+        console.info('[auth] access_token expirado, refrescando…')
         const response = await axios.post(`${API_BASE_URL}/refresh/`, {
           refresh_token: refreshToken,
         })
@@ -116,13 +118,24 @@ api.interceptors.response.use(
           localStorage.setItem('refresh_token', newRefreshToken)
         }
 
+        console.info('[auth] refresh ok, reintentando petición original')
         processQueue(null, access_token)
         originalRequest.headers.Authorization = `Bearer ${access_token}`
         return api(originalRequest)
       } catch (refreshError) {
         processQueue(refreshError, null)
-        localStorage.clear()
-        window.location.href = '/login'
+
+        const refreshStatus = refreshError?.response?.status
+        if (refreshStatus === 401 || refreshStatus === 403) {
+          // El refresh_token es genuinamente inválido — limpiar sesión y mandar a login
+          console.warn('[auth] refresh rechazado por el servidor — sesión inválida')
+          localStorage.clear()
+          window.location.href = '/login'
+        } else {
+          // Error de red, 5xx o timeout — NO destruir la sesión.
+          // El token sigue en localStorage, próxima request reintentará.
+          console.warn('[auth] refresh falló por red/server, conservando sesión:', refreshError?.message || refreshStatus)
+        }
         return Promise.reject(refreshError)
       } finally {
         isRefreshing = false

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   ShoppingCart, Package, Store, TrendingUp,
   Clock, Sparkles, Loader2,
@@ -6,7 +7,7 @@ import {
 } from 'lucide-react'
 import api from '../api/axios'
 import { apiCache } from '../api/cache'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/useAuth'
 import toast from 'react-hot-toast'
 
 const METRICS_TTL  = 2 * 60 * 1000  // 2 min — cambia al marcar ítems
@@ -17,7 +18,7 @@ const MONTHS = [
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
 ]
 
-function StatCard({ label, value, icon: Icon, color = 'purple', sub }) {
+function StatCard({ label, value, icon: Icon, color = 'purple', sub, onClick }) {
   const colorMap = {
     purple: 'bg-primary-100 text-primary-700',
     green:  'bg-emerald-100 text-emerald-700',
@@ -25,22 +26,25 @@ function StatCard({ label, value, icon: Icon, color = 'purple', sub }) {
     blue:   'bg-blue-100 text-blue-700',
   }
   return (
-    <div className="card flex items-start gap-4 hover:border-dark-700 transition-colors duration-200">
-      <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${colorMap[color]}`}>
-        <Icon className="w-5 h-5" />
+    <div
+      className={`card flex flex-col items-center text-center gap-2 p-3 sm:flex-row sm:items-start sm:text-left sm:gap-4 sm:p-5 hover:border-dark-700 transition-colors duration-200 ${onClick ? 'cursor-pointer hover:bg-dark-800/40' : ''}`}
+      onClick={onClick}
+    >
+      <div className={`w-9 h-9 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${colorMap[color]}`}>
+        <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
       </div>
       <div className="min-w-0">
-        <p className="text-dark-400 text-xs font-medium uppercase tracking-wider">{label}</p>
-        <p className="text-2xl font-bold text-dark-200 mt-0.5">
-          {value ?? <span className="inline-block w-12 h-6 bg-dark-800 rounded animate-pulse" />}
+        <p className="text-dark-400 text-[10px] sm:text-xs font-medium uppercase tracking-wider">{label}</p>
+        <p className="text-xl sm:text-2xl font-bold text-dark-200 mt-0.5">
+          {value ?? <span className="inline-block w-10 h-5 sm:w-12 sm:h-6 bg-dark-800 rounded animate-pulse" />}
         </p>
-        {sub && <p className="text-xs text-dark-500 mt-0.5">{sub}</p>}
+        {sub && <p className="text-xs text-dark-500 mt-0.5 hidden sm:block">{sub}</p>}
       </div>
     </div>
   )
 }
 
-function RecentList({ list }) {
+function RecentList({ list, onClick }) {
   const statusMap = {
     draft:     { label: 'Borrador',   cls: 'badge-yellow' },
     active:    { label: 'Activa',     cls: 'badge-purple' },
@@ -50,7 +54,10 @@ function RecentList({ list }) {
   const date = new Date(list.date).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })
 
   return (
-    <div className="flex items-center gap-3 py-3 border-b border-dark-800 last:border-0">
+    <div
+      className="flex items-center gap-3 py-3 border-b border-dark-800 last:border-0 cursor-pointer hover:bg-dark-800/40 rounded-lg px-2 -mx-2 transition-colors"
+      onClick={onClick}
+    >
       <ShoppingCart className="w-4 h-4 text-dark-500 flex-shrink-0" />
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-dark-200 truncate">{list.name}</p>
@@ -63,6 +70,7 @@ function RecentList({ list }) {
 
 export default function Dashboard() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [metrics, setMetrics] = useState(null)
   const [lists, setLists]     = useState([])
   const [genLoading, setGenLoading] = useState(false)
@@ -203,13 +211,14 @@ export default function Dashboard() {
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatCard
           label="Total Listas"
           value={metrics?.total_lists ?? '—'}
           icon={ShoppingCart}
           color="purple"
           sub="Listas en historial"
+          onClick={() => navigate('/lists')}
         />
         <StatCard
           label="Productos Activos"
@@ -217,6 +226,7 @@ export default function Dashboard() {
           icon={Package}
           color="blue"
           sub="En tu catálogo"
+          onClick={() => navigate('/products')}
         />
         <StatCard
           label="Tiendas Registradas"
@@ -224,6 +234,7 @@ export default function Dashboard() {
           icon={Store}
           color="amber"
           sub="Disponibles"
+          onClick={() => navigate('/stores')}
         />
         <StatCard
           label="Gasto del Mes"
@@ -301,7 +312,7 @@ export default function Dashboard() {
                 <p className="text-dark-500 text-sm">Aún no hay listas generadas.</p>
               </div>
             ) : (
-              lists.map((l) => <RecentList key={l.id} list={l} />)
+              lists.map((l) => <RecentList key={l.id} list={l} onClick={() => navigate(`/lists/${l.id}`)} />)
             )}
           </div>
         </div>
@@ -339,15 +350,20 @@ export default function Dashboard() {
                       <p className="text-sm font-semibold text-dark-100 truncate">
                         {item.product_name}
                       </p>
-                      <p className="text-xs text-dark-500">Unidades comp</p>
+                      <p className="text-xs text-dark-500">
+                        Veces comprado
+                        {item.total_quantity > item.times_bought && (
+                          <span className="text-dark-600"> · {item.total_quantity} u.</span>
+                        )}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 flex-shrink-0">
-                    <span className="text-lg font-bold text-primary-600">{item.total_quantity}</span>
+                    <span className="text-lg font-bold text-primary-600">{item.times_bought}</span>
                     <div className="w-10 h-1.5 bg-dark-800 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-primary-500" 
-                        style={{ width: `${(item.total_quantity / mostBoughtData[0].total_quantity) * 100}%` }}
+                      <div
+                        className="h-full bg-primary-500"
+                        style={{ width: `${(item.times_bought / mostBoughtData[0].times_bought) * 100}%` }}
                       />
                     </div>
                   </div>

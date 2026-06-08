@@ -116,22 +116,39 @@ def refresh_token(
 ) -> Any:
     """
     Get a new access token using a valid refresh token.
+    Implementa **rotación** del refresh_token (sliding session):
+    en cada refresh se revoca el token usado y se emite uno nuevo con expiración renovada.
     """
     db_token = db.query(UserRefreshToken).filter(
         UserRefreshToken.token == refresh_token,
         UserRefreshToken.is_revoked == False,
         UserRefreshToken.expires_at > datetime.now(timezone.utc)
     ).first()
-    
+
     if not db_token:
         raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
-    
-    # Generar nuevo access token
-    new_access_token = create_access_token(db_token.user_id)
-    
+
+    user_id = db_token.user_id
+
+    # Revocar el refresh_token usado para que no pueda reutilizarse
+    db_token.is_revoked = True
+    db.add(db_token)
+
+    # Emitir un nuevo par (access + refresh) con expiración renovada
+    new_access_token = create_access_token(user_id)
+    new_refresh_token = create_refresh_token(user_id)
+    new_expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+
+    db.add(UserRefreshToken(
+        user_id=user_id,
+        token=new_refresh_token,
+        expires_at=new_expires_at,
+    ))
+    db.commit()
+
     return {
         "access_token": new_access_token,
-        "refresh_token": refresh_token,
+        "refresh_token": new_refresh_token,
         "token_type": "bearer",
     }
 

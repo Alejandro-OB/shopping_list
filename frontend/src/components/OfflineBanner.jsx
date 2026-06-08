@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { WifiOff, CloudOff, RefreshCw, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '../api/axios'
@@ -10,16 +10,23 @@ export default function OfflineBanner() {
   const [online, setOnline] = useState(navigator.onLine)
   const [pending, setPending] = useState(0)
   const [retrying, setRetrying] = useState(false)
+  const retryingRef = useRef(false)
 
-  const flush = useCallback(async () => {
-    if (retrying) return
+  // `flush` se mantiene estable: usa ref para el guard de concurrencia y no depende
+  // del state `retrying` (que solo se usa para mostrar el spinner del botón).
+  const flushRef = useRef()
+  flushRef.current = async () => {
+    if (retryingRef.current) return
+    retryingRef.current = true
     setRetrying(true)
     try {
       await processQueue(api, (msg) => toast.error(`1 cambio descartado: ${msg}`))
     } finally {
+      retryingRef.current = false
       setRetrying(false)
     }
-  }, [retrying])
+  }
+  const flush = () => flushRef.current?.()
 
   useEffect(() => {
     const onOnline = () => { setOnline(true); flush() }
@@ -37,8 +44,6 @@ export default function OfflineBanner() {
       window.removeEventListener('offline', onOffline)
       unsub()
     }
-    // flush no se mete en deps a propósito — solo queremos un setup al montar
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Retry automático mientras haya pendientes y estemos online
@@ -46,7 +51,7 @@ export default function OfflineBanner() {
     if (!online || pending === 0) return
     const t = setInterval(() => { flush() }, RETRY_INTERVAL_MS)
     return () => clearInterval(t)
-  }, [online, pending, flush])
+  }, [online, pending])
 
   if (online && pending === 0) return null
 

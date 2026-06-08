@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import select, func, and_, extract
+from sqlalchemy import select, func, and_, or_, extract
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 
@@ -108,24 +108,45 @@ class MetricsService:
 
     def get_most_bought_products(self, user_id: int, limit: int = 5) -> List[Dict[str, Any]]:
         """
-        Top productos (basado en quantity de ítems comprados).
-        """
-        results = self.db.query(
-            Product.name,
-            func.sum(ShoppingListItem.quantity).label("total_quantity")
-        ).join(ProductStore, Product.id == ProductStore.product_id)\
-         .join(ShoppingListItem, ProductStore.id == ShoppingListItem.product_store_id)\
-         .join(ShoppingList, ShoppingListItem.list_id == ShoppingList.id)\
-         .filter(
-            and_(
-                ShoppingList.user_id == user_id,
-                ShoppingListItem.checked == True
-            )
-        ).group_by(Product.name)\
-         .order_by(func.sum(ShoppingListItem.quantity).desc())\
-         .limit(limit).all()
+        Top productos por **frecuencia de compra** — cuántas listas distintas
+        incluyeron ese producto. Tiebreaker secundario por SUM(quantity) para
+        que ante empate gane el que se compró en mayor volumen.
 
-        return [{"product_name": row[0], "total_quantity": int(row[1])} for row in results]
+        Incluye ítems libres (product_store_id NULL) agrupándolos por `free_name`.
+        Los nombres iguales (libre con mismo texto que un producto del catálogo)
+        se unifican en una sola fila.
+        """
+        product_name = func.coalesce(Product.name, ShoppingListItem.free_name).label("product_name")
+        times_bought = func.count(func.distinct(ShoppingListItem.list_id)).label("times_bought")
+        total_quantity = func.sum(ShoppingListItem.quantity).label("total_quantity")
+
+        results = (
+            self.db.query(product_name, times_bought, total_quantity)
+            .select_from(ShoppingListItem)
+            .join(ShoppingList, ShoppingListItem.list_id == ShoppingList.id)
+            .outerjoin(ProductStore, ShoppingListItem.product_store_id == ProductStore.id)
+            .outerjoin(Product, ProductStore.product_id == Product.id)
+            .filter(
+                and_(
+                    ShoppingList.user_id == user_id,
+                    ShoppingListItem.checked == True,
+                    or_(Product.name.isnot(None), ShoppingListItem.free_name.isnot(None)),
+                )
+            )
+            .group_by(product_name)
+            .order_by(times_bought.desc(), total_quantity.desc())
+            .limit(limit)
+            .all()
+        )
+
+        return [
+            {
+                "product_name": row[0],
+                "times_bought": int(row[1]),
+                "total_quantity": int(row[2]),
+            }
+            for row in results
+        ]
 
     def get_price_evolution(
         self,

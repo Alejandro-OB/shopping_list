@@ -33,7 +33,10 @@ function ListRow({ list, onView, onDelete }) {
   }
 
   return (
-    <tr className="border-b border-dark-800 hover:bg-dark-800/50 transition-colors">
+    <tr
+      className="border-b border-dark-800 hover:bg-dark-800/50 transition-colors cursor-pointer"
+      onClick={() => onView(list)}
+    >
       <td className="px-4 py-3">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-primary-600/20 flex items-center justify-center flex-shrink-0">
@@ -51,7 +54,7 @@ function ListRow({ list, onView, onDelete }) {
       <td className="px-4 py-3">
         <span className={s.cls}>{s.label}</span>
       </td>
-      <td className="px-4 py-3 text-right">
+      <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-end gap-1">
           <button
             onClick={() => onView(list)}
