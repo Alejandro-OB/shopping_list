@@ -630,14 +630,34 @@ export default function ListDetail() {
   }
 
   const handleCheckItem = async (itemId, priceReal) => {
+    // Snapshot previo para rollback en caso de error real (no offline)
+    const prevItem = list.items.find(i => i.id === itemId)
+    // Optimistic update
+    setList(prev => ({
+      ...prev,
+      items: prev.items.map(i =>
+        i.id === itemId ? { ...i, checked: true, price_real: priceReal } : i
+      ),
+    }))
     try {
-      await api.patch(`/lists/items/${itemId}/check/`, {
+      const res = await api.patch(`/lists/items/${itemId}/check/`, {
         price_real: priceReal,
-        checked: true
+        checked: true,
       })
-      toast.success('¡Producto comprado!')
-      fetchList() // Recargar para ver el cambio
+      if (res?.data?._queued) {
+        toast.success('Marcado offline — se sincronizará al volver la conexión', { icon: '📥' })
+      } else {
+        toast.success('¡Producto comprado!')
+        fetchList() // Recargar para ver totals + cambios del backend
+      }
     } catch (err) {
+      // Rollback solo si fue error con response (4xx/5xx real)
+      if (prevItem) {
+        setList(prev => ({
+          ...prev,
+          items: prev.items.map(i => (i.id === itemId ? prevItem : i)),
+        }))
+      }
       const msg = err.response?.data?.detail || 'Error al actualizar ítem'
       toast.error(msg)
       throw err  // re-lanzar para que ItemRow no limpie el borrador local
@@ -645,13 +665,31 @@ export default function ListDetail() {
   }
 
   const handleDeleteItem = async (itemId) => {
+    const prevItem = list.items.find(i => i.id === itemId)
+    // Optimistic remove
+    setList(prev => ({
+      ...prev,
+      items: prev.items.filter(i => i.id !== itemId),
+    }))
     try {
-      await api.delete(`/lists/items/${itemId}/`)
-      // Limpiar borrador local de precio si lo había
+      const res = await api.delete(`/lists/items/${itemId}/`)
       localStorage.removeItem(`pendingPrice:${id}:${itemId}`)
-      toast.success('Producto eliminado de la lista')
-      fetchList()
+      if (res?.data?._queued) {
+        toast.success('Eliminación pendiente — se aplicará al volver la conexión', { icon: '📥' })
+      } else {
+        toast.success('Producto eliminado de la lista')
+        fetchList()
+      }
     } catch (err) {
+      // Rollback
+      if (prevItem) {
+        setList(prev => ({
+          ...prev,
+          items: [...prev.items, prevItem].sort((a, b) =>
+            (a.store_name || 'zzz_libre').localeCompare(b.store_name || 'zzz_libre')
+          ),
+        }))
+      }
       toast.error(err.response?.data?.detail || 'Error al eliminar ítem')
     }
   }
@@ -663,13 +701,22 @@ export default function ListDetail() {
     const newQty = Math.max(1, item.quantity + delta)
     if (newQty === item.quantity) return
 
+    // Optimistic update (igual que antes, pero ANTES del await)
+    setList(prev => ({
+      ...prev,
+      items: prev.items.map(i => i.id === itemId ? { ...i, quantity: newQty } : i),
+    }))
     try {
-      await api.patch(`/lists/items/${itemId}/`, { quantity: newQty })
+      const res = await api.patch(`/lists/items/${itemId}/`, { quantity: newQty })
+      if (res?.data?._queued) {
+        toast.success('Cantidad guardada offline', { icon: '📥', duration: 2000 })
+      }
+    } catch (err) {
+      // Rollback cantidad
       setList(prev => ({
         ...prev,
-        items: prev.items.map(i => i.id === itemId ? { ...i, quantity: newQty } : i)
+        items: prev.items.map(i => i.id === itemId ? { ...i, quantity: item.quantity } : i),
       }))
-    } catch (err) {
       toast.error('No se pudo actualizar la cantidad')
     }
   }

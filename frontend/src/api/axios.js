@@ -1,6 +1,11 @@
 import axios from 'axios'
+import { enqueueMutation } from './offlineQueue'
 
 let API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
+
+// Mutaciones críticas que se encolan offline: marcar comprado, cambiar cantidad, eliminar item.
+const QUEUEABLE_PATTERN = /\/lists\/items\/\d+\/?(check\/)?$/
+const MUTATION_METHODS = new Set(['post', 'patch', 'put', 'delete'])
 
 // Auto-corrección para Mixed Content: Si estamos en HTTPS (producción) y la URL es HTTP, la forzamos a HTTPS
 if (window.location.protocol === 'https:' && API_BASE_URL.startsWith('http://') && !API_BASE_URL.includes('localhost')) {
@@ -43,6 +48,28 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config
+
+    // ── Modo offline: encolar mutaciones críticas que fallen por red ──────
+    // Detectamos "sin response" (ERR_NETWORK / TIMEOUT / browser sin red)
+    if (
+      originalRequest &&
+      !originalRequest._skipOfflineQueue &&
+      !error.response &&
+      MUTATION_METHODS.has(originalRequest.method?.toLowerCase()) &&
+      QUEUEABLE_PATTERN.test(originalRequest.url || '')
+    ) {
+      await enqueueMutation({
+        method: originalRequest.method,
+        url: originalRequest.url,
+        body: originalRequest.data
+          ? (typeof originalRequest.data === 'string'
+              ? JSON.parse(originalRequest.data)
+              : originalRequest.data)
+          : undefined,
+      })
+      // Respuesta sintética: caller continúa con optimistic UI
+      return Promise.resolve({ data: { _queued: true }, status: 202, config: originalRequest })
+    }
 
     // No intentar refrescar si el error ocurre en rutas de autenticación
     // o si el usuario ya está en la página de login

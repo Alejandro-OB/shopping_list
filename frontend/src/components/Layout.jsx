@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { Menu } from 'lucide-react'
 import Sidebar from './Sidebar'
+import OfflineBanner from './OfflineBanner'
 
 export default function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -15,6 +16,9 @@ export default function Layout() {
 
       {/* Main content */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+
+        {/* Banner offline / cambios pendientes */}
+        <OfflineBanner />
 
         {/* Top bar (mobile) */}
         <header className="lg:hidden flex items-center gap-3 px-4 py-3 bg-dark-900 border-b border-dark-800 flex-shrink-0">
