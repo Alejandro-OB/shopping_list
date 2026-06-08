@@ -34,17 +34,22 @@ export async function enqueueMutation(mutation) {
 }
 
 /**
- * Procesa toda la cola contra el backend. Se llama al volver `online`.
+ * Procesa toda la cola contra el backend.
  * @param {import('axios').AxiosInstance} api - instancia axios autenticada
  * @param {(msg: string) => void} [onDiscard] - callback opcional cuando una mutación se descarta por 4xx
+ * @returns {Promise<{ processed: number, discarded: number, remaining: number }>}
  */
 export async function processQueue(api, onDiscard) {
-  if (processing) return
+  if (processing) return { processed: 0, discarded: 0, remaining: -1 } // -1 = skip
   processing = true
   try {
     let queue = await getQueue()
-    if (!queue.length) return
+    if (!queue.length) {
+      notify(0)
+      return { processed: 0, discarded: 0, remaining: 0 }
+    }
 
+    let processed = 0, discarded = 0
     const remaining = []
     for (const m of queue) {
       try {
@@ -52,26 +57,29 @@ export async function processQueue(api, onDiscard) {
           method: m.method,
           url: m.url,
           data: m.body,
-          // Flag para que el interceptor NO vuelva a encolar esta misma mutación
           _skipOfflineQueue: true,
         })
+        processed++
       } catch (err) {
         const status = err?.response?.status
         if (status && status >= 400 && status < 500) {
-          // 4xx → conflicto persistente (lista completada, item eliminado, etc.) → descartar
+          discarded++
           if (onDiscard) {
             const detail = err.response?.data?.detail || 'cambio descartado'
             onDiscard(`${m.method.toUpperCase()} ${m.url}: ${detail}`)
           }
           continue
         }
-        // Otros errores (5xx o sin response) → mantener para próximo intento
+        // 5xx, timeout, network error → mantener para próximo intento
+        console.warn('[offlineQueue] retry pending:', m.method, m.url, err?.message || status)
         remaining.push(m)
       }
     }
 
     await set(QUEUE_KEY, remaining)
     notify(remaining.length)
+    console.info(`[offlineQueue] drain: ${processed} ok, ${discarded} descartados, ${remaining.length} pendientes`)
+    return { processed, discarded, remaining: remaining.length }
   } finally {
     processing = false
   }
