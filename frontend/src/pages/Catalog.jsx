@@ -177,8 +177,10 @@ export default function Catalog() {
 
   useEffect(() => { fetchData() }, [])
 
-  const fetchData = async (force = false) => {
-    setLoading(true)
+  const fetchData = async (force = false, { silent = false } = {}) => {
+    // silent: refetch en background sin spinner. Mantiene la tabla visible
+    // con los datos viejos para preservar el scroll del usuario.
+    if (!silent) setLoading(true)
     try {
       const cachedProds  = !force && apiCache.get('/products/')
       const cachedStores = !force && apiCache.get('/stores/')
@@ -223,7 +225,7 @@ export default function Catalog() {
     } catch {
       toast.error('Error al cargar el catálogo')
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }
 
@@ -353,7 +355,7 @@ export default function Catalog() {
           product={modal === 'create' ? null : modal}
           stores={stores}
           onClose={() => setModal(null)}
-          onSaved={() => { setSelected(new Map()); fetchData(true) }}
+          onSaved={() => { setSelected(new Map()); fetchData(true, { silent: true }) }}
         />
       )}
 
