@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, ShoppingCart, Store, CheckCircle2, Check, X,
@@ -1116,6 +1116,29 @@ export default function ListDetail() {
     return acc + (((curr.price_catalog_snapshot || 0) - curr.price_real) * curr.quantity)
   }, 0)
 
+  // Desglose por tienda — agrupa items por store_name, suma estimado y pagado.
+  // Items libres (store_name=null) caen en "Sin tienda".
+  const storeBreakdown = useMemo(() => {
+    const map = new Map()
+    for (const it of list.items) {
+      const key = it.store_name || 'Sin tienda'
+      const isFree = !it.store_name
+      const bucket = map.get(key) || { storeName: key, isFree, count: 0, checkedCount: 0, estimated: 0, paid: 0 }
+      bucket.count += 1
+      bucket.estimated += (it.price_catalog_snapshot || 0) * it.quantity
+      if (it.checked) {
+        bucket.checkedCount += 1
+        bucket.paid += (it.price_real || 0) * it.quantity
+      }
+      map.set(key, bucket)
+    }
+    return [...map.values()].sort((a, b) => {
+      if (a.isFree) return 1
+      if (b.isFree) return -1
+      return b.estimated - a.estimated
+    })
+  }, [list.items])
+
   const isCompleted = list.status === 'completed'
 
   return (
@@ -1408,6 +1431,51 @@ export default function ListDetail() {
           <div>
             <p className="text-sm font-semibold text-dark-200">¡Compra Finalizada!</p>
             <p className="text-xs text-emerald-600/80 mt-0.5">Los precios reales han sido registrados en tu historial para futuras sugerencias.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Desglose por tienda — útil para saber cuánto vas a gastar en cada lugar */}
+      {storeBreakdown.length > 1 && (
+        <div className="card p-0 overflow-hidden">
+          <div className="px-4 py-2.5 border-b border-dark-800 bg-dark-950/50 flex items-center justify-between">
+            <p className="text-xs font-bold text-dark-400 uppercase tracking-wider flex items-center gap-2">
+              <Store className="w-3.5 h-3.5 text-primary-600" />
+              Desglose por tienda
+            </p>
+            <span className="text-[10px] text-dark-500">{storeBreakdown.length} tiendas</span>
+          </div>
+          <div className="divide-y divide-dark-800/60">
+            {storeBreakdown.map((s) => (
+              <div key={s.storeName} className="flex items-center justify-between px-4 py-2.5 hover:bg-dark-800/30 transition-colors">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                    s.isFree ? 'bg-primary-500/10' : 'bg-amber-500/10'
+                  }`}>
+                    {s.isFree
+                      ? <Tag className="w-3.5 h-3.5 text-primary-500" />
+                      : <Store className="w-3.5 h-3.5 text-amber-600" />
+                    }
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-dark-100 truncate">{s.storeName}</p>
+                    <p className="text-[10px] text-dark-500">
+                      {s.checkedCount > 0 ? `${s.checkedCount}/${s.count}` : `${s.count}`} item{s.count > 1 ? 's' : ''}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-sm font-bold font-mono text-dark-200">
+                    ${s.estimated.toLocaleString('es-CO')}
+                  </p>
+                  {s.paid > 0 && (
+                    <p className="text-[10px] font-mono text-emerald-600">
+                      Pagado: ${s.paid.toLocaleString('es-CO')}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
