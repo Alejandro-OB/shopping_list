@@ -6,10 +6,10 @@ import api from '../api/axios'
 import { apiCache } from '../api/cache'
 import toast from 'react-hot-toast'
 
-export default function ProductModal({ product, stores, onClose, onSaved }) {
+export default function ProductModal({ product, stores, onClose, onSaved, initialName }) {
   const isEdit = !!product
   const [form, setForm] = useState({
-    name: product?.name ?? '',
+    name: product?.name ?? initialName ?? '',
     frequency: product?.frequency ?? 'weekly',
     frequency_start_date: product?.frequency_start_date
       ? new Date(product.frequency_start_date).toISOString().split('T')[0]

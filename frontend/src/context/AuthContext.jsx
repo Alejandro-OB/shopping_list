@@ -11,8 +11,13 @@ export function AuthProvider({ children }) {
     try {
       const { data } = await api.get('/users/me/')
       setUser(data)
-    } catch {
-      localStorage.clear()
+    } catch (err) {
+      // Solo limpiar storage si hubo respuesta y fue un error de auth.
+      // Errores de red (sin response) o 5xx pueden ser transitorios — no destruir la sesión.
+      const status = err?.response?.status
+      if (status === 401 || status === 403) {
+        localStorage.clear()
+      }
       setUser(null)
     } finally {
       setLoading(false)
@@ -35,21 +40,17 @@ export function AuthProvider({ children }) {
     setUser(null)
   }, [])
 
-  // Cargar usuario al iniciar
+  // Cargar usuario al iniciar.
+  // No usar timeout artificial: si la API tarda, esperamos. El interceptor de axios
+  // ya refresca el token con /refresh/ ante 401 y, si todo falla, el catch en
+  // fetchMe limpia el storage y desbloquea el flujo hacia /login.
   useEffect(() => {
-    // Timeout de seguridad: no dejar al usuario en la pantalla de carga más de 3s
-    const timer = setTimeout(() => {
-      if (loading) setLoading(false)
-    }, 3000)
-
     const token = localStorage.getItem('access_token')
     if (token) {
-      fetchMe().finally(() => clearTimeout(timer))
+      fetchMe()
     } else {
       setLoading(false)
-      clearTimeout(timer)
     }
-    return () => clearTimeout(timer)
   }, [fetchMe])
 
   return (

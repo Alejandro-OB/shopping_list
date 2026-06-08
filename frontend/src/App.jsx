@@ -12,6 +12,7 @@ import Catalog from './pages/Catalog'
 import Stores from './pages/Stores'
 import SystemInfo from './pages/SystemInfo'
 import SettingsPage from './pages/Settings'
+import PriceEvolution from './pages/PriceEvolution'
 import PendingVerification from './pages/PendingVerification'
 import VerifyEmail from './pages/VerifyEmail'
 import ResetPassword from './pages/ResetPassword'
@@ -63,6 +64,7 @@ export default function App() {
               <Route path="/stores"    element={<Stores />} />
               <Route path="/system-info" element={<SystemInfo />} />
               <Route path="/settings"  element={<SettingsPage />} />
+              <Route path="/price-evolution" element={<PriceEvolution />} />
             </Route>
           </Route>
 

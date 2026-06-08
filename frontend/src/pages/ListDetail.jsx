@@ -4,11 +4,13 @@ import {
   ArrowLeft, ShoppingCart, Store, CheckCircle2, Check, X,
   Circle, AlertCircle, Loader2, Sparkles, Pencil, Save,
   TrendingDown, TrendingUp, Minus, Plus, Trash2, FileText, Download,
-  FileSpreadsheet, MessageSquare, Search, Filter, Tag, RefreshCw, PackagePlus, ChevronDown
+  FileSpreadsheet, MessageSquare, Search, Filter, Tag, RefreshCw, PackagePlus, ChevronDown,
+  BookmarkPlus,
 } from 'lucide-react'
 import api from '../api/axios'
 import { apiCache } from '../api/cache'
 import toast from 'react-hot-toast'
+import ProductModal from '../components/ProductModal'
 
 // ── Modal: Agregar productos a la lista ────────────────────────────────────────
 function AddItemsModal({ listId, existingItems, onClose, onAdded }) {
@@ -17,6 +19,28 @@ function AddItemsModal({ listId, existingItems, onClose, onAdded }) {
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState({}) // { product_store_id: quantity }
   const [saving, setSaving] = useState(false)
+
+  // Producto libre
+  const [showFreeForm, setShowFreeForm] = useState(false)
+  const [freeItems, setFreeItems] = useState([]) // [{ free_name, quantity, price }]
+  const [freeName, setFreeName] = useState('')
+  const [freeQty, setFreeQty] = useState(1)
+  const [freePrice, setFreePrice] = useState('')
+
+  const addFreeItem = () => {
+    if (!freeName.trim()) return toast.error('Escribe el nombre del producto')
+    setFreeItems(prev => [...prev, {
+      free_name: freeName.trim(),
+      quantity: Math.max(1, parseInt(freeQty) || 1),
+      price: freePrice ? parseFloat(freePrice) : null,
+    }])
+    setFreeName('')
+    setFreeQty(1)
+    setFreePrice('')
+  }
+
+  const removeFreeItem = (i) =>
+    setFreeItems(prev => prev.filter((_, idx) => idx !== i))
 
   useEffect(() => {
     const cached = apiCache.get('/products/')
@@ -62,10 +86,16 @@ function AddItemsModal({ listId, existingItems, onClose, onAdded }) {
   }
 
   const handleAdd = async () => {
-    const items = Object.entries(selected).map(([id, qty]) => ({
+    const linkedItems = Object.entries(selected).map(([id, qty]) => ({
       product_store_id: parseInt(id),
       quantity: qty,
     }))
+    const freePayload = freeItems.map(it => ({
+      free_name: it.free_name,
+      quantity: it.quantity,
+      price: it.price,
+    }))
+    const items = [...linkedItems, ...freePayload]
     if (!items.length) return
     setSaving(true)
     try {
@@ -81,7 +111,7 @@ function AddItemsModal({ listId, existingItems, onClose, onAdded }) {
     }
   }
 
-  const selectedCount = Object.keys(selected).length
+  const selectedCount = Object.keys(selected).length + freeItems.length
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm">
@@ -114,6 +144,75 @@ function AddItemsModal({ listId, existingItems, onClose, onAdded }) {
               </button>
             )}
           </div>
+        </div>
+
+        {/* Producto libre */}
+        <div className="px-3 py-2 border-b border-dark-800 bg-dark-950/30">
+          <button
+            onClick={() => setShowFreeForm(v => !v)}
+            className="flex items-center gap-1.5 text-xs text-primary-600 hover:text-primary-500 transition-colors font-medium"
+          >
+            <Plus className={`w-3 h-3 transition-transform ${showFreeForm ? 'rotate-45' : ''}`} />
+            Producto libre
+          </button>
+          {showFreeForm && (
+            <div className="mt-2 space-y-2">
+              <div className="flex gap-1.5">
+                <input
+                  type="text"
+                  value={freeName}
+                  onChange={e => setFreeName(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addFreeItem() } }}
+                  placeholder="Nombre"
+                  className="input flex-1 py-1.5 text-xs"
+                />
+                <input
+                  type="number"
+                  min="1"
+                  value={freeQty}
+                  onChange={e => setFreeQty(e.target.value)}
+                  placeholder="Cant."
+                  className="input w-14 py-1.5 text-xs text-center"
+                />
+                <input
+                  type="number"
+                  min="0"
+                  step="100"
+                  value={freePrice}
+                  onChange={e => setFreePrice(e.target.value)}
+                  placeholder="Precio $"
+                  className="input w-20 py-1.5 text-xs"
+                />
+                <button
+                  onClick={addFreeItem}
+                  className="btn-primary py-1.5 px-2.5 text-xs"
+                  title="Agregar a la selección"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              {freeItems.length > 0 && (
+                <div className="space-y-1">
+                  {freeItems.map((it, i) => (
+                    <div key={i} className="flex items-center gap-2 bg-dark-800/60 rounded px-2 py-1 text-xs">
+                      <span className="flex-1 text-dark-200 truncate">
+                        <span className="text-primary-600 font-bold mr-1">{it.quantity}x</span>
+                        {it.free_name}
+                        {it.price ? <span className="text-dark-500 ml-1">· ${it.price.toLocaleString('es-CO')}</span> : null}
+                      </span>
+                      <button
+                        onClick={() => removeFreeItem(i)}
+                        className="text-dark-500 hover:text-red-600 p-0.5"
+                        title="Quitar"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Lista de productos */}
@@ -215,7 +314,7 @@ function AddItemsModal({ listId, existingItems, onClose, onAdded }) {
   )
 }
 
-function ItemRow({ item, onCheck, onDelete, onUpdateQuantity, isDisabled }) {
+function ItemRow({ item, onCheck, onDelete, onUpdateQuantity, onPromoteToProduct, isDisabled }) {
   const [price, setPrice] = useState(item.price_real || '')
   const [loading, setLoading] = useState(false)
   const [updatingQty, setUpdatingQty] = useState(false)
@@ -223,7 +322,9 @@ function ItemRow({ item, onCheck, onDelete, onUpdateQuantity, isDisabled }) {
   const [showConfirm, setShowConfirm] = useState(false)
   const [updatingCatalog, setUpdatingCatalog] = useState(false)
 
-  const diff = item.checked ? (item.price_catalog_snapshot - item.price_real) * item.quantity : 0
+  const isFree = item.is_free || !item.product_store_id
+  const catalogPrice = item.price_catalog_snapshot ?? 0
+  const diff = item.checked ? (catalogPrice - item.price_real) * item.quantity : 0
   const isSaving = diff > 0
   const isExpensive = diff < 0
 
@@ -283,8 +384,16 @@ function ItemRow({ item, onCheck, onDelete, onUpdateQuantity, isDisabled }) {
               {item.product_name}
             </p>
             <div className="flex items-center gap-2 mt-0.5">
-              <Store className="w-3 h-3 text-dark-500" />
-              <span className="text-xs text-dark-500">{item.store_name}</span>
+              {isFree ? (
+                <span className="text-[10px] bg-primary-600/15 text-primary-600 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
+                  Libre
+                </span>
+              ) : (
+                <>
+                  <Store className="w-3 h-3 text-dark-500" />
+                  <span className="text-xs text-dark-500">{item.store_name}</span>
+                </>
+              )}
               <div className="flex items-center gap-1.5 ml-1">
                 <button
                   onClick={() => onUpdateQuantity(item.id, -1)}
@@ -311,10 +420,16 @@ function ItemRow({ item, onCheck, onDelete, onUpdateQuantity, isDisabled }) {
 
       <td className="px-4 py-4 text-right hidden sm:table-cell">
         <p className="text-xs text-dark-500 font-bold uppercase tracking-wider mb-1">Catálogo</p>
-        <p className="text-sm text-dark-300">${item.price_catalog_snapshot.toLocaleString('es-CO')}</p>
-        <p className="text-[10px] text-dark-600 mt-1 font-medium">
-          Subtotal: ${(item.price_catalog_snapshot * item.quantity).toLocaleString('es-CO')}
-        </p>
+        {item.price_catalog_snapshot != null ? (
+          <>
+            <p className="text-sm text-dark-300">${catalogPrice.toLocaleString('es-CO')}</p>
+            <p className="text-[10px] text-dark-600 mt-1 font-medium">
+              Subtotal: ${(catalogPrice * item.quantity).toLocaleString('es-CO')}
+            </p>
+          </>
+        ) : (
+          <p className="text-sm text-dark-600">—</p>
+        )}
       </td>
 
       <td className="px-4 py-4">
@@ -338,16 +453,18 @@ function ItemRow({ item, onCheck, onDelete, onUpdateQuantity, isDisabled }) {
           )}
           {/* Acciones rápidas de precio — solo cuando el ítem no está marcado */}
           {!item.checked && !isDisabled && (
-            <div className="flex gap-1 mt-1.5">
-              <button
-                onClick={handleFillFromCatalog}
-                title="Usar el precio del catálogo como precio real"
-                className="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-dark-800 text-dark-400 hover:text-primary-600 hover:bg-primary-600/10 transition-colors"
-              >
-                <Tag className="w-2.5 h-2.5" />
-                = Catálogo
-              </button>
-              {price > 0 && parseFloat(price) !== item.price_catalog_snapshot && (
+            <div className="flex gap-1 mt-1.5 flex-wrap justify-end">
+              {!isFree && item.price_catalog_snapshot != null && (
+                <button
+                  onClick={handleFillFromCatalog}
+                  title="Usar el precio del catálogo como precio real"
+                  className="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-dark-800 text-dark-400 hover:text-primary-600 hover:bg-primary-600/10 transition-colors"
+                >
+                  <Tag className="w-2.5 h-2.5" />
+                  = Catálogo
+                </button>
+              )}
+              {!isFree && price > 0 && parseFloat(price) !== item.price_catalog_snapshot && (
                 <button
                   onClick={handleUpdateCatalogPrice}
                   disabled={updatingCatalog}
@@ -358,6 +475,16 @@ function ItemRow({ item, onCheck, onDelete, onUpdateQuantity, isDisabled }) {
                     ? <Loader2 className="w-2.5 h-2.5 animate-spin" />
                     : <RefreshCw className="w-2.5 h-2.5" />}
                   Act. catálogo
+                </button>
+              )}
+              {isFree && (
+                <button
+                  onClick={() => onPromoteToProduct?.(item.product_name)}
+                  title="Guardar este producto en el catálogo"
+                  className="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-dark-800 text-dark-400 hover:text-primary-600 hover:bg-primary-600/10 transition-colors"
+                >
+                  <BookmarkPlus className="w-2.5 h-2.5" />
+                  Guardar como producto
                 </button>
               )}
             </div>
@@ -442,17 +569,35 @@ export default function ListDetail() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedStore, setSelectedStore] = useState('all')
 
+  // Modal para guardar producto libre como producto en BD
+  const [productModalInitial, setProductModalInitial] = useState(null) // string | null
+  const [stores, setStores] = useState([])
+
   useEffect(() => {
     fetchList()
   }, [id])
+
+  useEffect(() => {
+    // Cargar stores con cache para el ProductModal
+    const cached = apiCache.get('/stores/')
+    if (cached) { setStores(cached.filter(s => !s.is_deleted)); return }
+    api.get('/stores/').then(({ data }) => {
+      const valid = Array.isArray(data) ? data.filter(s => !s.is_deleted) : []
+      apiCache.set('/stores/', data)
+      setStores(valid)
+    }).catch(() => {})
+  }, [])
 
   const fetchList = async () => {
     setLoading(true)
     try {
       const { data } = await api.get(`/lists/${id}/`)
-      // El backend no garantiza el orden, así que ordenamos por tienda en el frontend
+      // El backend no garantiza el orden, así que ordenamos por tienda en el frontend.
+      // Items libres (store_name === null) van al final.
       if (data.items) {
-        data.items.sort((a, b) => a.store_name.localeCompare(b.store_name))
+        data.items.sort((a, b) =>
+          (a.store_name || 'zzz_libre').localeCompare(b.store_name || 'zzz_libre')
+        )
       }
       setList(data)
       setNewName(data.name)
@@ -673,10 +818,11 @@ export default function ListDetail() {
     let message = `🛒 *Lista de Compras: ${list.name}*\n`
     message += `📅 Fecha: ${formattedDate}\n\n`
     
-    // Agrupar por tienda para el mensaje
+    // Agrupar por tienda para el mensaje. Items libres → "Sin tienda".
     const itemsByStore = list.items.reduce((acc, item) => {
-      if (!acc[item.store_name]) acc[item.store_name] = []
-      acc[item.store_name].push(item)
+      const key = item.store_name || 'Sin tienda'
+      if (!acc[key]) acc[key] = []
+      acc[key].push(item)
       return acc
     }, {})
 
@@ -689,7 +835,7 @@ export default function ListDetail() {
       message += `\n`
     })
 
-    const totalE = list.items.reduce((acc, curr) => acc + (curr.price_catalog_snapshot * curr.quantity), 0)
+    const totalE = list.items.reduce((acc, curr) => acc + ((curr.price_catalog_snapshot || 0) * curr.quantity), 0)
     const totalR = list.items.reduce((acc, curr) => curr.checked ? acc + (curr.price_real * curr.quantity) : acc, 0)
 
     message += `💰 *Total Estimado:* $${totalE.toLocaleString('es-CO')}\n`
@@ -727,7 +873,7 @@ export default function ListDetail() {
   const progress = (itemsBought / totalItems) * 100
   
   const totalProjected = list.items.reduce((acc, curr) => {
-    return acc + (curr.price_catalog_snapshot * curr.quantity)
+    return acc + ((curr.price_catalog_snapshot || 0) * curr.quantity)
   }, 0)
 
   const totalReal = list.items.reduce((acc, curr) => {
@@ -737,7 +883,7 @@ export default function ListDetail() {
 
   const totalSaved = list.items.reduce((acc, curr) => {
     if (!curr.checked) return acc
-    return acc + ((curr.price_catalog_snapshot - curr.price_real) * curr.quantity)
+    return acc + (((curr.price_catalog_snapshot || 0) - curr.price_real) * curr.quantity)
   }, 0)
 
   const isCompleted = list.status === 'completed'
@@ -751,6 +897,16 @@ export default function ListDetail() {
           existingItems={list.items}
           onClose={() => setShowAddModal(false)}
           onAdded={fetchList}
+        />
+      )}
+
+      {productModalInitial !== null && (
+        <ProductModal
+          product={null}
+          initialName={productModalInitial}
+          stores={stores}
+          onClose={() => setProductModalInitial(null)}
+          onSaved={() => { apiCache.invalidate('/products/'); setProductModalInitial(null) }}
         />
       )}
 
@@ -1108,12 +1264,13 @@ export default function ListDetail() {
                    }
 
                    return filteredItems.map(item => (
-                     <ItemRow 
-                       key={item.id} 
-                       item={item} 
+                     <ItemRow
+                       key={item.id}
+                       item={item}
                        onCheck={handleCheckItem}
                        onDelete={handleDeleteItem}
                        onUpdateQuantity={handleUpdateQuantity}
+                       onPromoteToProduct={(name) => setProductModalInitial(name)}
                        isDisabled={isCompleted}
                      />
                    ));

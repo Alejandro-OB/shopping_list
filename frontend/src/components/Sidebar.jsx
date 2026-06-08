@@ -12,17 +12,19 @@ import {
   Menu,
   X,
   Server,
+  TrendingUp,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
 
 const NAV_ITEMS = [
-  { label: 'Dashboard',      icon: LayoutDashboard, to: '/' },
-  { label: 'Listas',         icon: ShoppingCart,    to: '/lists' },
-  { label: 'Catálogo',       icon: BookOpen,        to: '/catalog' },
-  { label: 'Tiendas',        icon: Store,           to: '/stores' },
-  { label: 'Sistema',        icon: Server,          to: '/system-info' },
-  { label: 'Configuración',  icon: Settings,        to: '/settings' },
+  { label: 'Dashboard',         icon: LayoutDashboard, to: '/' },
+  { label: 'Listas',            icon: ShoppingCart,    to: '/lists' },
+  { label: 'Catálogo',          icon: BookOpen,        to: '/catalog' },
+  { label: 'Tiendas',           icon: Store,           to: '/stores' },
+  { label: 'Precios',           icon: TrendingUp,      to: '/price-evolution' },
+  { label: 'Sistema',           icon: Server,          to: '/system-info' },
+  { label: 'Configuración',     icon: Settings,        to: '/settings' },
 ]
 
 export default function Sidebar({ mobileOpen, onMobileClose }) {

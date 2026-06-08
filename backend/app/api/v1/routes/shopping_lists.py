@@ -81,18 +81,28 @@ def create_shopping_list(
     )
     new_list.items = []
 
-    # 3. Agregar los ítems
+    # 3. Agregar los ítems (vinculados o libres)
     for item_in in list_in.items:
-        ps = db.get(ProductStore, item_in.product_store_id)
-        if not ps:
-            continue
-        item = ShoppingListItem(
-            product_store_id=item_in.product_store_id,
-            quantity=item_in.quantity,
-            checked=False,
-            price_catalog_snapshot=float(ps.price_catalog),
-            price_real=0,
-        )
+        if item_in.product_store_id:
+            ps = db.get(ProductStore, item_in.product_store_id)
+            if not ps:
+                continue
+            item = ShoppingListItem(
+                product_store_id=item_in.product_store_id,
+                quantity=item_in.quantity,
+                checked=False,
+                price_catalog_snapshot=float(ps.price_catalog),
+                price_real=0,
+            )
+        else:
+            item = ShoppingListItem(
+                product_store_id=None,
+                free_name=item_in.free_name,
+                quantity=item_in.quantity,
+                checked=False,
+                price_catalog_snapshot=float(item_in.price) if item_in.price else None,
+                price_real=0,
+            )
         new_list.items.append(item)
 
     # 4. Guardar
@@ -126,23 +136,34 @@ def add_items_to_list(
     if shopping_list.status == ModelListStatus.completed:
         raise HTTPException(status_code=400, detail="No se pueden agregar ítems a una lista ya completada")
 
-    # IDs de product_store ya presentes en la lista
-    existing_ps_ids = {item.product_store_id for item in shopping_list.items}
+    # IDs de product_store ya presentes en la lista (solo items vinculados)
+    existing_ps_ids = {item.product_store_id for item in shopping_list.items if item.product_store_id is not None}
 
     for item_in in items_in:
-        if item_in.product_store_id in existing_ps_ids:
-            continue  # Ya existe, saltar
-        ps = db.get(ProductStore, item_in.product_store_id)
-        if not ps:
-            continue
-        item = ShoppingListItem(
-            list_id=shopping_list.id,
-            product_store_id=item_in.product_store_id,
-            quantity=item_in.quantity,
-            checked=False,
-            price_catalog_snapshot=float(ps.price_catalog),
-            price_real=0,
-        )
+        if item_in.product_store_id:
+            if item_in.product_store_id in existing_ps_ids:
+                continue  # Ya existe, saltar
+            ps = db.get(ProductStore, item_in.product_store_id)
+            if not ps:
+                continue
+            item = ShoppingListItem(
+                list_id=shopping_list.id,
+                product_store_id=item_in.product_store_id,
+                quantity=item_in.quantity,
+                checked=False,
+                price_catalog_snapshot=float(ps.price_catalog),
+                price_real=0,
+            )
+        else:
+            item = ShoppingListItem(
+                list_id=shopping_list.id,
+                product_store_id=None,
+                free_name=item_in.free_name,
+                quantity=item_in.quantity,
+                checked=False,
+                price_catalog_snapshot=float(item_in.price) if item_in.price else None,
+                price_real=0,
+            )
         db.add(item)
 
     db.commit()
@@ -314,7 +335,11 @@ def export_shopping_list_pdf(
 
     # 2. Preparar datos para la plantilla
     # Ordenar ítems por nombre de tienda para facilitar la compra
-    items = sorted(shopping_list.items, key=lambda x: x.product_store.store.name)
+    # Items libres se ordenan al final con clave "zz_libre"
+    items = sorted(
+        shopping_list.items,
+        key=lambda x: x.product_store.store.name if x.product_store else "zz_libre",
+    )
     total_projected = sum((item.price_catalog_snapshot or 0) * item.quantity for item in items if item.price_catalog_snapshot)
     total_real      = sum((item.price_real or 0) * item.quantity for item in items if item.checked)
 
@@ -449,9 +474,12 @@ def export_shopping_list_excel(
     worksheet.set_column(5, 5, 15)   # P. Real Unit.
     worksheet.set_column(6, 6, 18)   # Subtotal Real
 
-    # Datos
-    items = sorted(shopping_list.items, key=lambda x: (x.product_store.store.name if x.product_store and x.product_store.store else ""))
-    
+    # Datos — items libres se ordenan al final con clave "zz_libre"
+    items = sorted(
+        shopping_list.items,
+        key=lambda x: x.product_store.store.name if x.product_store and x.product_store.store else "zz_libre",
+    )
+
     current_row = start_row + 1
     total_est_sum = 0
     data_start_row = current_row + 1 # +1 porque Excel es 1-indexed
@@ -461,10 +489,16 @@ def export_shopping_list_excel(
         # Valor booleano vinculado a la casilla
         is_checked = item.checked
         worksheet.insert_checkbox(current_row, 0, is_checked, cell_format)
-        
-        # Producto y Tienda
-        worksheet.write(current_row, 1, item.product_store.product.name, cell_format)
-        worksheet.write(current_row, 2, item.product_store.store.name, cell_format)
+
+        # Producto y Tienda — distinguir vinculados vs libres
+        if item.product_store:
+            display_name = item.product_store.product.name
+            display_store = item.product_store.store.name
+        else:
+            display_name = item.free_name or "—"
+            display_store = "Producto libre"
+        worksheet.write(current_row, 1, display_name, cell_format)
+        worksheet.write(current_row, 2, display_store, cell_format)
         
         # Cantidad
         worksheet.write(current_row, 3, item.quantity, cell_format)

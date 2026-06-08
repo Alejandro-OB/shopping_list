@@ -127,6 +127,65 @@ class MetricsService:
 
         return [{"product_name": row[0], "total_quantity": int(row[1])} for row in results]
 
+    def get_price_evolution(
+        self,
+        user_id: int,
+        product_id: Optional[int] = None,
+        store_id: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Evolución del precio real pagado por producto+tienda a lo largo de las semanas.
+        Devuelve una lista de series temporales, una por cada par (producto, tienda).
+        Los items libres (sin product_store_id) se excluyen por no tener tienda asociada.
+        """
+        from collections import defaultdict
+
+        filters = [
+            ShoppingList.user_id == user_id,
+            ShoppingListItem.checked == True,
+            ShoppingListItem.product_store_id.isnot(None),
+        ]
+        if product_id is not None:
+            filters.append(Product.id == product_id)
+        if store_id is not None:
+            filters.append(Store.id == store_id)
+
+        rows = (
+            self.db.query(
+                ProductStore.id,
+                Product.name,
+                Store.name,
+                ShoppingList.date,
+                ShoppingListItem.price_real,
+            )
+            .join(ShoppingList, ShoppingListItem.list_id == ShoppingList.id)
+            .join(ProductStore, ShoppingListItem.product_store_id == ProductStore.id)
+            .join(Product, ProductStore.product_id == Product.id)
+            .join(Store, ProductStore.store_id == Store.id)
+            .filter(and_(*filters))
+            .order_by(ProductStore.id, ShoppingList.date)
+            .all()
+        )
+
+        groups: Dict[int, Dict] = defaultdict(lambda: {"product_name": None, "store_name": None, "points": []})
+        for ps_id, prod_name, store_name, list_date, price in rows:
+            g = groups[ps_id]
+            g["product_name"] = prod_name
+            g["store_name"] = store_name
+            iso = list_date.isocalendar()
+            week_label = f"{iso[0]}-W{iso[1]:02d}"
+            g["points"].append({"week": week_label, "date": list_date, "price": float(price or 0)})
+
+        return [
+            {
+                "product_store_id": ps_id,
+                "product_name": data["product_name"],
+                "store_name": data["store_name"],
+                "points": data["points"],
+            }
+            for ps_id, data in groups.items()
+        ]
+
     def get_budget_summary(self, user_id: int) -> Dict[str, Any]:
         """
         Resumen dashboard completo con proyecciones y gastos reales.

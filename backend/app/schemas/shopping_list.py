@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator
 from datetime import datetime
 from typing import Optional, List, Any
 from enum import Enum
@@ -10,35 +10,54 @@ class ListStatus(str, Enum):
     completed = "completed"
 
 # Item de la lista
-class ShoppingListItemBase(BaseModel):
-    product_store_id: int
+class ShoppingListItemCreate(BaseModel):
+    product_store_id: Optional[int] = None
+    free_name: Optional[str] = Field(None, min_length=1, max_length=255)
     quantity: int = Field(..., ge=1)
+    price: Optional[float] = Field(None, ge=0)  # precio opcional para items libres
 
-class ShoppingListItemCreate(ShoppingListItemBase):
-    pass
+    @model_validator(mode="after")
+    def linked_xor_free(self):
+        # Exactamente uno de product_store_id o free_name debe estar presente
+        if (self.product_store_id is None) == (self.free_name is None):
+            raise ValueError(
+                "Debe especificar product_store_id O free_name (exactamente uno)."
+            )
+        return self
 
 class ShoppingListItemUpdate(BaseModel):
     checked: Optional[bool] = None
     price_real: Optional[float] = Field(None, ge=0)
     quantity: Optional[int] = Field(None, ge=1)
 
-class ShoppingListItemOut(ShoppingListItemBase):
+class ShoppingListItemOut(BaseModel):
     id: int
     list_id: int
+    product_store_id: Optional[int] = None
+    free_name: Optional[str] = None
+    quantity: int
     checked: bool
-    price_catalog_snapshot: float
+    price_catalog_snapshot: Optional[float] = None
     price_real: float
 
     # Campo interno para alimentar los computed_fields, excluido de la respuesta JSON
     product_store: Any = Field(None, exclude=True)
-    
-    @computed_field
-    def product_name(self) -> str:
-        return self.product_store.product.name
 
     @computed_field
-    def store_name(self) -> str:
-        return self.product_store.store.name
+    def product_name(self) -> str:
+        if self.product_store and getattr(self.product_store, "product", None):
+            return self.product_store.product.name
+        return self.free_name or "—"
+
+    @computed_field
+    def store_name(self) -> Optional[str]:
+        if self.product_store and getattr(self.product_store, "store", None):
+            return self.product_store.store.name
+        return None  # señal de "producto libre" al frontend
+
+    @computed_field
+    def is_free(self) -> bool:
+        return self.product_store_id is None
 
     model_config = ConfigDict(from_attributes=True)
 
