@@ -167,29 +167,31 @@ export default function SystemInfo() {
             </div>
           </div>
 
-          <div className="border-t border-primary-500/10 pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <p className="text-sm text-dark-100 font-medium">Ejecución Manual (Global)</p>
-              <p className="text-xs text-dark-400 mt-1 max-w-md">
-                Dispara el motor de recomendaciones inmediatamente para todos los usuarios que tengan la opción activa.
+          <div className="border-t border-primary-500/10 pt-4 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <p className="text-sm text-dark-100 font-medium">Ejecución Manual (Global)</p>
+                <p className="text-xs text-dark-400 mt-1 max-w-md">
+                  Dispara el motor de recomendaciones inmediatamente para todos los usuarios que tengan la opción activa.
+                </p>
+              </div>
+              <button
+                onClick={handleGenerateLists}
+                disabled={generating}
+                className="btn-primary shrink-0"
+              >
+                {generating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+                Ejecutar Ahora
+              </button>
+            </div>
+
+            <div className="flex items-start gap-2 px-3 py-2 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+              <p className="text-[11px] text-amber-700 leading-relaxed">
+                <strong>Nota:</strong> Esta acción puede tomar unos segundos dependiendo de la cantidad de usuarios activos.
+                No recargues la página mientras se procesa.
               </p>
             </div>
-            <button
-              onClick={handleGenerateLists}
-              disabled={generating}
-              className="btn-primary shrink-0"
-            >
-              {generating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
-              Ejecutar Ahora
-            </button>
-          </div>
-
-          <div className="flex items-start gap-3 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
-            <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-            <p className="text-[11px] text-amber-200/70 leading-relaxed">
-              <strong>Nota:</strong> Esta acción puede tomar unos segundos dependiendo de la cantidad de usuarios activos. 
-              No recargues la página mientras se procesa.
-            </p>
           </div>
         </div>
       )}

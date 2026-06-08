@@ -697,7 +697,7 @@ export default function ListDetail() {
       message += `💸 *Total Pagado:* $${totalR.toLocaleString('es-CO')}\n`
     }
     
-    message += `\n_Enviado desde ShopList Pro_ 🚀`
+    message += `\n_Enviado desde CompraYa_ 🚀`
 
     const encodedMessage = encodeURIComponent(message)
     const whatsappUrl = `https://api.whatsapp.com/send?text=${encodedMessage}`

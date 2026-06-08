@@ -109,7 +109,7 @@ export default function PendingVerification() {
       </div>
 
       <div className="mt-8 text-dark-600 text-xs flex items-center gap-4">
-        <span>© 2026 ShopList Pro</span>
+        <span>© 2026 CompraYa</span>
         <span className="w-1 h-1 bg-dark-800 rounded-full" />
         <a href="#" className="hover:text-dark-400 transition-colors">Soporte</a>
       </div>

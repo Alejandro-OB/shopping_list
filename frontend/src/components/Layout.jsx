@@ -25,7 +25,7 @@ export default function Layout() {
           >
             <Menu className="w-5 h-5" />
           </button>
-          <p className="text-sm font-semibold text-dark-200">ShopList</p>
+          <p className="text-sm font-semibold text-dark-200">CompraYa</p>
         </header>
 
         {/* Page content */}

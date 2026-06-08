@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Eye, EyeOff, ShoppingCart, Sparkles, Loader2, X, Mail, Send } from 'lucide-react'
+import { Eye, EyeOff, ShoppingCart, Loader2, X, Mail, Send } from 'lucide-react'
 import api from '../api/axios'
 import toast from 'react-hot-toast'
 import { useAuth } from '../context/AuthContext'
@@ -63,10 +63,10 @@ export default function Login() {
           {/* Logo */}
           <div className="flex flex-col items-center gap-3 mb-8">
             <div style={{ width: 56, height: 56, borderRadius: 16, background: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 24px rgba(109,40,217,0.3)' }}>
-              <Sparkles className="w-6 h-6 text-white" />
+              <ShoppingCart className="w-6 h-6 text-white" />
             </div>
             <div className="text-center">
-              <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1e1033', letterSpacing: '-0.02em', fontFamily: "'Syne', sans-serif" }}>Listó</h1>
+              <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1e1033', letterSpacing: '-0.02em', fontFamily: "'Syne', sans-serif" }}>CompraYa</h1>
               <p style={{ fontSize: 13.5, color: '#7c6fa0', marginTop: 3 }}>Gestiona tus compras de forma inteligente</p>
             </div>
           </div>

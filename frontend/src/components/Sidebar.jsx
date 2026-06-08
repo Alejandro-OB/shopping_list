@@ -10,7 +10,6 @@ import {
   LogOut,
   ChevronLeft,
   Menu,
-  Sparkles,
   X,
   Server,
 } from 'lucide-react'
@@ -45,11 +44,11 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
       {/* Logo */}
       <div className={`flex items-center gap-3 px-4 py-5 border-b border-dark-800 ${collapsed ? 'justify-center' : ''}`}>
         <div className="w-8 h-8 rounded-lg bg-primary-600 flex items-center justify-center flex-shrink-0">
-          <Sparkles className="w-4 h-4 text-white" />
+          <ShoppingCart className="w-4 h-4 text-white" />
         </div>
         {!collapsed && (
           <div className="min-w-0">
-            <p className="text-sm font-bold text-dark-200 truncate">ShopList</p>
+            <p className="text-sm font-bold text-dark-200 truncate">CompraYa</p>
             <p className="text-xs text-primary-600 truncate">Smart Shopping</p>
           </div>
         )}
