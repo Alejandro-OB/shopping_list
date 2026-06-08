@@ -78,27 +78,32 @@ class MetricsService:
         ESTIMACIÓN SEMANAL (Presupuesto proyectado):
         Suma el costo proyectado de los productos para los próximos 7 días.
         """
+        from sqlalchemy.orm import selectinload
+
         hoy_bogota = now_bogota()
         proximos_7_dias = hoy_bogota + timedelta(days=7)
-        
+
+        # selectinload evita N lazy queries por product_stores dentro del loop
         products = self.db.execute(
-            select(Product).filter(
+            select(Product).options(
+                selectinload(Product.product_stores)
+            ).filter(
                 and_(Product.user_id == user_id, Product.is_deleted == False)
             )
         ).scalars().all()
-        
+
         proyeccion_total = 0.0
         for product in products:
             next_date = calculate_next_occurrence(
-                product.frequency.value, 
-                product.frequency_start_date, 
+                product.frequency.value,
+                product.frequency_start_date,
                 hoy_bogota
             )
             if next_date and next_date.date() <= proximos_7_dias.date():
                 active_ps = next((ps for ps in product.product_stores if not ps.is_deleted), None)
                 if active_ps:
                     proyeccion_total += float(active_ps.price_catalog)
-                    
+
         return float(proyeccion_total)
 
     def get_most_bought_products(self, user_id: int, limit: int = 5) -> List[Dict[str, Any]]:
@@ -127,16 +132,26 @@ class MetricsService:
         Resumen dashboard completo con proyecciones y gastos reales.
         """
         now = datetime.now()
-        
-        # Conteos básicos
-        total_lists = self.db.query(ShoppingList).filter(ShoppingList.user_id == user_id).count()
-        total_products = self.db.query(Product).filter(
-            and_(Product.user_id == user_id, Product.is_deleted == False)
-        ).count()
-        total_stores = self.db.query(Store).filter(
-            and_(Store.user_id == user_id, Store.is_deleted == False)
-        ).count()
-        
+
+        # Los 3 COUNT en un único round-trip usando scalar subqueries
+        counts_row = self.db.execute(
+            select(
+                select(func.count(ShoppingList.id))
+                    .where(ShoppingList.user_id == user_id)
+                    .scalar_subquery()
+                    .label("total_lists"),
+                select(func.count(Product.id))
+                    .where(and_(Product.user_id == user_id, Product.is_deleted == False))
+                    .scalar_subquery()
+                    .label("total_products"),
+                select(func.count(Store.id))
+                    .where(and_(Store.user_id == user_id, Store.is_deleted == False))
+                    .scalar_subquery()
+                    .label("total_stores"),
+            )
+        ).one()
+        total_lists, total_products, total_stores = counts_row
+
         return {
             "total_lists": total_lists,
             "total_products": total_products,

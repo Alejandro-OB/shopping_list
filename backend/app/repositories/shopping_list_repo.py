@@ -38,20 +38,22 @@ class ShoppingListRepository(BaseRepository[ShoppingList, ShoppingListCreate, Sh
         """
         Obtiene las listas de un usuario con sus relaciones.
         """
-        from sqlalchemy.orm import joinedload
+        from sqlalchemy.orm import selectinload, joinedload
         from app.models.shopping_list_item import ShoppingListItem
         from app.models.product_store import ProductStore
 
+        # selectinload para la colección items evita el producto cartesiano que generaba
+        # joinedload y permite aplicar LIMIT sobre las listas (no sobre el join resultante).
         query = select(self.model).options(
-            joinedload(self.model.items)
-                .joinedload(ShoppingListItem.product_store)
-                .joinedload(ProductStore.product),
-            joinedload(self.model.items)
-                .joinedload(ShoppingListItem.product_store)
-                .joinedload(ProductStore.store)
-        ).filter(self.model.user_id == user_id).offset(skip).limit(limit)
+            selectinload(self.model.items).options(
+                joinedload(ShoppingListItem.product_store).options(
+                    joinedload(ProductStore.product),
+                    joinedload(ProductStore.store),
+                )
+            )
+        ).filter(self.model.user_id == user_id).order_by(self.model.date.desc()).offset(skip).limit(limit)
 
-        results = self.db.execute(query).unique().scalars().all()
+        results = self.db.execute(query).scalars().all()
         for sl in results:
             if sl.items:
                 sl.items.sort(key=lambda x: (x.product_store.store.name if x.product_store and x.product_store.store else ""))

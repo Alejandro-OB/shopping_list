@@ -4,6 +4,7 @@ import {
   Loader2, Store, Tag, Calendar, Link2, AlertCircle
 } from 'lucide-react'
 import api from '../api/axios'
+import { apiCache } from '../api/cache'
 import toast from 'react-hot-toast'
 
 const FREQUENCY_LABELS = {
@@ -77,6 +78,7 @@ function ProductModal({ product, stores, onClose, onSaved }) {
         }
       }))
 
+      apiCache.invalidate('/products/')
       onSaved()
       onClose()
     } catch (err) {
@@ -124,8 +126,8 @@ function ProductModal({ product, stores, onClose, onSaved }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
       <div className="bg-dark-900 border border-dark-700 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 space-y-5 shadow-primary-500/10">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-white flex items-center gap-2">
-            <Package className="w-4 h-4 text-primary-400" />
+          <h2 className="text-base font-bold text-dark-200 flex items-center gap-2">
+            <Package className="w-4 h-4 text-primary-600" />
             {isEdit ? 'Editar Producto' : 'Nuevo Producto'}
           </h2>
           <button onClick={onClose} className="btn-ghost p-1.5"><X className="w-4 h-4" /></button>
@@ -184,7 +186,7 @@ function ProductModal({ product, stores, onClose, onSaved }) {
                   {storeLinks.map((link, i) => (
                     <div key={i} className="flex items-center justify-between bg-dark-800 rounded-lg px-3 py-2 text-sm border border-dark-700/50">
                       <div className="flex items-center gap-2">
-                        <Store className="w-3.5 h-3.5 text-amber-400" />
+                        <Store className="w-3.5 h-3.5 text-amber-600" />
                         <span className="text-dark-200 truncate max-w-[150px]">{link.store?.name || link.store_name}</span>
                       </div>
                       <div className="flex items-center gap-2">
@@ -197,7 +199,7 @@ function ProductModal({ product, stores, onClose, onSaved }) {
                             className="bg-dark-900 border border-dark-700 rounded px-5 py-1 w-24 text-right text-xs font-mono text-dark-100 focus:outline-none focus:border-primary-500 transition-colors"
                           />
                         </div>
-                        <button type="button" onClick={() => removeLink(i)} className="text-dark-500 hover:text-red-400 p-1">
+                        <button type="button" onClick={() => removeLink(i)} className="text-dark-500 hover:text-red-600 p-1">
                           <X className="w-3.5 h-3.5" />
                         </button>
                       </div>
@@ -264,7 +266,7 @@ function ProductRow({ product, stores, onEdit, onDelete }) {
       <td className="px-4 py-3">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-primary-600/10 flex items-center justify-center flex-shrink-0">
-            <Package className="w-4 h-4 text-primary-400" />
+            <Package className="w-4 h-4 text-primary-600" />
           </div>
           <div>
             <p className="text-sm font-medium text-dark-100">{product.name}</p>
@@ -282,7 +284,7 @@ function ProductRow({ product, stores, onEdit, onDelete }) {
       <td className="px-4 py-3">
         {activeStores.length > 0 ? (
           <div className="flex flex-col">
-            <span className="text-sm font-mono text-primary-300">
+            <span className="text-sm font-mono text-primary-700">
               {activeStores.length > 1 ? 'Desde ' : ''}
               ${Math.min(...activeStores.map(ps => ps.price_catalog)).toLocaleString('es-CO')}
             </span>
@@ -301,7 +303,7 @@ function ProductRow({ product, stores, onEdit, onDelete }) {
           </button>
           {confirmDelete ? (
             <div className="flex items-center gap-1">
-              <button onClick={handleDelete} disabled={deleting} className="btn-ghost p-1.5 text-red-400 hover:text-red-300">
+              <button onClick={handleDelete} disabled={deleting} className="btn-ghost p-1.5 text-red-600 hover:text-red-600">
                 {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
               </button>
               <button onClick={() => setConfirmDelete(false)} className="btn-ghost p-1.5">
@@ -309,7 +311,7 @@ function ProductRow({ product, stores, onEdit, onDelete }) {
               </button>
             </div>
           ) : (
-            <button onClick={() => setConfirmDelete(true)} className="btn-ghost p-1.5 hover:text-red-400">
+            <button onClick={() => setConfirmDelete(true)} className="btn-ghost p-1.5 hover:text-red-600">
               <Trash2 className="w-3.5 h-3.5" />
             </button>
           )}
@@ -330,15 +332,27 @@ export default function Products() {
 
   useEffect(() => { fetchAll() }, [])
 
-  const fetchAll = async () => {
+  const fetchAll = async (force = false) => {
+    const cachedProds   = !force && apiCache.get('/products/')
+    const cachedStores  = !force && apiCache.get('/stores/')
+    if (cachedProds && cachedStores) {
+      setProducts(cachedProds)
+      setStores(cachedStores)
+      setLoading(false)
+      return
+    }
     setLoading(true)
     try {
       const [prodRes, storeRes] = await Promise.all([
-        api.get('/products/'),
-        api.get('/stores/'),
+        cachedProds  ? Promise.resolve({ data: cachedProds  }) : api.get('/products/'),
+        cachedStores ? Promise.resolve({ data: cachedStores }) : api.get('/stores/'),
       ])
-      setProducts(Array.isArray(prodRes.data) ? prodRes.data.filter(p => !p.is_deleted) : [])
-      setStores(Array.isArray(storeRes.data) ? storeRes.data.filter(s => !s.is_deleted) : [])
+      const prods  = Array.isArray(prodRes.data)  ? prodRes.data.filter(p => !p.is_deleted)  : []
+      const stores = Array.isArray(storeRes.data) ? storeRes.data.filter(s => !s.is_deleted) : []
+      if (!cachedProds)  apiCache.set('/products/', prods)
+      if (!cachedStores) apiCache.set('/stores/', stores)
+      setProducts(prods)
+      setStores(stores)
     } catch {
       toast.error('Error al cargar productos')
     } finally {
@@ -350,6 +364,7 @@ export default function Products() {
     try {
       await api.delete(`/products/${id}/`)
       toast.success('Producto eliminado')
+      apiCache.invalidate('/products/')
       setProducts(prev => prev.filter(p => p.id !== id))
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Error al eliminar producto')
@@ -377,8 +392,8 @@ export default function Products() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl font-bold text-white flex items-center gap-2">
-              <Package className="w-5 h-5 text-primary-400" />
+            <h1 className="text-xl font-bold text-dark-200 flex items-center gap-2">
+              <Package className="w-5 h-5 text-primary-600" />
               Productos
             </h1>
             <p className="text-dark-400 text-sm mt-0.5">{products.length} producto(s) en tu catálogo</p>

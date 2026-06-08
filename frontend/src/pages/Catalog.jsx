@@ -5,6 +5,7 @@ import {
   CalendarDays, ShoppingCart, Check, AlertCircle, Plus, PlusCircle
 } from 'lucide-react'
 import api from '../api/axios'
+import { apiCache } from '../api/cache'
 import toast from 'react-hot-toast'
 
 const FREQ_LABELS = {
@@ -70,9 +71,12 @@ export default function Catalog() {
   const fetchData = async () => {
     setLoading(true)
     try {
-      const [{ data: products }, { data: lists }] = await Promise.all([
-        api.get('/products/'),
+      const cachedProds = apiCache.get('/products/')
+      const [{ data: lists }, products] = await Promise.all([
         api.get('/lists/'),
+        cachedProds
+          ? Promise.resolve(cachedProds)
+          : api.get('/products/').then(r => { apiCache.set('/products/', r.data); return r.data }),
       ])
 
       // Detectar lista activa
@@ -84,7 +88,7 @@ export default function Catalog() {
 
       // "Explotar" cada producto en filas por tienda
       const flat = []
-      for (const p of products.filter(p => !p.is_deleted)) {
+      for (const p of (Array.isArray(products) ? products : []).filter(p => !p.is_deleted)) {
         for (const ps of p.product_stores.filter(ps => !ps.is_deleted)) {
           flat.push({
             ps_id:     ps.id,
@@ -213,8 +217,8 @@ export default function Catalog() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-white flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-primary-400" />
+          <h1 className="text-xl font-bold text-dark-200 flex items-center gap-2">
+            <BookOpen className="w-5 h-5 text-primary-600" />
             Catálogo de Productos
           </h1>
           <p className="text-dark-400 text-sm mt-0.5">
@@ -242,7 +246,7 @@ export default function Catalog() {
             {someSelected && (
               <p className="text-xs text-dark-500 flex items-center gap-1">
                 <CalendarDays className="w-3.5 h-3.5" />
-                Fecha: <span className="text-primary-400 font-medium capitalize">{nextTuesdayLabel}</span>
+                Fecha: <span className="text-primary-600 font-medium capitalize">{nextTuesdayLabel}</span>
               </p>
             )}
           </div>
@@ -253,17 +257,17 @@ export default function Catalog() {
       {activeList && (
         <div className="flex items-center gap-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-4 py-3">
           <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
-            <ShoppingCart className="w-4 h-4 text-emerald-400" />
+            <ShoppingCart className="w-4 h-4 text-emerald-600" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-white">Lista activa: <span className="text-emerald-300">{activeList.name}</span></p>
+            <p className="text-sm font-semibold text-dark-200">Lista activa: <span className="text-emerald-700">{activeList.name}</span></p>
             <p className="text-xs text-dark-400 mt-0.5">Selecciona productos del catálogo y agrégalos directamente.</p>
           </div>
           {someSelected && (
             <button
               onClick={handleAddToActive}
               disabled={adding}
-              className="btn-secondary shrink-0 border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10"
+              className="btn-secondary shrink-0 border-emerald-500/30 text-emerald-700 hover:bg-emerald-500/10"
             >
               {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlusCircle className="w-4 h-4" />}
               Agregar ({selected.size})
@@ -299,9 +303,9 @@ export default function Catalog() {
       {/* Aviso sin catálogo */}
       {!loading && rows.length === 0 && (
         <div className="card flex items-start gap-4 border-amber-500/20 bg-amber-500/5">
-          <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+          <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-semibold text-white">El catálogo está vacío</p>
+            <p className="text-sm font-semibold text-dark-200">El catálogo está vacío</p>
             <p className="text-xs text-dark-400 mt-0.5">
               Ve a <strong>Productos</strong> y crea tus productos vinculándolos a una tienda para que aparezcan aquí.
             </p>
@@ -394,7 +398,7 @@ export default function Catalog() {
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             <div className="w-7 h-7 rounded-md bg-amber-500/10 flex items-center justify-center flex-shrink-0">
-                              <Store className="w-3.5 h-3.5 text-amber-400" />
+                              <Store className="w-3.5 h-3.5 text-amber-600" />
                             </div>
                             <span className="text-sm text-dark-200">{row.store}</span>
                           </div>
@@ -404,7 +408,7 @@ export default function Catalog() {
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             <div className="w-7 h-7 rounded-md bg-primary-600/10 flex items-center justify-center flex-shrink-0">
-                              <Package className="w-3.5 h-3.5 text-primary-400" />
+                              <Package className="w-3.5 h-3.5 text-primary-600" />
                             </div>
                             <span className="text-sm font-medium text-dark-100">{row.product}</span>
                           </div>
@@ -431,7 +435,7 @@ export default function Catalog() {
                             >
                               <Plus className="w-3.5 h-3.5 rotate-45" />
                             </button>
-                            <span className="w-6 text-center text-sm font-bold text-white">
+                            <span className="w-6 text-center text-sm font-bold text-dark-200">
                               {selected.get(row.ps_id) || 1}
                             </span>
                             <button
@@ -454,10 +458,10 @@ export default function Catalog() {
           {someSelected && (
             <div className="border-t border-dark-800 px-5 py-3 bg-dark-950/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-sm text-dark-300">
-                <ShoppingCart className="w-4 h-4 text-primary-400" />
-                <span><strong className="text-white">{selected.size}</strong> producto(s) seleccionado(s)</span>
+                <ShoppingCart className="w-4 h-4 text-primary-600" />
+                <span><strong className="text-dark-200">{selected.size}</strong> producto(s) seleccionado(s)</span>
                 <span className="text-dark-600">·</span>
-                <CalendarDays className="w-4 h-4 text-primary-400" />
+                <CalendarDays className="w-4 h-4 text-primary-600" />
                 <span className="capitalize">{nextTuesdayLabel}</span>
               </div>
               <div className="flex items-center gap-2">

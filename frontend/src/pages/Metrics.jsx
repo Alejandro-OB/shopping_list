@@ -105,8 +105,8 @@ export default function Metrics() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="space-y-1">
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <BarChart3 className="w-6 h-6 text-primary-400" /> 
+          <h1 className="text-2xl font-bold text-dark-200 flex items-center gap-2">
+            <BarChart3 className="w-6 h-6 text-primary-600" /> 
             Estadísticas de Compra
           </h1>
           <p className="text-dark-400 text-sm">Monitorea tus gastos y presupuesto proyectado.</p>
@@ -129,13 +129,13 @@ export default function Metrics() {
           <div className="flex items-start justify-between">
             <div className="space-y-1">
               <p className="text-dark-400 text-sm font-medium">Gasto Mes Actual</p>
-              <h3 className="text-2xl font-bold text-white">{formatCurrency(summary?.current_month_real_spending)}</h3>
+              <h3 className="text-2xl font-bold text-dark-200">{formatCurrency(summary?.current_month_real_spending)}</h3>
             </div>
             <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-              <Wallet className="w-5 h-5 text-emerald-400" />
+              <Wallet className="w-5 h-5 text-emerald-600" />
             </div>
           </div>
-          <div className="mt-4 flex items-center gap-2 text-xs text-emerald-400/80">
+          <div className="mt-4 flex items-center gap-2 text-xs text-emerald-600/80">
             <TrendingUp className="w-3.5 h-3.5" />
             <span>En base a listas completadas</span>
           </div>
@@ -144,17 +144,17 @@ export default function Metrics() {
         </div>
 
         {/* Semana Actual */}
-        <div className="card relative overflow-hidden group hover:border-blue-500/30 transition-all p-6 text-white border-blue-500/10">
+        <div className="card relative overflow-hidden group hover:border-blue-500/30 transition-all p-6 text-dark-200 border-blue-500/10">
           <div className="flex items-start justify-between">
             <div className="space-y-1">
               <p className="text-dark-400 text-sm font-medium">Gasto Semana Actual</p>
-              <h3 className="text-2xl font-bold text-white">{formatCurrency(summary?.current_week_real_spending)}</h3>
+              <h3 className="text-2xl font-bold text-dark-200">{formatCurrency(summary?.current_week_real_spending)}</h3>
             </div>
             <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
-              <Calendar className="w-5 h-5 text-blue-400" />
+              <Calendar className="w-5 h-5 text-blue-600" />
             </div>
           </div>
-          <div className="mt-4 flex items-center gap-2 text-xs text-blue-400/80">
+          <div className="mt-4 flex items-center gap-2 text-xs text-blue-600/80">
             <ShoppingCart className="w-3.5 h-3.5" />
             <span>Actualizado en tiempo real</span>
           </div>
@@ -166,13 +166,13 @@ export default function Metrics() {
           <div className="flex items-start justify-between">
             <div className="space-y-1">
               <p className="text-dark-400 text-sm font-medium">Presupuesto Próx. Semana</p>
-              <h3 className="text-2xl font-bold text-white">{formatCurrency(summary?.next_week_estimated_budget)}</h3>
+              <h3 className="text-2xl font-bold text-dark-200">{formatCurrency(summary?.next_week_estimated_budget)}</h3>
             </div>
             <div className="w-10 h-10 rounded-xl bg-primary-500/10 flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-primary-400" />
+              <TrendingUp className="w-5 h-5 text-primary-600" />
             </div>
           </div>
-          <div className="mt-4 flex items-center gap-2 text-xs text-primary-400/80">
+          <div className="mt-4 flex items-center gap-2 text-xs text-primary-600/80">
             <AlertCircle className="w-3.5 h-3.5" />
             <span>Estimación por frecuencia de productos</span>
           </div>
@@ -185,8 +185,8 @@ export default function Metrics() {
         {/* Historial de Gasto por Mes */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-emerald-400" /> 
+            <h2 className="text-lg font-bold text-dark-200 flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-emerald-600" /> 
               Consultar Gasto Historico
             </h2>
           </div>
@@ -197,7 +197,7 @@ export default function Metrics() {
                 <ChevronLeft className="w-5 h-5" />
               </button>
               <div className="text-center min-w-[150px]">
-                <p className="text-primary-400 font-bold text-xl">{MONTHS[selectedMonth - 1]}</p>
+                <p className="text-primary-600 font-bold text-xl">{MONTHS[selectedMonth - 1]}</p>
                 <p className="text-dark-500 text-sm font-medium">{selectedYear}</p>
               </div>
               <button onClick={() => handleMonthChange(1)} className="btn-ghost p-2 rounded-full hover:bg-dark-800">
@@ -211,7 +211,7 @@ export default function Metrics() {
               ) : monthlyDetail?.total > 0 ? (
                 <div className="text-center animate-scale-in">
                   <p className="text-dark-500 text-sm mb-1 uppercase tracking-widest font-semibold">Total gastado</p>
-                  <p className="text-4xl md:text-5xl font-black text-white">{formatCurrency(monthlyDetail.total)}</p>
+                  <p className="text-4xl md:text-5xl font-black text-dark-200">{formatCurrency(monthlyDetail.total)}</p>
                   <div className="mt-6 flex items-center justify-center gap-2">
                     <div className="h-2 w-32 bg-dark-800 rounded-full overflow-hidden">
                       <div className="h-full bg-emerald-500 rounded-full" style={{ width: '80%' }} />
@@ -235,8 +235,8 @@ export default function Metrics() {
         {/* Top Productos más comprados */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <Package className="w-5 h-5 text-amber-400" /> 
+            <h2 className="text-lg font-bold text-dark-200 flex items-center gap-2">
+              <Package className="w-5 h-5 text-amber-600" /> 
               Productos Más Comprados
             </h2>
             <span className="text-xs text-dark-500 uppercase tracking-widest font-bold">Top 5</span>
@@ -249,18 +249,18 @@ export default function Metrics() {
                 className="flex items-center justify-between px-6 py-4 hover:bg-dark-800/30 transition-all group"
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-8 h-8 rounded-lg bg-dark-800 flex items-center justify-center font-bold text-dark-400 group-hover:bg-primary-500/10 group-hover:text-primary-400 transition-colors">
+                  <div className="w-8 h-8 rounded-lg bg-dark-800 flex items-center justify-center font-bold text-dark-400 group-hover:bg-primary-500/10 group-hover:text-primary-600 transition-colors">
                     {idx + 1}
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-dark-100 group-hover:text-white transition-colors">
+                    <p className="text-sm font-semibold text-dark-100 group-hover:text-dark-200 transition-colors">
                       {item.product_name}
                     </p>
                     <p className="text-xs text-dark-500">Unidades adquiridas</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-lg font-bold text-primary-400">{item.total_quantity}</span>
+                  <span className="text-lg font-bold text-primary-600">{item.total_quantity}</span>
                   <div className="w-16 h-1.5 bg-dark-800 rounded-full overflow-hidden hidden sm:block">
                     <div 
                       className="h-full bg-primary-500" 
@@ -279,10 +279,10 @@ export default function Metrics() {
 
           <div className="bg-dark-800/50 border border-dark-700 rounded-xl p-4 flex items-start gap-4">
             <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
-              <TrendingDown className="w-4 h-4 text-amber-400" />
+              <TrendingDown className="w-4 h-4 text-amber-600" />
             </div>
             <div>
-              <p className="text-xs font-bold text-white uppercase tracking-wider mb-1">Dato curioso</p>
+              <p className="text-xs font-bold text-dark-200 uppercase tracking-wider mb-1">Dato curioso</p>
               <p className="text-xs text-dark-400 leading-relaxed">
                 Tu producto "<strong>{mostBought[0]?.product_name || '...'}</strong>" es el favorito. 
                 Optimizar su compra podría representar un ahorro significativo a largo plazo.

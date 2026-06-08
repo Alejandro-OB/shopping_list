@@ -2,7 +2,10 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ShoppingCart, Trash2, Eye, Filter, Loader2, Search, Check, X } from 'lucide-react'
 import api from '../api/axios'
+import { apiCache } from '../api/cache'
 import toast from 'react-hot-toast'
+
+const LISTS_TTL = 5 * 60 * 1000 // 5 minutos (listas cambian más seguido que productos)
 
 const STATUS_MAP = {
   draft:     { label: 'Borrador',   cls: 'badge-yellow' },
@@ -34,7 +37,7 @@ function ListRow({ list, onView, onDelete }) {
       <td className="px-4 py-3">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-primary-600/20 flex items-center justify-center flex-shrink-0">
-            <ShoppingCart className="w-3.5 h-3.5 text-primary-400" />
+            <ShoppingCart className="w-3.5 h-3.5 text-primary-600" />
           </div>
           <div className="min-w-0">
             <p className="text-sm font-medium text-dark-100 truncate max-w-[220px]">{list.name}</p>
@@ -74,7 +77,7 @@ function ListRow({ list, onView, onDelete }) {
                   onClick={handleDelete}
                   disabled={deleting}
                   title="Confirmar eliminación"
-                  className="w-6 h-6 flex items-center justify-center text-dark-400 hover:text-red-400 rounded transition-colors disabled:opacity-50"
+                  className="w-6 h-6 flex items-center justify-center text-dark-400 hover:text-red-600 rounded transition-colors disabled:opacity-50"
                 >
                   {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                 </button>
@@ -83,7 +86,7 @@ function ListRow({ list, onView, onDelete }) {
               <button
                 onClick={() => setConfirmDelete(true)}
                 title="Eliminar lista"
-                className="btn-ghost text-xs px-2 py-1 text-dark-500 hover:text-red-400"
+                className="btn-ghost text-xs px-2 py-1 text-dark-500 hover:text-red-600"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -106,11 +109,17 @@ export default function ShoppingLists() {
     fetchLists()
   }, [])
 
-  const fetchLists = async () => {
+  const fetchLists = async (force = false) => {
+    if (!force) {
+      const cached = apiCache.get('/lists/')
+      if (cached) { setLists(cached); setLoading(false); return }
+    }
     setLoading(true)
     try {
       const { data } = await api.get('/lists/')
-      setLists(Array.isArray(data) ? data : [])
+      const lists = Array.isArray(data) ? data : []
+      apiCache.set('/lists/', lists, LISTS_TTL)
+      setLists(lists)
     } catch {
       toast.error('Error al cargar las listas')
     } finally {
@@ -122,6 +131,7 @@ export default function ShoppingLists() {
     try {
       await api.delete(`/lists/${listId}/`)
       toast.success('Lista eliminada')
+      apiCache.invalidate('/lists/')
       setLists(prev => prev.filter(l => l.id !== listId))
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Error al eliminar la lista')
@@ -140,8 +150,8 @@ export default function ShoppingLists() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-4">
         <div>
-          <h1 className="text-xl font-bold text-white flex items-center gap-2">
-            <ShoppingCart className="w-5 h-5 text-primary-400" />
+          <h1 className="text-xl font-bold text-dark-200 flex items-center gap-2">
+            <ShoppingCart className="w-5 h-5 text-primary-600" />
             Listas de Compras
           </h1>
           <p className="text-dark-400 text-sm mt-0.5">{lists.length} lista(s) en total</p>

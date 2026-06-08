@@ -61,7 +61,7 @@ function ItemRow({ item, onCheck, onDelete, onUpdateQuantity, isDisabled }) {
                 <button
                   onClick={() => onUpdateQuantity(item.id, -1)}
                   disabled={isDisabled || item.checked || updatingQty || item.quantity <= 1}
-                  className="w-5 h-5 rounded bg-dark-800 text-dark-400 hover:text-primary-400 hover:bg-dark-700 transition-colors disabled:opacity-30 flex items-center justify-center"
+                  className="w-5 h-5 rounded bg-dark-800 text-dark-400 hover:text-primary-600 hover:bg-dark-700 transition-colors disabled:opacity-30 flex items-center justify-center"
                 >
                   <Minus className="w-3 h-3" />
                 </button>
@@ -71,7 +71,7 @@ function ItemRow({ item, onCheck, onDelete, onUpdateQuantity, isDisabled }) {
                 <button
                   onClick={() => onUpdateQuantity(item.id, 1)}
                   disabled={isDisabled || item.checked || updatingQty}
-                  className="w-5 h-5 rounded bg-dark-800 text-dark-400 hover:text-primary-400 hover:bg-dark-700 transition-colors disabled:opacity-30 flex items-center justify-center"
+                  className="w-5 h-5 rounded bg-dark-800 text-dark-400 hover:text-primary-600 hover:bg-dark-700 transition-colors disabled:opacity-30 flex items-center justify-center"
                 >
                   <Plus className="w-3 h-3" />
                 </button>
@@ -104,7 +104,7 @@ function ItemRow({ item, onCheck, onDelete, onUpdateQuantity, isDisabled }) {
              />
           </div>
           {price > 0 && (
-            <div className={`mt-1 text-[10px] font-bold ${item.checked ? 'text-dark-500' : 'text-primary-400'}`}>
+            <div className={`mt-1 text-[10px] font-bold ${item.checked ? 'text-dark-500' : 'text-primary-600'}`}>
               Subtotal: ${ (parseFloat(price) * item.quantity).toLocaleString('es-CO') }
             </div>
           )}
@@ -115,7 +115,7 @@ function ItemRow({ item, onCheck, onDelete, onUpdateQuantity, isDisabled }) {
         {item.checked ? (
           <div className="flex flex-col items-end">
             <p className="text-[10px] text-dark-500 uppercase font-bold mb-0.5">Ahorro</p>
-            <div className={`flex items-center gap-1 text-sm font-bold ${isSaving ? 'text-emerald-400' : isExpensive ? 'text-red-400' : 'text-dark-400'}`}>
+            <div className={`flex items-center gap-1 text-sm font-bold ${isSaving ? 'text-emerald-600' : isExpensive ? 'text-red-600' : 'text-dark-400'}`}>
               {isSaving ? <TrendingDown className="w-3 h-3" /> : isExpensive ? <TrendingUp className="w-3 h-3" /> : <Minus className="w-3 h-3" />}
               ${Math.abs(diff).toLocaleString('es-CO')}
             </div>
@@ -134,7 +134,7 @@ function ItemRow({ item, onCheck, onDelete, onUpdateQuantity, isDisabled }) {
                       setShowConfirm(false)
                     }}
                     title="Confirmar eliminación" 
-                    className="p-1.5 text-dark-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors disabled:opacity-50"
+                    className="p-1.5 text-dark-400 hover:text-red-600 hover:bg-red-500/10 rounded transition-colors disabled:opacity-50"
                     disabled={deleting}
                   >
                     {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
@@ -151,7 +151,7 @@ function ItemRow({ item, onCheck, onDelete, onUpdateQuantity, isDisabled }) {
               ) : (
                 <button
                   onClick={() => setShowConfirm(true)}
-                  className="p-1.5 text-dark-500 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                  className="p-1.5 text-dark-500 hover:text-red-600 hover:bg-red-500/10 rounded transition-colors"
                   title="Eliminar producto"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -512,7 +512,7 @@ export default function ListDetail() {
           <button
             onClick={handleExportExcel}
             disabled={exportingExcel}
-            className="btn-secondary flex items-center gap-2 border-emerald-500/30 hover:border-emerald-500/50 hover:bg-emerald-500/5 text-emerald-400"
+            className="btn-secondary flex items-center gap-2 border-emerald-500/30 hover:border-emerald-500/50 hover:bg-emerald-500/5 text-emerald-600"
             title="Exportar a Excel"
           >
             {exportingExcel ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />}
@@ -535,7 +535,7 @@ export default function ListDetail() {
                   <button
                     onClick={() => setShowConfirm(false)}
                     title="Cancelar"
-                    className="w-8 h-8 rounded-lg flex items-center justify-center text-dark-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-dark-400 hover:text-red-600 hover:bg-red-500/10 transition-colors"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -543,7 +543,7 @@ export default function ListDetail() {
                     onClick={handleComplete}
                     disabled={completing}
                     title="Confirmar"
-                    className="w-8 h-8 rounded-lg flex items-center justify-center text-dark-400 hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors disabled:opacity-50"
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-dark-400 hover:text-emerald-600 hover:bg-emerald-500/10 transition-colors disabled:opacity-50"
                   >
                     {completing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                   </button>
@@ -575,7 +575,7 @@ export default function ListDetail() {
 
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-start gap-4">
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${isCompleted ? 'bg-emerald-500/10 text-emerald-400' : 'bg-primary-600/10 text-primary-400'}`}>
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${isCompleted ? 'bg-emerald-500/10 text-emerald-600' : 'bg-primary-600/10 text-primary-600'}`}>
               {isCompleted ? <CheckCircle2 className="w-6 h-6" /> : <ShoppingCart className="w-6 h-6" />}
             </div>
             <div className="flex-1">
@@ -615,11 +615,11 @@ export default function ListDetail() {
                 </div>
               ) : (
                 <div className="flex items-center gap-3">
-                  <h1 className="text-xl font-bold text-white leading-tight">{list.name}</h1>
+                  <h1 className="text-xl font-bold text-dark-200 leading-tight">{list.name}</h1>
                   {!isCompleted && (
                     <button
                       onClick={() => setIsEditingName(true)}
-                      className="text-dark-500 hover:text-primary-400 transition-colors p-1"
+                      className="text-dark-500 hover:text-primary-600 transition-colors p-1"
                       title="Editar nombre"
                     >
                       <Pencil className="w-4 h-4" />
@@ -638,7 +638,7 @@ export default function ListDetail() {
                       type="date"
                       value={newDate}
                       onChange={(e) => setNewDate(e.target.value)}
-                      className="input py-0.5 px-2 text-[10px] w-auto bg-dark-900 border-primary-500/50 focus:border-primary-500 text-white h-7"
+                      className="input py-0.5 px-2 text-[10px] w-auto bg-dark-900 border-primary-500/50 focus:border-primary-500 text-dark-200 h-7"
                       autoFocus
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') handleUpdateDate()
@@ -648,7 +648,7 @@ export default function ListDetail() {
                     <button 
                       onClick={handleUpdateDate} 
                       disabled={updatingDate}
-                      className="text-primary-400 hover:text-primary-300 transition-colors"
+                      className="text-primary-600 hover:text-primary-700 transition-colors"
                     >
                        {updatingDate ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                     </button>
@@ -666,7 +666,7 @@ export default function ListDetail() {
                     {!isCompleted && (
                       <button 
                         onClick={() => setIsEditingDate(true)} 
-                        className="ml-1 text-dark-500 hover:text-primary-400 transition-colors p-1"
+                        className="ml-1 text-dark-500 hover:text-primary-600 transition-colors p-1"
                         title="Editar fecha"
                       >
                         <Pencil className="w-3 h-3" />
@@ -681,19 +681,19 @@ export default function ListDetail() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:flex md:items-center md:gap-8 border-t border-dark-800 md:border-0 pt-4 md:pt-0">
             <div className="text-right">
               <p className="text-[10px] text-dark-500 uppercase font-bold tracking-wider mb-0.5">Progreso</p>
-              <p className="text-lg font-bold text-white">{itemsBought} / {totalItems}</p>
+              <p className="text-lg font-bold text-dark-200">{itemsBought} / {totalItems}</p>
             </div>
             <div className="text-right">
               <p className="text-[10px] text-dark-500 uppercase font-bold tracking-wider mb-0.5">Valor Estimado</p>
-              <p className="text-lg font-bold text-primary-400/50">${totalProjected.toLocaleString('es-CO')}</p>
+              <p className="text-lg font-bold text-primary-600/50">${totalProjected.toLocaleString('es-CO')}</p>
             </div>
             <div className="text-right">
               <p className="text-[10px] text-emerald-500 uppercase font-bold tracking-wider mb-0.5">Total Pagado</p>
-              <p className="text-lg font-bold text-emerald-400 font-mono tracking-tight">${totalReal.toLocaleString('es-CO')}</p>
+              <p className="text-lg font-bold text-emerald-600 font-mono tracking-tight">${totalReal.toLocaleString('es-CO')}</p>
             </div>
             <div className="text-right">
                <p className="text-[10px] text-dark-500 uppercase font-bold tracking-wider mb-0.5">Ahorro Total</p>
-               <p className={`text-lg font-bold ${totalSaved >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+               <p className={`text-lg font-bold ${totalSaved >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                  ${totalSaved.toLocaleString('es-CO')}
                </p>
             </div>
@@ -704,10 +704,10 @@ export default function ListDetail() {
       {/* Warning for completed list */}
       {isCompleted && (
         <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 flex items-start gap-3">
-          <Sparkles className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+          <Sparkles className="w-5 h-5 text-emerald-600 flex-shrink-0" />
           <div>
-            <p className="text-sm font-semibold text-white">¡Compra Finalizada!</p>
-            <p className="text-xs text-emerald-400/80 mt-0.5">Los precios reales han sido registrados en tu historial para futuras sugerencias.</p>
+            <p className="text-sm font-semibold text-dark-200">¡Compra Finalizada!</p>
+            <p className="text-xs text-emerald-600/80 mt-0.5">Los precios reales han sido registrados en tu historial para futuras sugerencias.</p>
           </div>
         </div>
       )}
@@ -716,7 +716,7 @@ export default function ListDetail() {
       <div className="flex flex-col sm:flex-row gap-4 items-center">
         {/* Search Bar */}
         <div className="relative group flex-1 w-full sm:w-auto">
-          <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-dark-500 group-focus-within:text-primary-400 transition-colors">
+          <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-dark-500 group-focus-within:text-primary-600 transition-colors">
             <Search className="w-5 h-5" />
           </div>
           <input
@@ -729,7 +729,7 @@ export default function ListDetail() {
           {searchTerm && (
             <button 
               onClick={() => setSearchTerm('')}
-              className="absolute inset-y-0 right-3 flex items-center text-dark-500 hover:text-white"
+              className="absolute inset-y-0 right-3 flex items-center text-dark-500 hover:text-dark-200"
             >
               <X className="w-4 h-4" />
             </button>
@@ -799,7 +799,7 @@ export default function ListDetail() {
                              {(searchTerm || selectedStore !== 'all') && (
                                <button 
                                  onClick={() => { setSearchTerm(''); setSelectedStore('all'); }}
-                                 className="text-xs text-primary-400 hover:text-primary-300 underline font-medium pt-2"
+                                 className="text-xs text-primary-600 hover:text-primary-700 underline font-medium pt-2"
                                >
                                  Limpiar todos los filtros
                                </button>

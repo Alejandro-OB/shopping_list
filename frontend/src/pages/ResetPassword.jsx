@@ -51,8 +51,8 @@ export default function ResetPassword() {
     return (
       <div className="min-h-screen bg-dark-950 flex items-center justify-center p-4">
         <div className="max-w-md w-full glass rounded-3xl p-8 text-center space-y-4">
-          <XCircle className="w-16 h-16 text-red-400 mx-auto" />
-          <h1 className="text-2xl font-bold text-white">Enlace inválido</h1>
+          <XCircle className="w-16 h-16 text-red-600 mx-auto" />
+          <h1 className="text-2xl font-bold text-dark-200">Enlace inválido</h1>
           <p className="text-dark-400">El token de recuperación no fue encontrado o ha expirado.</p>
           <Link to="/login" className="btn-secondary w-full">Volver al inicio</Link>
         </div>
@@ -64,10 +64,10 @@ export default function ResetPassword() {
     return (
       <div className="min-h-screen bg-dark-950 flex items-center justify-center p-4">
         <div className="max-w-md w-full glass rounded-3xl p-8 text-center space-y-6 animate-in fade-in zoom-in duration-500">
-          <div className="w-20 h-20 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="w-20 h-20 bg-emerald-500/20 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle2 className="w-12 h-12" />
           </div>
-          <h1 className="text-3xl font-bold text-white">¡Listo!</h1>
+          <h1 className="text-3xl font-bold text-dark-200">¡Listo!</h1>
           <p className="text-dark-300">Tu contraseña ha sido actualizada. Ya puedes entrar a tu cuenta.</p>
           <Link to="/login" className="btn-primary w-full">
             Iniciar sesión ahora
@@ -82,10 +82,10 @@ export default function ResetPassword() {
     <div className="min-h-screen bg-dark-950 flex items-center justify-center p-4">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center space-y-2">
-          <div className="w-16 h-16 bg-primary-500/10 text-primary-400 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-primary-500/10 text-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <KeyRound className="w-8 h-8" />
           </div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">Nueva contraseña</h1>
+          <h1 className="text-3xl font-bold text-dark-200 tracking-tight">Nueva contraseña</h1>
           <p className="text-dark-400">Elige una clave segura para proteger tu cuenta.</p>
         </div>
 
@@ -165,7 +165,7 @@ export default function ResetPassword() {
 
 function ValidationItem({ fulfilled, text }) {
   return (
-    <div className={`flex items-center gap-2 text-sm transition-colors ${fulfilled ? 'text-emerald-400' : 'text-dark-500'}`}>
+    <div className={`flex items-center gap-2 text-sm transition-colors ${fulfilled ? 'text-emerald-600' : 'text-dark-500'}`}>
       {fulfilled ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4 opacity-30" />}
       {text}
     </div>

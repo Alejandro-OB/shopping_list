@@ -51,14 +51,14 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
         </div>
         {!collapsed && (
           <div className="min-w-0">
-            <p className="text-sm font-bold text-white truncate">ShopList</p>
-            <p className="text-xs text-primary-400 truncate">Smart Shopping</p>
+            <p className="text-sm font-bold text-dark-200 truncate">ShopList</p>
+            <p className="text-xs text-primary-600 truncate">Smart Shopping</p>
           </div>
         )}
         {/* Close btn on mobile */}
         <button
           onClick={onMobileClose}
-          className="ml-auto lg:hidden text-dark-400 hover:text-white"
+          className="ml-auto lg:hidden text-dark-400 hover:text-dark-200"
         >
           <X className="w-5 h-5" />
         </button>
@@ -84,7 +84,7 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
 
       {/* User section */}
       <div className="border-t border-dark-800 p-3 space-y-1">
-        <button onClick={handleLogout} className="sidebar-link w-full text-red-400 hover:text-red-300 hover:bg-red-500/10">
+        <button onClick={handleLogout} className="sidebar-link w-full text-red-500 hover:text-red-700 hover:bg-red-100">
           <LogOut className="w-5 h-5 flex-shrink-0" />
           {!collapsed && <span>Cerrar sesión</span>}
         </button>

@@ -4,6 +4,7 @@ import {
   Loader2, Package, Tag
 } from 'lucide-react'
 import api from '../api/axios'
+import { apiCache } from '../api/cache'
 import toast from 'react-hot-toast'
 
 // ── Modal de Crear/Editar Tienda ──────────────────────────────────────────────
@@ -24,6 +25,7 @@ function StoreModal({ store, onClose, onSaved }) {
         await api.post('/stores/', { name })
         toast.success('Tienda creada')
       }
+      apiCache.invalidate('/stores/', '/products/')
       onSaved()
       onClose()
     } catch (err) {
@@ -37,8 +39,8 @@ function StoreModal({ store, onClose, onSaved }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 duration-200">
       <div className="bg-dark-900 border border-dark-700 rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-white flex items-center gap-2">
-            <Store className="w-4 h-4 text-primary-400" />
+          <h2 className="text-base font-bold text-dark-200 flex items-center gap-2">
+            <Store className="w-4 h-4 text-primary-600" />
             {isEdit ? 'Editar Tienda' : 'Nueva Tienda'}
           </h2>
           <button onClick={onClose} className="btn-ghost p-1.5"><X className="w-4 h-4" /></button>
@@ -90,7 +92,7 @@ function StoreRow({ store, onEdit, onDelete }) {
       <td className="px-4 py-3">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
-            <Store className="w-4 h-4 text-amber-400" />
+            <Store className="w-4 h-4 text-amber-600" />
           </div>
           <span className="text-sm font-medium text-dark-100">{store.name}</span>
         </div>
@@ -102,7 +104,7 @@ function StoreRow({ store, onEdit, onDelete }) {
           </button>
           {confirmDelete ? (
             <div className="flex items-center gap-1">
-              <button onClick={handleDelete} disabled={deleting} className="btn-ghost p-1.5 text-red-400 hover:text-red-300">
+              <button onClick={handleDelete} disabled={deleting} className="btn-ghost p-1.5 text-red-600 hover:text-red-600">
                 {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
               </button>
               <button onClick={() => setConfirmDelete(false)} className="btn-ghost p-1.5">
@@ -110,7 +112,7 @@ function StoreRow({ store, onEdit, onDelete }) {
               </button>
             </div>
           ) : (
-            <button onClick={() => setConfirmDelete(true)} className="btn-ghost p-1.5 text-xs hover:text-red-400">
+            <button onClick={() => setConfirmDelete(true)} className="btn-ghost p-1.5 text-xs hover:text-red-600">
               <Trash2 className="w-3.5 h-3.5" />
             </button>
           )}
@@ -129,11 +131,17 @@ export default function Stores() {
 
   useEffect(() => { fetchStores() }, [])
 
-  const fetchStores = async () => {
+  const fetchStores = async (force = false) => {
+    if (!force) {
+      const cached = apiCache.get('/stores/')
+      if (cached) { setStores(cached); setLoading(false); return }
+    }
     setLoading(true)
     try {
       const { data } = await api.get('/stores/')
-      setStores(Array.isArray(data) ? data.filter(s => !s.is_deleted) : [])
+      const filtered = Array.isArray(data) ? data.filter(s => !s.is_deleted) : []
+      apiCache.set('/stores/', filtered)
+      setStores(filtered)
     } catch {
       toast.error('Error al cargar tiendas')
     } finally {
@@ -145,6 +153,7 @@ export default function Stores() {
     try {
       await api.delete(`/stores/${id}/`)
       toast.success('Tienda eliminada')
+      apiCache.invalidate('/stores/', '/products/')
       setStores(prev => prev.filter(s => s.id !== id))
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Error al eliminar tienda')
@@ -167,8 +176,8 @@ export default function Stores() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl font-bold text-white flex items-center gap-2">
-              <Store className="w-5 h-5 text-amber-400" />
+            <h1 className="text-xl font-bold text-dark-200 flex items-center gap-2">
+              <Store className="w-5 h-5 text-amber-600" />
               Tiendas
             </h1>
             <p className="text-dark-400 text-sm mt-0.5">{stores.length} tienda(s) registrada(s)</p>

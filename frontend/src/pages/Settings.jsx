@@ -122,8 +122,8 @@ export default function SettingsPage() {
       
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-          <Settings className="w-6 h-6 text-primary-400" />
+        <h1 className="text-2xl font-bold text-dark-200 flex items-center gap-2">
+          <Settings className="w-6 h-6 text-primary-600" />
           Configuración
         </h1>
         <p className="text-dark-400 text-sm mt-1">Gestiona tu cuenta, seguridad y preferencias visuales.</p>
@@ -136,8 +136,8 @@ export default function SettingsPage() {
           
           {/* Profile Details */}
           <div className="card space-y-5">
-            <h2 className="text-sm font-semibold text-white flex items-center gap-2 border-b border-dark-800 pb-3">
-              <User className="w-4 h-4 text-emerald-400" />
+            <h2 className="text-sm font-semibold text-dark-200 flex items-center gap-2 border-b border-dark-800 pb-3">
+              <User className="w-4 h-4 text-emerald-600" />
               Perfil Personal
             </h2>
             <form onSubmit={handleProfileUpdate} className="space-y-4">
@@ -176,8 +176,8 @@ export default function SettingsPage() {
 
           {/* Security */}
           <div className="card space-y-5">
-            <h2 className="text-sm font-semibold text-white flex items-center gap-2 border-b border-dark-800 pb-3">
-              <Lock className="w-4 h-4 text-primary-400" />
+            <h2 className="text-sm font-semibold text-dark-200 flex items-center gap-2 border-b border-dark-800 pb-3">
+              <Lock className="w-4 h-4 text-primary-600" />
               Seguridad de la Cuenta
             </h2>
             <form onSubmit={handlePasswordUpdate} className="space-y-4">
@@ -224,7 +224,7 @@ export default function SettingsPage() {
                             <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center transition-colors ${met ? 'bg-primary-500 text-white' : 'bg-dark-800 text-dark-500'}`}>
                               <ClipboardCheck className="w-2 h-2" />
                             </div>
-                            <span className={`text-[10px] transition-colors ${met ? 'text-primary-300' : 'text-dark-600'}`}>
+                            <span className={`text-[10px] transition-colors ${met ? 'text-primary-700' : 'text-dark-600'}`}>
                               {rule.label}
                             </span>
                           </div>
@@ -245,7 +245,7 @@ export default function SettingsPage() {
                     placeholder="Repita la contraseña"
                   />
                   {passwords.confirm_password && (
-                    <p className={`text-[10px] font-bold px-1 transition-all ${passMatches ? 'text-emerald-400' : 'text-red-400'}`}>
+                    <p className={`text-[10px] font-bold px-1 transition-all ${passMatches ? 'text-emerald-600' : 'text-red-600'}`}>
                       {passMatches ? '✓ Coinciden' : '✕ No coinciden'}
                     </p>
                   )}
@@ -269,8 +269,8 @@ export default function SettingsPage() {
         {/* Right Column - Preferences */}
         <div className="space-y-6">
           <div className="card space-y-4">
-            <h2 className="text-sm font-semibold text-white flex items-center gap-2 border-b border-dark-800 pb-3">
-              <Settings className="w-4 h-4 text-amber-400" />
+            <h2 className="text-sm font-semibold text-dark-200 flex items-center gap-2 border-b border-dark-800 pb-3">
+              <Settings className="w-4 h-4 text-amber-600" />
               Preferencias del Sistema
             </h2>
             
@@ -278,11 +278,11 @@ export default function SettingsPage() {
               {/* Toggle Auto-generation */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${autoGen ? 'bg-primary-500/20 text-primary-400' : 'bg-dark-800 text-dark-400'}`}>
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${autoGen ? 'bg-primary-500/20 text-primary-600' : 'bg-dark-800 text-dark-400'}`}>
                     {updatingAutoGen ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                   </div>
                   <div>
-                    <p className="text-sm text-white font-medium">Autogenerar Listas</p>
+                    <p className="text-sm text-dark-200 font-medium">Autogenerar Listas</p>
                     <p className="text-xs text-dark-500 max-w-[180px] leading-tight mt-0.5">Permite que el sistema cree sugerencias de listas automáticamente.</p>
                   </div>
                 </div>
@@ -308,12 +308,12 @@ export default function SettingsPage() {
 
             {showDeletePrompt ? (
               <div className="mt-4 space-y-3 animate-fade-in text-left">
-                <p className="text-xs text-red-400 font-medium">Escribe <strong className="text-red-500 px-1 uppercase">delete</strong> para confirmar:</p>
+                <p className="text-xs text-red-600 font-medium">Escribe <strong className="text-red-500 px-1 uppercase">delete</strong> para confirmar:</p>
                 <input 
                   type="text" 
                   value={deleteWord}
                   onChange={e => setDeleteWord(e.target.value)}
-                  className="input !bg-dark-950 !border-red-500/30 text-red-400 placeholder-red-500/30 focus:!border-red-500 focus:!ring-red-500" 
+                  className="input !bg-dark-950 !border-red-500/30 text-red-600 placeholder-red-500/30 focus:!border-red-500 focus:!ring-red-500" 
                   placeholder="delete"
                 />
                 <div className="flex gap-2">
@@ -323,7 +323,7 @@ export default function SettingsPage() {
                        setDeleteWord('')
                     }}
                     disabled={deletingAccount}
-                    className="flex-1 px-4 py-2 rounded-lg bg-dark-800 text-dark-300 hover:text-white transition-colors text-xs font-semibold"
+                    className="flex-1 px-4 py-2 rounded-lg bg-dark-800 text-dark-300 hover:text-dark-200 transition-colors text-xs font-semibold"
                   >
                     Cancelar
                   </button>
@@ -343,7 +343,7 @@ export default function SettingsPage() {
             ) : (
               <button
                  onClick={() => setShowDeletePrompt(true)}
-                 className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-colors text-sm font-semibold mt-2"
+                 className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-dark-200 transition-colors text-sm font-semibold mt-2"
               >
                 <Trash2 className="w-4 h-4" />
                 Eliminar Cuenta

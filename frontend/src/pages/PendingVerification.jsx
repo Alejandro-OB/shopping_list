@@ -60,23 +60,23 @@ export default function PendingVerification() {
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/10 rounded-full blur-[120px]" />
 
       <div className="max-w-md w-full glass shadow-2xl rounded-3xl p-8 text-center space-y-6 relative z-10 border border-white/5">
-        <div className="w-20 h-20 bg-primary-600/20 text-primary-400 rounded-3xl flex items-center justify-center mx-auto rotate-3 hover:rotate-0 transition-transform duration-300">
+        <div className="w-20 h-20 bg-primary-600/20 text-primary-600 rounded-3xl flex items-center justify-center mx-auto rotate-3 hover:rotate-0 transition-transform duration-300">
           <Mail className="w-12 h-12" />
         </div>
 
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold text-white tracking-tight">Verifica tu cuenta</h1>
+          <h1 className="text-3xl font-bold text-dark-200 tracking-tight">Verifica tu cuenta</h1>
           <p className="text-dark-300 leading-relaxed">
-            Hola <span className="text-primary-400 font-semibold">{user?.name}</span>, hemos enviado un enlace de activación a:
+            Hola <span className="text-primary-600 font-semibold">{user?.name}</span>, hemos enviado un enlace de activación a:
           </p>
-          <div className="bg-dark-900/50 py-2 px-4 rounded-xl border border-dark-800 text-primary-300 font-medium inline-block">
+          <div className="bg-primary-50 py-2 px-4 rounded-xl border border-primary-200 text-primary-700 font-medium inline-block">
             {user?.email}
           </div>
         </div>
 
         <div className="space-y-4 pt-4">
           <p className="text-sm text-dark-400">
-            ¿No recibiste el correo? Revisa tu carpeta de <strong className="text-primary-400">Spam</strong> o solicita uno nuevo.
+            ¿No recibiste el correo? Revisa tu carpeta de <strong className="text-primary-600">Spam</strong> o solicita uno nuevo.
           </p>
           
           <button
@@ -100,7 +100,7 @@ export default function PendingVerification() {
 
           <button
             onClick={handleLogoutAndRedirect}
-            className="flex items-center justify-center gap-2 text-dark-500 hover:text-white transition-colors w-full text-sm font-medium pt-2"
+            className="flex items-center justify-center gap-2 text-dark-500 hover:text-dark-200 transition-colors w-full text-sm font-medium pt-2"
           >
             <LogOut className="w-4 h-4" />
             Cerrar sesión e intentar con otra cuenta

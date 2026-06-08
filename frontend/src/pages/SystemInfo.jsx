@@ -86,8 +86,8 @@ export default function SystemInfo() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-white flex items-center gap-2">
-            <Server className="w-5 h-5 text-primary-400" />
+          <h1 className="text-xl font-bold text-dark-200 flex items-center gap-2">
+            <Server className="w-5 h-5 text-primary-600" />
             Estado e Información del Sistema
           </h1>
           <p className="text-dark-400 text-sm mt-0.5">
@@ -106,8 +106,8 @@ export default function SystemInfo() {
 
       {/* Health Status Card */}
       <div className="card space-y-3">
-        <h2 className="text-sm font-semibold text-white flex items-center gap-2 mb-4">
-          <CheckCircle2 className="w-4 h-4 text-primary-400" />
+        <h2 className="text-sm font-semibold text-dark-200 flex items-center gap-2 mb-4">
+          <CheckCircle2 className="w-4 h-4 text-primary-600" />
           Estado de los Servicios
         </h2>
 
@@ -142,8 +142,8 @@ export default function SystemInfo() {
       {user?.is_admin && (
         <div className="card border-primary-500/20 bg-primary-500/5 space-y-4">
           <div className="flex items-center gap-2 border-b border-primary-500/10 pb-3">
-            <Sparkles className="w-4 h-4 text-primary-400" />
-            <h2 className="text-sm font-semibold text-white">Acciones de Administrador</h2>
+            <Sparkles className="w-4 h-4 text-primary-600" />
+            <h2 className="text-sm font-semibold text-dark-200">Acciones de Administrador</h2>
           </div>
           
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -154,7 +154,7 @@ export default function SystemInfo() {
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <span className={`text-xs font-bold ${user?.can_autogenerate_lists ? 'text-emerald-400' : 'text-dark-500'}`}>
+              <span className={`text-xs font-bold ${user?.can_autogenerate_lists ? 'text-emerald-600' : 'text-dark-500'}`}>
                 {user?.can_autogenerate_lists ? 'ACTIVADO' : 'DESACTIVADO'}
               </span>
               <button 

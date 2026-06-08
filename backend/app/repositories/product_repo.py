@@ -12,12 +12,35 @@ class ProductRepository(BaseRepository[Product, ProductCreate, ProductUpdate]):
     def __init__(self, db: Session):
         super().__init__(Product, db)
 
+    def get(self, id: int) -> Optional[Product]:
+        from sqlalchemy.orm import selectinload, joinedload
+        from app.models.product_store import ProductStore
+
+        return self.db.execute(
+            select(self.model).options(
+                selectinload(self.model.product_stores).options(
+                    joinedload(ProductStore.store),
+                    selectinload(ProductStore.price_history),
+                )
+            ).filter(self.model.id == id, self.model.is_deleted == False)
+        ).scalars().first()
+
     def get_by_user(self, user_id: int, *, skip: int = 0, limit: int = 100) -> List[Product]:
         """
         Obtiene los productos activos de un usuario específico.
         """
+        from sqlalchemy.orm import selectinload, joinedload
+        from app.models.product_store import ProductStore
+        from app.models.price_history import PriceHistory
+
+        # Sin eager loading se generan N+1 queries lazy (product_stores → store + price_history).
         return self.db.execute(
-            select(self.model).filter(
+            select(self.model).options(
+                selectinload(self.model.product_stores).options(
+                    joinedload(ProductStore.store),
+                    selectinload(ProductStore.price_history),
+                )
+            ).filter(
                 and_(
                     self.model.user_id == user_id,
                     self.model.is_deleted == False

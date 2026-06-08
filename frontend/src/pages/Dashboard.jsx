@@ -5,8 +5,12 @@ import {
   TrendingDown, Star, Calendar, ChevronLeft, ChevronRight, AlertCircle
 } from 'lucide-react'
 import api from '../api/axios'
+import { apiCache } from '../api/cache'
 import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
+
+const METRICS_TTL  = 2 * 60 * 1000  // 2 min — cambia al marcar ítems
+const MONTHLY_TTL  = 5 * 60 * 1000  // 5 min — histórico, cambia menos
 
 const MONTHS = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -15,10 +19,10 @@ const MONTHS = [
 
 function StatCard({ label, value, icon: Icon, color = 'purple', sub }) {
   const colorMap = {
-    purple: 'bg-primary-600/15 text-primary-400',
-    green:  'bg-emerald-500/15 text-emerald-400',
-    amber:  'bg-amber-500/15 text-amber-400',
-    blue:   'bg-blue-500/15 text-blue-400',
+    purple: 'bg-primary-100 text-primary-700',
+    green:  'bg-emerald-100 text-emerald-700',
+    amber:  'bg-amber-100 text-amber-700',
+    blue:   'bg-blue-100 text-blue-700',
   }
   return (
     <div className="card flex items-start gap-4 hover:border-dark-700 transition-colors duration-200">
@@ -27,7 +31,7 @@ function StatCard({ label, value, icon: Icon, color = 'purple', sub }) {
       </div>
       <div className="min-w-0">
         <p className="text-dark-400 text-xs font-medium uppercase tracking-wider">{label}</p>
-        <p className="text-2xl font-bold text-white mt-0.5">
+        <p className="text-2xl font-bold text-dark-200 mt-0.5">
           {value ?? <span className="inline-block w-12 h-6 bg-dark-800 rounded animate-pulse" />}
         </p>
         {sub && <p className="text-xs text-dark-500 mt-0.5">{sub}</p>}
@@ -80,9 +84,14 @@ export default function Dashboard() {
   }
 
   const fetchMonthlySpending = async (year, month) => {
+    const cacheKey = `/metrics/monthly/?year=${year}&month=${month}`
+    const cached = apiCache.get(cacheKey)
+    if (cached) { setMonthlyDetail(cached); return }
+
     setMonthlyLoading(true)
     try {
       const res = await api.get(`/metrics/monthly/?year=${year}&month=${month}`)
+      apiCache.set(cacheKey, res.data, MONTHLY_TTL)
       setMonthlyDetail(res.data)
     } catch (err) {
       console.error('Error al cargar gasto mensual:', err)
@@ -94,14 +103,34 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [metricsRes, listsRes] = await Promise.all([
-          api.get('/metrics/summary/').catch(() => ({ data: null })),
-          api.get('/lists/?limit=5').catch(() => ({ data: [] })),
-        ])
-        setMetrics(metricsRes.data)
-        setLists(Array.isArray(listsRes.data) ? listsRes.data : [])
-        
-        // Cargar historial
+        // Métricas: caché de 2 min (cambia al marcar ítems como comprados)
+        const cachedMetrics = apiCache.get('/metrics/summary/')
+        // Listas recientes: reutiliza caché de ShoppingLists si existe
+        const cachedLists = apiCache.get('/lists/')
+
+        const requests = []
+        if (!cachedMetrics) requests.push(api.get('/metrics/summary/').catch(() => ({ data: null })))
+        if (!cachedLists)   requests.push(api.get('/lists/?limit=5').catch(() => ({ data: [] })))
+
+        const results = await Promise.all(requests)
+        let rIdx = 0
+
+        let metricsData = cachedMetrics
+        if (!cachedMetrics) {
+          metricsData = results[rIdx++]?.data ?? null
+          if (metricsData) apiCache.set('/metrics/summary/', metricsData, METRICS_TTL)
+        }
+
+        let listsData = cachedLists ? cachedLists.slice(0, 5) : null
+        if (!cachedLists) {
+          const raw = results[rIdx++]?.data ?? []
+          listsData = Array.isArray(raw) ? raw.slice(0, 5) : []
+          // No guardamos en /lists/ porque ese cache contiene todas las listas
+        }
+
+        setMetrics(metricsData)
+        setLists(listsData ?? [])
+
         fetchMonthlySpending(selectedYear, selectedMonth)
       } catch {
         // silencioso
@@ -155,7 +184,7 @@ export default function Dashboard() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <p className="text-dark-400 text-sm">{greeting},</p>
-          <h1 className="text-2xl font-bold text-white mt-0.5">
+          <h1 className="text-2xl font-bold text-dark-200 mt-0.5">
             {user?.name?.split(' ')[0] ?? 'Usuario'} 👋
           </h1>
         </div>
@@ -214,8 +243,8 @@ export default function Dashboard() {
           {/* Historial de Gasto por Mes */}
           <div className="card min-h-[290px] flex flex-col justify-between p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-emerald-400" /> 
+              <h2 className="text-lg font-bold text-dark-200 flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-emerald-600" /> 
                 Historial de Gastos
               </h2>
             </div>
@@ -224,7 +253,7 @@ export default function Dashboard() {
                 <ChevronLeft className="w-5 h-5" />
               </button>
               <div className="text-center min-w-[150px]">
-                <p className="text-primary-400 font-bold text-xl">{MONTHS[selectedMonth - 1]}</p>
+                <p className="text-primary-600 font-bold text-xl">{MONTHS[selectedMonth - 1]}</p>
                 <p className="text-dark-500 text-sm font-medium">{selectedYear}</p>
               </div>
               <button onClick={() => handleMonthChange(1)} className="btn-ghost p-2 rounded-full hover:bg-dark-800">
@@ -238,7 +267,7 @@ export default function Dashboard() {
               ) : monthlyDetail?.total > 0 ? (
                 <div className="text-center animate-scale-in">
                   <p className="text-dark-500 text-sm mb-1 uppercase tracking-widest font-semibold">Total gastado</p>
-                  <p className="text-4xl lg:text-5xl font-black text-white">{formatCurrency(monthlyDetail.total)}</p>
+                  <p className="text-4xl lg:text-5xl font-black text-dark-200">{formatCurrency(monthlyDetail.total)}</p>
                   <div className="mt-6 flex items-center justify-center gap-2">
                     <div className="h-2 w-32 bg-dark-800 rounded-full overflow-hidden">
                       <div className="h-full bg-emerald-500 rounded-full" style={{ width: '100%' }} />
@@ -256,8 +285,8 @@ export default function Dashboard() {
           
           {/* Recent lists */}
           <div className="card">
-            <h2 className="text-sm font-semibold text-white flex items-center gap-2 mb-4">
-              <Clock className="w-4 h-4 text-primary-400" />
+            <h2 className="text-sm font-semibold text-dark-200 flex items-center gap-2 mb-4">
+              <Clock className="w-4 h-4 text-primary-600" />
               Listas Recientes
             </h2>
             {loading ? (
@@ -283,8 +312,8 @@ export default function Dashboard() {
           {/* Top Productos más comprados */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <Package className="w-5 h-5 text-amber-400" /> 
+              <h2 className="text-lg font-bold text-dark-200 flex items-center gap-2">
+                <Package className="w-5 h-5 text-amber-600" /> 
                 Más Comprados
               </h2>
               <span className="text-xs text-dark-500 uppercase tracking-widest font-bold">Top</span>
@@ -314,7 +343,7 @@ export default function Dashboard() {
                     </div>
                   </div>
                   <div className="flex items-center gap-3 flex-shrink-0">
-                    <span className="text-lg font-bold text-primary-400">{item.total_quantity}</span>
+                    <span className="text-lg font-bold text-primary-600">{item.total_quantity}</span>
                     <div className="w-10 h-1.5 bg-dark-800 rounded-full overflow-hidden">
                       <div 
                         className="h-full bg-primary-500" 
@@ -335,10 +364,10 @@ export default function Dashboard() {
             {mostBoughtData.length > 0 && (
               <div className="bg-dark-800/50 border border-dark-700 rounded-xl p-4 flex items-start gap-4">
                 <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
-                  <TrendingDown className="w-4 h-4 text-amber-400" />
+                  <TrendingDown className="w-4 h-4 text-amber-600" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-white uppercase tracking-wider mb-1">Dato curioso</p>
+                  <p className="text-xs font-bold text-dark-200 uppercase tracking-wider mb-1">Dato curioso</p>
                   <p className="text-xs text-dark-400 leading-relaxed">
                     Tu producto "<strong>{mostBoughtData[0]?.product_name}</strong>" es recurrente. Optimizar compras mayoristas de este ítem te ahorrará dinero.
                   </p>
@@ -348,7 +377,7 @@ export default function Dashboard() {
           </div>
 
           <div className="card space-y-3">
-            <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+            <h2 className="text-sm font-semibold text-dark-200 flex items-center gap-2">
               <TrendingDown className="w-4 h-4 text-amber-500" />
               Presupuesto Próxima Semana
             </h2>
@@ -357,7 +386,7 @@ export default function Dashboard() {
             </p>
             <div className="pt-2 border-t border-dark-800 mt-2 flex justify-between items-center text-sm">
               <span className="text-dark-300">Total proyectado</span>
-              <span className="text-primary-400 font-bold text-xl">
+              <span className="text-primary-600 font-bold text-xl">
                 {metrics?.next_week_estimated_budget != null ? formatCurrency(metrics.next_week_estimated_budget) : '—'}
               </span>
             </div>

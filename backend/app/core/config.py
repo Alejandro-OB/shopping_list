@@ -63,10 +63,10 @@ class Settings(BaseSettings):
     EMAILS_FROM_NAME: Optional[str] = "ShopList Pro"
     
     # Frontend URL para enlaces en correos
-    FRONTEND_URL: str = "http://localhost:5173"
+    FRONTEND_URL: str = "http://localhost:5175"
 
     # CORS Origins
-    BACKEND_CORS_ORIGINS: Any = ["http://localhost:5173", "http://localhost:3000"]
+    BACKEND_CORS_ORIGINS: Any = ["http://localhost:5175", "http://localhost:5173", "http://localhost:3000"]
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod

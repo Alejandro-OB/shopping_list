@@ -42,17 +42,17 @@ export default function VerifyEmail() {
         {status === 'loading' && (
           <div className="flex flex-col items-center gap-4 py-8">
             <Loader2 className="w-16 h-16 text-primary-500 animate-spin" />
-            <h1 className="text-2xl font-bold text-white">Verificando tu cuenta</h1>
+            <h1 className="text-2xl font-bold text-dark-200">Verificando tu cuenta</h1>
             <p className="text-dark-400">Por favor espera un momento...</p>
           </div>
         )}
 
         {status === 'success' && (
           <div className="flex flex-col items-center gap-4 py-4 animate-in fade-in zoom-in duration-500">
-            <div className="w-20 h-20 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mb-2">
+            <div className="w-20 h-20 bg-emerald-500/20 text-emerald-600 rounded-full flex items-center justify-center mb-2">
               <CheckCircle2 className="w-12 h-12" />
             </div>
-            <h1 className="text-3xl font-bold text-white">¡Bienvenido!</h1>
+            <h1 className="text-3xl font-bold text-dark-200">¡Bienvenido!</h1>
             <p className="text-dark-300 leading-relaxed">
               {message}
             </p>
@@ -65,10 +65,10 @@ export default function VerifyEmail() {
 
         {status === 'error' && (
           <div className="flex flex-col items-center gap-4 py-4 animate-in fade-in zoom-in duration-500">
-            <div className="w-20 h-20 bg-red-500/20 text-red-400 rounded-full flex items-center justify-center mb-2">
+            <div className="w-20 h-20 bg-red-500/20 text-red-600 rounded-full flex items-center justify-center mb-2">
               <XCircle className="w-12 h-12" />
             </div>
-            <h1 className="text-2xl font-bold text-white">Error de verificación</h1>
+            <h1 className="text-2xl font-bold text-dark-200">Error de verificación</h1>
             <p className="text-red-300 leading-relaxed bg-red-500/10 p-4 rounded-2xl border border-red-500/20">
               {message}
             </p>
