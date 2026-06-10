@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
+
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, ArrowRight, ShoppingCart, Store, CheckCircle2, Check, X,
   Circle, AlertCircle, Loader2, Sparkles, Pencil, Save,
   TrendingDown, TrendingUp, Minus, Plus, Trash2, FileText, Download,
-  FileSpreadsheet, MessageSquare, Search, Filter, Tag, RefreshCw, PackagePlus, ChevronDown,
+  FileSpreadsheet, MessageSquare, Search, Filter, Tag, RefreshCw, PackagePlus, ChevronDown, ChevronUp,
   BookmarkPlus,
 } from 'lucide-react'
 import api from '../api/axios'
@@ -479,7 +480,6 @@ function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteT
   const [updatingQty, setUpdatingQty] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
-  const [updatingCatalog, setUpdatingCatalog] = useState(false)
 
   const isFree = item.is_free || !item.product_store_id
   const catalogPrice = item.price_catalog_snapshot ?? 0
@@ -495,85 +495,76 @@ function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteT
     setLoading(true)
     try {
       await onCheck(item.id, parseFloat(price))
-      // Tras éxito (sin throw), el item queda confirmado en backend — limpiar borrador local
       localStorage.removeItem(storageKey)
     } finally {
       setLoading(false)
     }
   }
 
-  // Rellena el input con el precio del catálogo (cuando el precio no cambió)
-  const handleFillFromCatalog = () => {
-    updatePrice(String(item.price_catalog_snapshot))
-  }
-
-  // Actualiza el precio de referencia del catálogo con el precio ingresado
-  const handleUpdateCatalogPrice = async () => {
-    const newPrice = parseFloat(price)
-    if (!newPrice || newPrice <= 0) return
-    setUpdatingCatalog(true)
-    try {
-      await api.patch(`/stores/product-store/${item.product_store_id}/`, { price_catalog: newPrice })
-      apiCache.invalidate('/products/')
-      toast.success('Precio de referencia actualizado')
-    } catch (err) {
-      toast.error(err.response?.data?.detail || 'No se pudo actualizar el precio')
-    } finally {
-      setUpdatingCatalog(false)
-    }
-  }
 
   return (
     <tr className={`border-b border-dark-800 transition-colors ${item.checked ? 'bg-dark-900/30' : 'hover:bg-dark-800/40'}`}>
       <td className="px-4 py-4">
-        <div className="flex items-center gap-3">
+        <div className="flex items-start gap-3">
           <button
             onClick={handleCheck}
             disabled={isDisabled || item.checked || loading}
-            className={`flex-shrink-0 transition-transform active:scale-90 ${item.checked ? 'text-teal-500' : 'text-dark-600 hover:text-primary-500'}`}
+            className={`flex-shrink-0 mt-0.5 transition-transform active:scale-90 ${item.checked ? 'text-teal-500' : 'text-black hover:text-primary-500'}`}
           >
             {loading ? (
               <Loader2 className="w-6 h-6 animate-spin" />
             ) : item.checked ? (
               <CheckCircle2 className="w-6 h-6" />
             ) : (
-              <Circle className="w-6 h-6" />
+              <Circle className="w-6 h-6 fill-white" />
             )}
           </button>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
+            {/* Nombre */}
             <p className={`text-sm font-medium transition-all ${item.checked ? 'text-dark-500 line-through' : 'text-dark-100'}`}>
               {item.product_name}
             </p>
-            <div className="flex items-center gap-2 mt-0.5">
+            {/* Tienda */}
+            <div className="flex items-center gap-1.5 mt-0.5">
               {isFree ? (
                 <span className="text-[10px] bg-primary-600/15 text-primary-600 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
                   Libre
                 </span>
               ) : (
                 <>
-                  <Store className="w-3 h-3 text-dark-500" />
+                  <Store className="hidden sm:inline w-3 h-3 text-dark-500" />
                   <span className="text-xs text-dark-500">{item.store_name}</span>
                 </>
               )}
-              <div className="flex items-center gap-1.5 ml-1">
-                <button
-                  onClick={() => onUpdateQuantity(item.id, -1)}
-                  disabled={isDisabled || item.checked || updatingQty || item.quantity <= 1}
-                  className="w-5 h-5 rounded bg-dark-800 text-dark-400 hover:text-primary-600 hover:bg-dark-700 transition-colors disabled:opacity-30 flex items-center justify-center"
-                >
-                  <Minus className="w-3 h-3" />
-                </button>
-                <span className="text-[10px] bg-dark-800 text-dark-100 px-1.5 py-0.5 rounded font-bold min-w-[20px] text-center">
-                  {item.quantity}
-                </span>
-                <button
-                  onClick={() => onUpdateQuantity(item.id, 1)}
-                  disabled={isDisabled || item.checked || updatingQty}
-                  className="w-5 h-5 rounded bg-dark-800 text-dark-400 hover:text-primary-600 hover:bg-dark-700 transition-colors disabled:opacity-30 flex items-center justify-center"
-                >
-                  <Plus className="w-3 h-3" />
-                </button>
-              </div>
+            </div>
+            {/* Precio catálogo — solo móvil (desktop lo muestra en columna separada) */}
+            {!isFree && item.price_catalog_snapshot != null && (
+              <p className="sm:hidden text-xs text-dark-500 mt-0.5">
+                Catálogo: <span className="text-dark-300 font-medium">${catalogPrice.toLocaleString('es-CO')}</span>
+                {item.quantity > 1 && (
+                  <span className="text-dark-600 ml-1">· subtotal ${(catalogPrice * item.quantity).toLocaleString('es-CO')}</span>
+                )}
+              </p>
+            )}
+            {/* Cantidad */}
+            <div className="flex items-center gap-1.5 mt-1.5">
+              <button
+                onClick={() => onUpdateQuantity(item.id, -1)}
+                disabled={isDisabled || item.checked || updatingQty || item.quantity <= 1}
+                className="w-5 h-5 rounded bg-dark-800 text-dark-400 hover:text-primary-600 hover:bg-dark-700 transition-colors disabled:opacity-30 flex items-center justify-center"
+              >
+                <Minus className="w-3 h-3" />
+              </button>
+              <span className="text-[10px] bg-dark-800 text-dark-100 px-1.5 py-0.5 rounded font-bold min-w-[20px] text-center">
+                {item.quantity}
+              </span>
+              <button
+                onClick={() => onUpdateQuantity(item.id, 1)}
+                disabled={isDisabled || item.checked || updatingQty}
+                className="w-5 h-5 rounded bg-dark-800 text-dark-400 hover:text-primary-600 hover:bg-dark-700 transition-colors disabled:opacity-30 flex items-center justify-center"
+              >
+                <Plus className="w-3 h-3" />
+              </button>
             </div>
           </div>
         </div>
@@ -596,8 +587,8 @@ function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteT
       <td className="px-4 py-4">
         <div className="flex flex-col items-end">
           <label className="text-[10px] text-dark-500 uppercase font-bold mb-1">Precio Real</label>
-          <div className="relative max-w-[100px]">
-            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-dark-500 text-sm">$</span>
+          <div className="relative w-full">
+
             <input
               type="number"
               value={price}
@@ -605,7 +596,7 @@ function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteT
               onFocus={(e) => e.target.select()}
               disabled={isDisabled || item.checked}
               placeholder="0"
-              className="input pl-5 py-1.5 text-right text-sm"
+              className="input py-1.5 text-right text-xs"
             />
           </div>
           {price > 0 && (
@@ -615,30 +606,8 @@ function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteT
           )}
           {/* Acciones rápidas de precio — solo cuando el ítem no está marcado */}
           {!item.checked && !isDisabled && (
-            <div className="flex gap-1 mt-1.5 flex-wrap justify-end">
-              {!isFree && item.price_catalog_snapshot != null && (
-                <button
-                  onClick={handleFillFromCatalog}
-                  title="Usar el precio del catálogo como precio real"
-                  className="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-dark-800 text-dark-400 hover:text-primary-600 hover:bg-primary-600/10 transition-colors"
-                >
-                  <Tag className="w-2.5 h-2.5" />
-                  = Catálogo
-                </button>
-              )}
-              {!isFree && price > 0 && parseFloat(price) !== item.price_catalog_snapshot && (
-                <button
-                  onClick={handleUpdateCatalogPrice}
-                  disabled={updatingCatalog}
-                  title="Guardar este precio como nuevo precio de referencia del producto"
-                  className="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-dark-800 text-dark-400 hover:text-fuchsia-600 hover:bg-fuchsia-500/10 transition-colors disabled:opacity-50"
-                >
-                  {updatingCatalog
-                    ? <Loader2 className="w-2.5 h-2.5 animate-spin" />
-                    : <RefreshCw className="w-2.5 h-2.5" />}
-                  Act. catálogo
-                </button>
-              )}
+            <div className="flex gap-2 mt-1.5 flex-wrap justify-end">
+
               {isFree && (
                 <button
                   onClick={() => onPromoteToProduct?.(item.product_name)}
@@ -665,7 +634,7 @@ function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteT
           </div>
         ) : (
           <div className="flex items-center justify-end gap-3">
-            <span className="text-xs text-dark-600 font-medium italic">Pendiente</span>
+
             {!isDisabled && (
               showConfirm ? (
                 <div className="flex items-center gap-1">
@@ -732,6 +701,7 @@ export default function ListDetail() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedStore, setSelectedStore] = useState('all')
   const [groupByCategory, setGroupByCategory] = useState(false)
+  const [showBreakdown, setShowBreakdown] = useState(false)
 
   // Modal para guardar producto libre como producto en BD
   const [productModalInitial, setProductModalInitial] = useState(null) // string | null
@@ -776,13 +746,14 @@ export default function ListDetail() {
     for (const it of items) {
       const key = it.store_name || 'Sin tienda'
       const isFree = !it.store_name
-      const bucket = map.get(key) || { storeName: key, isFree, count: 0, checkedCount: 0, estimated: 0, paid: 0 }
+      const bucket = map.get(key) || { storeName: key, isFree, count: 0, checkedCount: 0, estimated: 0, paid: 0, items: [] }
       bucket.count += 1
       bucket.estimated += (it.price_catalog_snapshot || 0) * it.quantity
       if (it.checked) {
         bucket.checkedCount += 1
         bucket.paid += (it.price_real || 0) * it.quantity
       }
+      bucket.items.push(it)
       map.set(key, bucket)
     }
     return [...map.values()].sort((a, b) => {
@@ -1208,22 +1179,13 @@ export default function ListDetail() {
         <div className="flex items-center gap-2 self-center sm:self-auto">
           {/* Dropdown compartir/exportar */}
           <div className="relative">
-            <div className="flex">
-              <button
-                onClick={handleShareWhatsApp}
-                className="btn-secondary flex items-center gap-2 rounded-r-none border-r-0 border-teal-500/30 hover:border-teal-500/50 hover:bg-teal-500/5 text-teal-600"
-              >
-                <MessageSquare className="w-4 h-4" />
-                {/* En mobile, mostrar el texto solo si no hay otros botones (lista completada) */}
-                <span className={isCompleted ? '' : 'hidden sm:inline'}>Compartir</span>
-              </button>
-              <button
-                onClick={() => setShowExportMenu(v => !v)}
-                className="btn-secondary px-2 rounded-l-none border-teal-500/30 hover:border-teal-500/50 hover:bg-teal-500/5 text-teal-600"
-              >
-                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showExportMenu ? 'rotate-180' : ''}`} />
-              </button>
-            </div>
+            <button
+              onClick={() => setShowExportMenu(v => !v)}
+              className="p-2 text-teal-500 hover:text-teal-400 transition-colors"
+              title="Compartir / Exportar"
+            >
+              <MessageSquare className="w-5 h-5" />
+            </button>
 
             {showExportMenu && (
               <>
@@ -1259,21 +1221,19 @@ export default function ListDetail() {
           {!isCompleted && (
             <button
               onClick={() => setShowCompareModal(true)}
-              className="btn-secondary flex items-center gap-2"
+              className="p-2 text-teal-500 hover:text-teal-400 transition-colors"
               title="Ver oportunidades de ahorro"
             >
-              <TrendingDown className="w-4 h-4 text-teal-500" />
-              <span className="hidden sm:inline">Ahorros</span>
+              <TrendingDown className="w-5 h-5" />
             </button>
           )}
           {!isCompleted && (
             <button
               onClick={() => setShowAddModal(true)}
-              className="btn-primary flex items-center gap-2"
+              className="p-2 text-primary-500 hover:text-primary-400 transition-colors"
               title="Agregar productos a la lista"
             >
-              <PackagePlus className="w-4 h-4" />
-              <span className="hidden sm:inline">Agregar</span>
+              <Plus className="w-6 h-6" />
             </button>
           )}
           {!isCompleted && (
@@ -1302,10 +1262,9 @@ export default function ListDetail() {
                   onClick={() => setShowConfirm(true)}
                   disabled={completing || itemsBought === 0}
                   title={itemsBought === 0 ? 'Debes marcar al menos un producto antes de finalizar' : 'Finalizar Compra'}
-                  className="btn-primary"
+                  className="p-2 text-teal-500 hover:text-teal-400 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                 >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span className="hidden sm:inline">Finalizar Compra</span>
+                  <Check className="w-6 h-6" />
                 </button>
               )}
             </div>
@@ -1464,12 +1423,20 @@ export default function ListDetail() {
       {/* Desglose por tienda — grid de cards pequeñas */}
       {storeBreakdown.length > 1 && (
         <div>
-          <p className="text-[10px] font-bold text-dark-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <Store className="w-3 h-3 text-primary-600" />
-            Desglose por tienda
-            <span className="text-dark-600 font-normal normal-case ml-1">· {storeBreakdown.length} tiendas</span>
-          </p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+          <button
+            className="w-full text-left flex items-center gap-1.5 mb-2 sm:cursor-default"
+            onClick={() => setShowBreakdown(v => !v)}
+          >
+            <Store className="w-3 h-3 text-primary-600 flex-shrink-0" />
+            <span className="text-[10px] font-bold text-dark-500 uppercase tracking-wider">Desglose por tienda</span>
+            <span className="text-[10px] text-dark-600 font-normal normal-case">· {storeBreakdown.length} tiendas</span>
+            <span className="sm:hidden ml-auto">
+              {showBreakdown
+                ? <ChevronUp className="w-3.5 h-3.5 text-dark-500" />
+                : <ChevronDown className="w-3.5 h-3.5 text-dark-500" />}
+            </span>
+          </button>
+          <div className={`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 ${!showBreakdown ? 'hidden sm:grid' : ''}`}>
             {storeBreakdown.map((s) => {
               const fullyChecked = s.checkedCount === s.count && s.count > 0
               return (
@@ -1576,7 +1543,7 @@ export default function ListDetail() {
           <table className="w-full text-left">
              <thead className="bg-dark-950/50 border-b border-dark-800">
                <tr>
-                 <th className="px-4 py-3 text-xs font-bold text-dark-500 uppercase tracking-wider">Producto / Tienda</th>
+                 <th className="px-4 py-3 text-xs font-bold text-dark-500 uppercase tracking-wider">Producto</th>
                  <th className="px-4 py-3 text-xs font-bold text-dark-500 uppercase tracking-wider text-right hidden sm:table-cell">Referencia</th>
                  <th className="px-4 py-3 text-xs font-bold text-dark-500 uppercase tracking-wider text-right">Monto Pagado</th>
                  <th className="px-4 py-3 text-xs font-bold text-dark-500 uppercase tracking-wider text-right">Detalle</th>
