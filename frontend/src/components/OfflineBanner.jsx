@@ -56,14 +56,14 @@ export default function OfflineBanner() {
   if (online && pending === 0) return null
 
   const colorCls = online
-    ? 'bg-fuchsia-500/15 text-fuchsia-300 border-fuchsia-500/30'
-    : 'bg-red-500/15 text-red-300 border-red-500/30'
+    ? 'bg-fuchsia-100 text-fuchsia-800 border-fuchsia-300'
+    : 'bg-red-100 text-red-800 border-red-300'
 
   return (
-    <div className={`flex items-center justify-center gap-2 px-4 py-1.5 text-xs font-medium border-b ${colorCls}`}>
+    <div className={`flex items-center justify-center gap-2 px-4 py-1.5 text-xs font-semibold border-b ${colorCls}`}>
       {online ? <CloudOff className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
       {!online && <span>Sin conexión</span>}
-      {!online && pending > 0 && <span className="opacity-50">·</span>}
+      {!online && pending > 0 && <span className="opacity-60">·</span>}
       {pending > 0 && (
         <span>
           {pending} cambio{pending > 1 ? 's' : ''} pendiente{pending > 1 ? 's' : ''}
@@ -73,7 +73,7 @@ export default function OfflineBanner() {
         <button
           onClick={flush}
           disabled={retrying}
-          className="ml-2 flex items-center gap-1 px-2 py-0.5 rounded-md bg-fuchsia-500/20 hover:bg-fuchsia-500/30 transition-colors disabled:opacity-50"
+          className="ml-2 flex items-center gap-1 px-2 py-0.5 rounded-md bg-fuchsia-200 hover:bg-fuchsia-300 text-fuchsia-900 transition-colors disabled:opacity-50"
         >
           {retrying
             ? <Loader2 className="w-3 h-3 animate-spin" />
