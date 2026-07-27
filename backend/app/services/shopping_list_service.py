@@ -5,7 +5,7 @@ from typing import List, Optional
 from app.models.shopping_list import ListStatus
 from app.api.deps import get_current_user
 from app.services.logic.frequency import should_appear_today
-from app.core.timezone import now_bogota, to_utc
+from app.core.timezone import now_bogota, to_utc, get_week_bounds, tuesday_of_week
 
 # Importar Repositorios
 from app.repositories.user_repo import UserRepository
@@ -23,12 +23,16 @@ class ShoppingListService:
         self.list_repo = ShoppingListRepository(db)
         self.item_repo = ShoppingListItemRepository(db)
 
-    def generate_auto_lists(self, user_id: Optional[int] = None):
+    def generate_auto_lists(self, user_id: Optional[int] = None, reference_date_bogota: Optional[datetime] = None):
         """
         Genera automáticamente las listas usando los repositorios.
         Puede generar para un usuario específico o para todos.
+
+        `reference_date_bogota` permite fijar el "hoy" (usado en tests para
+        simular corridas del scheduler en días distintos de forma
+        determinística); en producción siempre se omite y se usa now_bogota().
         """
-        today_bogota = now_bogota()
+        today_bogota = reference_date_bogota or now_bogota()
         
         if user_id:
             user = self.user_repo.get(user_id)
@@ -64,21 +68,25 @@ class ShoppingListService:
             if not products_to_add:
                 continue
 
-            # 2. Buscar o crear la lista para hoy mediante el ShoppingListRepository
-            start_of_day = today_bogota.replace(hour=0, minute=0, second=0, microsecond=0)
-            end_of_day = today_bogota.replace(hour=23, minute=59, second=59, microsecond=999999)
-            
+            # 2. Buscar o crear la lista de ESTA SEMANA (no del día exacto). Las
+            # frecuencias biweekly/monthly no están ancladas al martes como la
+            # weekly, así que su ocurrencia puede caer en otro día de la misma
+            # semana: se agrupan igual en una sola lista en vez de crear una
+            # lista nueva por cada día distinto en que algo resulte "debido".
+            week_start, week_end = get_week_bounds(today_bogota)
+
             existing_list = self.list_repo.get_by_date_range(
-                user.id, to_utc(start_of_day), to_utc(end_of_day)
+                user.id, to_utc(week_start), to_utc(week_end)
             )
 
             list_was_created = False
             if not existing_list:
                 from app.models.shopping_list import ShoppingList
+                list_date = tuesday_of_week(today_bogota)
                 current_list = ShoppingList(
                     user_id=user.id,
-                    name=f"Lista Automática - {today_bogota.strftime('%Y-%m-%d')}",
-                    date=to_utc(today_bogota),
+                    name=f"Lista Automática - {list_date.strftime('%Y-%m-%d')}",
+                    date=to_utc(list_date),
                     is_auto_generated=True,
                     status=ListStatus.draft
                 )
