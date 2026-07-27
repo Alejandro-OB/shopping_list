@@ -146,15 +146,17 @@ class ShoppingListService:
         # Actualizar ítem
         item.checked = True
         item.price_real = price_real
-        
-        # Registrar en Historial de Precios
-        from app.models.price_history import PriceHistory
-        history = PriceHistory(
-            product_store_id=item.product_store_id,
-            price=price_real,
-            date=to_utc(now_bogota())
-        )
-        self.db.add(history)
+
+        # Registrar en Historial de Precios (solo aplica a ítems vinculados a un
+        # producto de catálogo; los productos libres no tienen product_store_id)
+        if item.product_store_id is not None:
+            from app.models.price_history import PriceHistory
+            history = PriceHistory(
+                product_store_id=item.product_store_id,
+                price=price_real,
+                date=to_utc(now_bogota())
+            )
+            self.db.add(history)
         self.db.commit()
         return item
 
