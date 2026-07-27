@@ -18,7 +18,8 @@ const MONTHS = [
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
 ]
 
-function StatCard({ label, value, icon: Icon, color = 'purple', sub, onClick }) {
+function StatCard({ label, value, icon, color = 'purple', sub, onClick }) {
+  const Icon = icon
   const colorMap = {
     purple: 'bg-primary-100 text-primary-700',
     green:  'bg-teal-100 text-teal-700',
@@ -147,6 +148,9 @@ export default function Dashboard() {
       }
     }
     fetchData()
+    // Carga única al montar, con selectedMonth/selectedYear vigentes en ese momento.
+    // Cambios posteriores de mes se manejan aparte en handleMonthChange.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleGenerateLists = async () => {

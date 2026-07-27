@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useSearchParams, useNavigate, Link } from 'react-router-dom'
+import { useSearchParams, Link } from 'react-router-dom'
 import { 
   KeyRound, Loader2, CheckCircle2, XCircle, 
   Eye, EyeOff, ShieldCheck, ArrowRight
@@ -15,7 +15,6 @@ export default function ResetPassword() {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   
-  const navigate = useNavigate()
   const token = searchParams.get('token')
 
   // Validaciones de seguridad (Mismas que en Registro/Settings)

@@ -63,6 +63,9 @@ export default function Metrics() {
     }
   }
 
+  // Carga única al montar, con selectedMonth/selectedYear vigentes en ese momento.
+  // Cambios posteriores de mes se manejan aparte en handleMonthChange.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchData() }, [])
 
   const handleMonthChange = (direction) => {

@@ -172,7 +172,6 @@ function PriceRow({ item }) {
   const isFlat  = diff === 0
 
   const TrendIcon  = isFlat ? Minus : isUp ? TrendingUp : TrendingDown
-  const trendColor = isFlat ? 'text-dark-500' : isUp ? 'text-red-400' : 'text-teal-400'
   const badgeClass = isFlat
     ? 'badge-blue'
     : isUp

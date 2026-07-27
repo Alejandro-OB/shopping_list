@@ -55,7 +55,7 @@ export default function SettingsPage() {
       await api.patch('/users/me/', { can_autogenerate_lists: newValue })
       await fetchMe()
       toast.success(newValue ? 'Generación automática activada' : 'Generación automática pausada')
-    } catch (err) {
+    } catch {
       setAutoGen(!newValue) // revert
       toast.error('Error al actualizar preferencia')
     } finally {

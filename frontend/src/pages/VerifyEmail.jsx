@@ -1,30 +1,27 @@
 import { useEffect, useState } from 'react'
-import { useSearchParams, useNavigate, Link } from 'react-router-dom'
+import { useSearchParams, Link } from 'react-router-dom'
 import { CheckCircle2, XCircle, Loader2, ArrowRight } from 'lucide-react'
 import { useAuth } from '../context/useAuth'
 import api from '../api/axios'
 
 export default function VerifyEmail() {
   const [searchParams] = useSearchParams()
-  const [status, setStatus] = useState('loading') // loading, success, error
-  const [message, setMessage] = useState('')
-  const navigate = useNavigate()
-  const { fetchMe } = useAuth()
   const token = searchParams.get('token')
+  // loading, success, error — sin token no hay nada que verificar, así que el
+  // estado inicial ya refleja el error en vez de pasar por 'loading'.
+  const [status, setStatus] = useState(() => (token ? 'loading' : 'error'))
+  const [message, setMessage] = useState(() => (token ? '' : 'Token de verificación no encontrado.'))
+  const { fetchMe } = useAuth()
 
   useEffect(() => {
-    if (!token) {
-      setStatus('error')
-      setMessage('Token de verificación no encontrado.')
-      return
-    }
+    if (!token) return
 
     const verify = async () => {
       try {
         const { data } = await api.get(`/users/verify/?token=${token}`)
         setStatus('success')
         setMessage(data.message || '¡Cuenta verificada con éxito!')
-        
+
         // Sincronizar el estado global inmediatamente
         await fetchMe()
       } catch (err) {

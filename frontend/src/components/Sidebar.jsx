@@ -27,20 +27,10 @@ const NAV_ITEMS = [
   { label: 'Configuración',     icon: Settings,        to: '/settings' },
 ]
 
-export default function Sidebar({ mobileOpen, onMobileClose }) {
-  const [collapsed, setCollapsed] = useState(false)
-  const { user, logout } = useAuth()
-  const navigate = useNavigate()
-
-  const handleLogout = () => {
-    if (onMobileClose) onMobileClose()
-    logout()
-    toast.success('Sesión cerrada')
-    navigate('/login')
-  }
-
-  // ── Contenido del sidebar ─────────────────────────────────────────────────
-  const SidebarContent = () => (
+// ── Contenido del sidebar ────────────────────────────────────────────────────
+// Fuera del componente Sidebar para no recrearse (y resetear su estado) en cada render.
+function SidebarContent({ collapsed, onCollapseToggle, onMobileClose, user, onLogout }) {
+  return (
     <div className="flex flex-col h-full">
 
       {/* Logo */}
@@ -65,25 +55,28 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
 
       {/* Nav links */}
       <nav className="flex-1 overflow-y-auto p-3 space-y-1">
-        {NAV_ITEMS.map(({ label, icon: Icon, to }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={to === '/'}
-            onClick={onMobileClose}
-            className={({ isActive }) =>
-              `sidebar-link ${isActive ? 'sidebar-link-active' : ''}`
-            }
-          >
-            <Icon className="w-5 h-5 flex-shrink-0" />
-            {!collapsed && <span className="truncate">{label}</span>}
-          </NavLink>
-        ))}
+        {NAV_ITEMS.map(({ label, icon, to }) => {
+          const Icon = icon
+          return (
+            <NavLink
+              key={to}
+              to={to}
+              end={to === '/'}
+              onClick={onMobileClose}
+              className={({ isActive }) =>
+                `sidebar-link ${isActive ? 'sidebar-link-active' : ''}`
+              }
+            >
+              <Icon className="w-5 h-5 flex-shrink-0" />
+              {!collapsed && <span className="truncate">{label}</span>}
+            </NavLink>
+          )
+        })}
       </nav>
 
       {/* User section */}
       <div className="border-t border-dark-800 p-3 space-y-1">
-        <button onClick={handleLogout} className="sidebar-link w-full text-red-500 hover:text-red-700 hover:bg-red-100">
+        <button onClick={onLogout} className="sidebar-link w-full text-red-500 hover:text-red-700 hover:bg-red-100">
           <LogOut className="w-5 h-5 flex-shrink-0" />
           {!collapsed && <span>Cerrar sesión</span>}
         </button>
@@ -98,7 +91,7 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
       {/* Collapse toggle (desktop only) */}
       <div className="hidden lg:flex border-t border-dark-800 p-2">
         <button
-          onClick={() => setCollapsed(!collapsed)}
+          onClick={onCollapseToggle}
           className="btn-ghost w-full justify-center"
           title={collapsed ? 'Expandir' : 'Colapsar'}
         >
@@ -107,6 +100,19 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
       </div>
     </div>
   )
+}
+
+export default function Sidebar({ mobileOpen, onMobileClose }) {
+  const [collapsed, setCollapsed] = useState(false)
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
+
+  const handleLogout = () => {
+    if (onMobileClose) onMobileClose()
+    logout()
+    toast.success('Sesión cerrada')
+    navigate('/login')
+  }
 
   return (
     <>
@@ -116,7 +122,13 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
                     transition-all duration-300 flex-shrink-0
                     ${collapsed ? 'w-16' : 'w-60'}`}
       >
-        <SidebarContent />
+        <SidebarContent
+          collapsed={collapsed}
+          onCollapseToggle={() => setCollapsed(!collapsed)}
+          onMobileClose={onMobileClose}
+          user={user}
+          onLogout={handleLogout}
+        />
       </aside>
 
       {/* Mobile overlay */}
@@ -127,7 +139,13 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
             onClick={onMobileClose}
           />
           <aside className="relative flex flex-col w-64 h-full bg-dark-900 border-r border-dark-800 animate-slide-in">
-            <SidebarContent />
+            <SidebarContent
+              collapsed={collapsed}
+              onCollapseToggle={() => setCollapsed(!collapsed)}
+              onMobileClose={onMobileClose}
+              user={user}
+              onLogout={handleLogout}
+            />
           </aside>
         </div>
       )}

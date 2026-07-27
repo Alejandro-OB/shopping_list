@@ -17,7 +17,7 @@ export default function SystemInfo() {
     try {
       const { data } = await api.get('/system/health/')
       setHealth(data)
-    } catch (err) {
+    } catch {
       setHealth({
         status: 'error',
         database: 'disconnected',
@@ -30,13 +30,12 @@ export default function SystemInfo() {
   }
 
   const handleAutoGenToggle = async () => {
-    const newValue = !health?.user_can_autogen // Nota: Usaremos el estado local o del usuario
     setUpdatingAutoGen(true)
     try {
       await api.patch('/users/me/', { can_autogenerate_lists: !user.can_autogenerate_lists })
       await fetchMe() // Refresca el contexto global
       toast.success(!user.can_autogenerate_lists ? 'Generación automática activada para tu cuenta' : 'Generación automática desactivada para tu cuenta')
-    } catch (err) {
+    } catch {
       toast.error('Error al actualizar tu preferencia')
     } finally {
       setUpdatingAutoGen(false)
