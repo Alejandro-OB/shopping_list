@@ -26,6 +26,8 @@ uvicorn app.main:app --reload      # Puerto 8000
 alembic upgrade head               # Aplicar migraciones
 alembic revision --autogenerate -m "descripción"  # Nueva migración
 python -m pytest                   # Tests
+python -m pytest tests/test_api_v1_auth.py::test_login_success  # Un solo test
+python -m pytest -k "metrics"      # Tests que matcheen un patrón
 ```
 
 ### Frontend (local sin Docker)
@@ -70,14 +72,22 @@ Estructura en capas:
 
 **Base de datos**: PostgreSQL 16. Migraciones con Alembic. Soporte dual: local (config por componentes) o Supabase (URI directa), controlado por `ENVIRONMENT=local|supabase` en `.env`.
 
+**Modelo de dominio (precios)**: `Product` — `Store` se relacionan vía `ProductStore` (precio de catálogo actual por tienda). Cada cambio de precio en `ProductStore` genera un registro en `PriceHistory`, que es la base para las métricas de ahorro y comparación entre tiendas. Los ítems de una lista (`ShoppingListItem`) referencian un `ProductStore`, no un `Product` directamente.
+
+**Tests**: `backend/tests/` usa una base SQLite en memoria (ver `conftest.py`); cada test corre en una transacción que se revierte al finalizar, así que los fixtures no necesitan limpiar datos manualmente.
+
 ### Frontend (`/frontend/src/`)
 
 - `pages/` — Vistas principales (ListDetail, Products, etc.)
 - `components/` — Componentes reutilizables (Sidebar, etc.)
+- `context/` — `AuthContext` + hook `useAuth` para sesión global
+- `api/` — Cliente Axios (`axios.js`), caché (`cache.js`) y cola offline (`offlineQueue.js`)
 - `App.jsx` — Router principal con React Router 7
 - `index.css` — Estilos globales Tailwind
 
-La API base URL se configura en Axios. En Docker apunta a `http://localhost:8001`; local a `http://localhost:8000`.
+La API base URL se configura en Axios (`api/axios.js`). En Docker apunta a `http://localhost:8001`; local a `http://localhost:8000`.
+
+**PWA y modo offline**: el frontend es una PWA (`vite-plugin-pwa`) pensada para usarse en el supermercado sin señal. El service worker cachea `GET /lists/*` (NetworkFirst) y `users/me`, `stores`, `products` (StaleWhileRevalidate). Además, `api/axios.js` intercepta mutaciones críticas sobre ítems de lista (marcar comprado, cambiar cantidad, eliminar) que fallan por red y las encola en IndexedDB (`idb-keyval`, vía `offlineQueue.js`) para reintentarlas cuando vuelve la conexión.
 
 ### Autenticación
 
