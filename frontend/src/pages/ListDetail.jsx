@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { useParams, useNavigate } from 'react-router-dom'
 import {
@@ -186,7 +186,7 @@ function AddItemsModal({ listId, existingItems, onClose, onAdded }) {
   useEffect(() => {
     const cached = apiCache.get('/products/')
     if (cached) { setProducts(cached); setLoading(false); return }
-    api.get('/products/')
+    api.get('/products/?limit=1000')
       .then(({ data }) => {
         const prods = Array.isArray(data) ? data.filter(p => !p.is_deleted) : []
         apiCache.set('/products/', prods)
@@ -487,6 +487,15 @@ function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteT
   const isSaving = diff > 0
   const isExpensive = diff < 0
 
+  const handleQuantityClick = async (delta) => {
+    setUpdatingQty(true)
+    try {
+      await onUpdateQuantity(item.id, delta)
+    } finally {
+      setUpdatingQty(false)
+    }
+  }
+
   const handleCheck = async () => {
     if (!price || parseFloat(price) <= 0) {
       toast.error('Ingresa un precio válido antes de marcar')
@@ -549,7 +558,7 @@ function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteT
             {/* Cantidad */}
             <div className="flex items-center gap-1.5 mt-1.5">
               <button
-                onClick={() => onUpdateQuantity(item.id, -1)}
+                onClick={() => handleQuantityClick(-1)}
                 disabled={isDisabled || item.checked || updatingQty || item.quantity <= 1}
                 className="w-5 h-5 rounded bg-dark-800 text-dark-400 hover:text-primary-600 hover:bg-dark-700 transition-colors disabled:opacity-30 flex items-center justify-center"
               >
@@ -559,7 +568,7 @@ function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteT
                 {item.quantity}
               </span>
               <button
-                onClick={() => onUpdateQuantity(item.id, 1)}
+                onClick={() => handleQuantityClick(1)}
                 disabled={isDisabled || item.checked || updatingQty}
                 className="w-5 h-5 rounded bg-dark-800 text-dark-400 hover:text-primary-600 hover:bg-dark-700 transition-colors disabled:opacity-30 flex items-center justify-center"
               >
@@ -707,9 +716,33 @@ export default function ListDetail() {
   const [productModalInitial, setProductModalInitial] = useState(null) // string | null
   const [stores, setStores] = useState([])
 
+  const fetchList = useCallback(async () => {
+    setLoading(true)
+    try {
+      const { data } = await api.get(`/lists/${id}/`)
+      // El backend no garantiza el orden, así que ordenamos por tienda en el frontend.
+      // Items libres (store_name === null) van al final.
+      if (data.items) {
+        data.items.sort((a, b) =>
+          (a.store_name || 'zzz_libre').localeCompare(b.store_name || 'zzz_libre')
+        )
+      }
+      setList(data)
+      setNewName(data.name)
+      if (data.date) {
+        setNewDate(data.date.split('T')[0])
+      }
+    } catch {
+      toast.error('No se pudo cargar la lista')
+      navigate('/lists')
+    } finally {
+      setLoading(false)
+    }
+  }, [id, navigate])
+
   useEffect(() => {
     fetchList()
-  }, [id])
+  }, [fetchList])
 
   useEffect(() => {
     // Cargar stores con cache para el ProductModal
@@ -734,7 +767,7 @@ export default function ListDetail() {
     }
     window.addEventListener('cy-queue-drained', onDrained)
     return () => window.removeEventListener('cy-queue-drained', onDrained)
-  }, [])
+  }, [fetchList])
 
   // Desglose por tienda — agrupa items por store_name, suma estimado y pagado.
   // Items libres (store_name=null) caen en "Sin tienda".
@@ -762,30 +795,6 @@ export default function ListDetail() {
       return b.estimated - a.estimated
     })
   }, [list?.items])
-
-  const fetchList = async () => {
-    setLoading(true)
-    try {
-      const { data } = await api.get(`/lists/${id}/`)
-      // El backend no garantiza el orden, así que ordenamos por tienda en el frontend.
-      // Items libres (store_name === null) van al final.
-      if (data.items) {
-        data.items.sort((a, b) =>
-          (a.store_name || 'zzz_libre').localeCompare(b.store_name || 'zzz_libre')
-        )
-      }
-      setList(data)
-      setNewName(data.name)
-      if (data.date) {
-        setNewDate(data.date.split('T')[0])
-      }
-    } catch (err) {
-      toast.error('No se pudo cargar la lista')
-      navigate('/lists')
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const handleCheckItem = async (itemId, priceReal) => {
     // Snapshot previo para rollback en caso de error real (no offline)
@@ -869,7 +878,7 @@ export default function ListDetail() {
       if (res?.data?._queued) {
         toast.success('Cantidad guardada offline', { icon: '📥', duration: 2000 })
       }
-    } catch (err) {
+    } catch {
       // Rollback cantidad
       setList(prev => ({
         ...prev,

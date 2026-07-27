@@ -7,7 +7,7 @@ import { apiCache } from '../api/cache'
 import toast from 'react-hot-toast'
 
 // Categorías predefinidas (orden típico de pasillos de supermercado en Colombia)
-export const PRODUCT_CATEGORIES = [
+const PRODUCT_CATEGORIES = [
   'Frutas y verduras',
   'Carnes y embutidos',
   'Lácteos',
@@ -65,10 +65,42 @@ export default function ProductModal({ product, stores, onClose, onSaved, initia
 
   const handleChange = (e) => setForm(f => ({ ...f, [e.target.name]: e.target.value }))
 
+  // Construye un link a partir de los campos sueltos de "Tienda..."/"Precio $".
+  // Se usa tanto al presionar "+" como como red de seguridad al enviar el
+  // formulario (ver handleSubmit).
+  const buildLinkFromInput = (store_id, price_catalog) => {
+    if (!store_id || !price_catalog || parseFloat(price_catalog) < 0) return null
+    const storeObj = localStores.find(s => s.id === parseInt(store_id))
+    return {
+      store_id: parseInt(store_id),
+      store: { name: storeObj?.name },
+      price_catalog: parseFloat(price_catalog),
+    }
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
     try {
+      // Red de seguridad: si el usuario seleccionó tienda/precio pero olvidó
+      // presionar "+", no lo perdemos silenciosamente — lo agregamos aquí, o
+      // avisamos si quedó a medio llenar.
+      let finalStoreLinks = storeLinks
+      if (newLink.store_id || newLink.price_catalog) {
+        const pending = buildLinkFromInput(newLink.store_id, newLink.price_catalog)
+        if (!pending) {
+          toast.error('Tienes una tienda o precio sin completar en "Tiendas y Precios". Complétalo o bórralo antes de guardar.')
+          setLoading(false)
+          return
+        }
+        if (finalStoreLinks.some(l => l.store_id === pending.store_id)) {
+          toast.error('La tienda que seleccionaste ya está en la lista de abajo.')
+          setLoading(false)
+          return
+        }
+        finalStoreLinks = [...finalStoreLinks, pending]
+      }
+
       // Normalizar payload: enviar category=null si está vacío (en vez de "")
       const payload = { ...form, category: form.category || null }
       let savedProduct
@@ -87,7 +119,7 @@ export default function ProductModal({ product, stores, onClose, onSaved, initia
       if (removedLinks.length > 0)
         await Promise.all(removedLinks.map(id => api.delete(`/stores/product-store/${id}/`)))
 
-      await Promise.all(storeLinks.map(link => {
+      await Promise.all(finalStoreLinks.map(link => {
         if (!link.id) {
           return api.post('/stores/product-store/', {
             product_id,
@@ -115,16 +147,11 @@ export default function ProductModal({ product, stores, onClose, onSaved, initia
   }
 
   const addLink = () => {
-    if (!newLink.store_id || !newLink.price_catalog || parseFloat(newLink.price_catalog) < 0)
-      return toast.error('Selecciona una tienda y un precio válido')
-    if (storeLinks.some(l => l.store_id === parseInt(newLink.store_id)))
+    const link = buildLinkFromInput(newLink.store_id, newLink.price_catalog)
+    if (!link) return toast.error('Selecciona una tienda y un precio válido')
+    if (storeLinks.some(l => l.store_id === link.store_id))
       return toast.error('Esta tienda ya está en la lista')
-    const storeObj = localStores.find(s => s.id === parseInt(newLink.store_id))
-    setStoreLinks(prev => [...prev, {
-      store_id: parseInt(newLink.store_id),
-      store: { name: storeObj?.name },
-      price_catalog: parseFloat(newLink.price_catalog),
-    }])
+    setStoreLinks(prev => [...prev, link])
     setNewLink({ store_id: '', price_catalog: '' })
   }
 

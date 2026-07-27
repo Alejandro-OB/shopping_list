@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   BookOpen, Search, Loader2, Package, Store,
   CalendarDays, ShoppingCart, Check, AlertCircle, Plus, PlusCircle,
-  Pencil, Trash2, X,
+  Pencil, Trash2, X, Link2,
 } from 'lucide-react'
 import api from '../api/axios'
 import { apiCache } from '../api/cache'
@@ -54,28 +54,46 @@ function CatalogRow({ row, productObj, isChecked, quantity, onToggle, onQuantity
     finally { setDeleting(false); setConfirmDelete(false) }
   }
 
+  const unlinked = row.unlinked
+
   return (
     <tr
-      onClick={() => onToggle(row.ps_id)}
+      onClick={() => (unlinked ? onEdit(productObj) : onToggle(row.ps_id))}
       className={`border-b border-dark-800 cursor-pointer transition-colors group
+        ${unlinked ? 'opacity-70' : ''}
         ${isChecked ? 'bg-primary-600/10 hover:bg-primary-600/15' : 'hover:bg-dark-800/50'}`}
     >
       {/* Checkbox */}
       <td className="px-4 py-3">
-        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all flex-shrink-0
-          ${isChecked ? 'bg-primary-600 border-primary-600' : 'border-dark-600'}`}>
-          {isChecked && <Check className="w-3 h-3 text-white" />}
-        </div>
+        {unlinked ? (
+          <div className="w-5 h-5 rounded border-2 border-dark-700 flex items-center justify-center flex-shrink-0" title="Vincula una tienda para poder agregarlo a una lista">
+            <AlertCircle className="w-3 h-3 text-fuchsia-600" />
+          </div>
+        ) : (
+          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all flex-shrink-0
+            ${isChecked ? 'bg-primary-600 border-primary-600' : 'border-dark-600'}`}>
+            {isChecked && <Check className="w-3 h-3 text-white" />}
+          </div>
+        )}
       </td>
 
       {/* Tienda */}
       <td className="px-4 py-3">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-md bg-fuchsia-500/10 flex items-center justify-center flex-shrink-0">
-            <Store className="w-3.5 h-3.5 text-fuchsia-600" />
+        {unlinked ? (
+          <button
+            onClick={e => { e.stopPropagation(); onEdit(productObj) }}
+            className="flex items-center gap-1.5 text-xs text-fuchsia-500 hover:text-fuchsia-400 transition-colors"
+          >
+            <Link2 className="w-3.5 h-3.5" /> Vincular tienda
+          </button>
+        ) : (
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-md bg-fuchsia-500/10 flex items-center justify-center flex-shrink-0">
+              <Store className="w-3.5 h-3.5 text-fuchsia-600" />
+            </div>
+            <span className="text-sm text-dark-200">{row.store}</span>
           </div>
-          <span className="text-sm text-dark-200">{row.store}</span>
-        </div>
+        )}
       </td>
 
       {/* Producto */}
@@ -91,7 +109,7 @@ function CatalogRow({ row, productObj, isChecked, quantity, onToggle, onQuantity
       {/* Precio */}
       <td className="px-4 py-3 text-right hidden sm:table-cell">
         <span className="text-sm font-mono text-dark-200">
-          ${row.price.toLocaleString('es-CO')}
+          {unlinked ? '—' : `$${row.price.toLocaleString('es-CO')}`}
         </span>
       </td>
 
@@ -102,22 +120,24 @@ function CatalogRow({ row, productObj, isChecked, quantity, onToggle, onQuantity
 
       {/* Cantidad */}
       <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-        <div className={`flex items-center justify-center gap-2 transition-opacity
-          ${isChecked ? 'opacity-100' : 'opacity-30 pointer-events-none'}`}>
-          <button
-            onClick={() => onQuantityChange(row.ps_id, -1)}
-            className="w-7 h-7 rounded-lg border border-dark-700 flex items-center justify-center hover:bg-dark-800 transition-colors text-dark-300"
-          >
-            <Plus className="w-3.5 h-3.5 rotate-45" />
-          </button>
-          <span className="w-6 text-center text-sm font-bold text-dark-200">{quantity}</span>
-          <button
-            onClick={() => onQuantityChange(row.ps_id, 1)}
-            className="w-7 h-7 rounded-lg border border-dark-700 flex items-center justify-center hover:bg-dark-800 transition-colors text-dark-300"
-          >
-            <Plus className="w-3.5 h-3.5" />
-          </button>
-        </div>
+        {!unlinked && (
+          <div className={`flex items-center justify-center gap-2 transition-opacity
+            ${isChecked ? 'opacity-100' : 'opacity-30 pointer-events-none'}`}>
+            <button
+              onClick={() => onQuantityChange(row.ps_id, -1)}
+              className="w-7 h-7 rounded-lg border border-dark-700 flex items-center justify-center hover:bg-dark-800 transition-colors text-dark-300"
+            >
+              <Plus className="w-3.5 h-3.5 rotate-45" />
+            </button>
+            <span className="w-6 text-center text-sm font-bold text-dark-200">{quantity}</span>
+            <button
+              onClick={() => onQuantityChange(row.ps_id, 1)}
+              className="w-7 h-7 rounded-lg border border-dark-700 flex items-center justify-center hover:bg-dark-800 transition-colors text-dark-300"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
       </td>
 
       {/* Acciones CRUD */}
@@ -189,7 +209,7 @@ export default function Catalog() {
         api.get('/lists/'),
         cachedProds
           ? Promise.resolve(cachedProds)
-          : api.get('/products/').then(r => { apiCache.set('/products/', r.data); return r.data }),
+          : api.get('/products/?limit=1000').then(r => { apiCache.set('/products/', r.data); return r.data }),
         cachedStores
           ? Promise.resolve(cachedStores)
           : api.get('/stores/').then(r => { apiCache.set('/stores/', r.data); return r.data }),
@@ -205,10 +225,26 @@ export default function Catalog() {
       setProductsRaw(validProducts)
       setStores(validStores)
 
-      // Aplanar productos en filas producto×tienda
+      // Aplanar productos en filas producto×tienda. Los productos sin ninguna
+      // tienda vinculada aún deben aparecer (fila "sin tienda"), para que no
+      // desaparezcan silenciosamente del catálogo.
       const flat = []
       for (const p of validProducts) {
-        for (const ps of (p.product_stores ?? []).filter(ps => !ps.is_deleted)) {
+        const links = (p.product_stores ?? []).filter(ps => !ps.is_deleted)
+        if (links.length === 0) {
+          flat.push({
+            ps_id:      null,
+            product_id: p.id,
+            store_id:   null,
+            store:      null,
+            product:    p.name,
+            frequency:  p.frequency,
+            price:      null,
+            unlinked:   true,
+          })
+          continue
+        }
+        for (const ps of links) {
           flat.push({
             ps_id:      ps.id,
             product_id: p.id,
@@ -220,7 +256,7 @@ export default function Catalog() {
           })
         }
       }
-      flat.sort((a, b) => a.store.localeCompare(b.store))
+      flat.sort((a, b) => (a.store ?? '').localeCompare(b.store ?? ''))
       setRows(flat)
     } catch {
       toast.error('Error al cargar el catálogo')
@@ -236,29 +272,36 @@ export default function Catalog() {
   const filtered = useMemo(() => {
     return rows.filter(r => {
       const q = search.toLowerCase()
-      const matchSearch = r.product.toLowerCase().includes(q) || r.store.toLowerCase().includes(q)
+      const matchSearch = r.product.toLowerCase().includes(q) || (r.store ?? '').toLowerCase().includes(q)
       const matchFreq   = freqFilter === 'all' || r.frequency === freqFilter
       const matchStore  = storeFilter === 'all' || String(r.store_id) === storeFilter
       return matchSearch && matchFreq && matchStore
     })
   }, [rows, search, freqFilter, storeFilter])
 
+  const unlinkedCount = useMemo(() => rows.filter(r => r.unlinked).length, [rows])
+
   const storeOptions = useMemo(() => {
     const seen = new Map()
-    rows.forEach(r => { if (!seen.has(r.store_id)) seen.set(r.store_id, r.store) })
+    rows.forEach(r => { if (r.store_id != null && !seen.has(r.store_id)) seen.set(r.store_id, r.store) })
     return [...seen.entries()].map(([id, name]) => ({ id, name }))
   }, [rows])
 
-  // ── Selección ─────────────────────────────────────────────────────────────
-  const allFilteredSelected = filtered.length > 0 && filtered.every(r => selected.has(r.ps_id))
+  // ── Selección (las filas sin tienda vinculada no son seleccionables: no
+  // tienen product_store_id, que es lo que requiere el backend para agregarlas
+  // a una lista) ────────────────────────────────────────────────────────────
+  const selectableFiltered = useMemo(() => filtered.filter(r => r.ps_id != null), [filtered])
+  const allFilteredSelected = selectableFiltered.length > 0 && selectableFiltered.every(r => selected.has(r.ps_id))
   const someSelected = selected.size > 0
 
-  const toggleRow = (psId) =>
+  const toggleRow = (psId) => {
+    if (psId == null) return
     setSelected(prev => {
       const next = new Map(prev)
       next.has(psId) ? next.delete(psId) : next.set(psId, 1)
       return next
     })
+  }
 
   const updateQuantity = (psId, delta) =>
     setSelected(prev => {
@@ -272,13 +315,13 @@ export default function Catalog() {
     if (allFilteredSelected) {
       setSelected(prev => {
         const next = new Map(prev)
-        filtered.forEach(r => next.delete(r.ps_id))
+        selectableFiltered.forEach(r => next.delete(r.ps_id))
         return next
       })
     } else {
       setSelected(prev => {
         const next = new Map(prev)
-        filtered.forEach(r => { if (!next.has(r.ps_id)) next.set(r.ps_id, 1) })
+        selectableFiltered.forEach(r => { if (!next.has(r.ps_id)) next.set(r.ps_id, 1) })
         return next
       })
     }
@@ -369,7 +412,8 @@ export default function Catalog() {
               Catálogo de Productos
             </h1>
             <p className="text-dark-400 text-sm mt-0.5">
-              {rows.length} combinación(es) producto-tienda disponibles
+              {rows.length - unlinkedCount} combinación(es) producto-tienda disponibles
+              {unlinkedCount > 0 && ` · ${unlinkedCount} sin tienda vinculada`}
             </p>
           </div>
 
@@ -463,7 +507,7 @@ export default function Catalog() {
             <div>
               <p className="text-sm font-semibold text-dark-200">El catálogo está vacío</p>
               <p className="text-xs text-dark-400 mt-0.5">
-                Crea un producto con el botón <strong>Nuevo Producto</strong> y vincúlalo a una tienda para verlo aquí.
+                Crea un producto con el botón <strong>Nuevo Producto</strong> para empezar.
               </p>
             </div>
           </div>
@@ -479,7 +523,7 @@ export default function Catalog() {
                     <th className="px-4 py-3 w-10">
                       <button
                         onClick={toggleAll}
-                        disabled={filtered.length === 0}
+                        disabled={selectableFiltered.length === 0}
                         className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all
                           ${allFilteredSelected
                             ? 'bg-primary-600 border-primary-600'
@@ -526,7 +570,7 @@ export default function Catalog() {
                   ) : (
                     filtered.map(row => (
                       <CatalogRow
-                        key={row.ps_id}
+                        key={row.ps_id ?? `unlinked-${row.product_id}`}
                         row={row}
                         productObj={productMap.get(row.product_id)}
                         isChecked={selected.has(row.ps_id)}
