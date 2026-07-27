@@ -709,6 +709,7 @@ export default function ListDetail() {
   const [exportingExcel, setExportingExcel] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedStore, setSelectedStore] = useState('all')
+  const [pendingOnly, setPendingOnly] = useState(false)
   const [groupByCategory, setGroupByCategory] = useState(false)
   const [showBreakdown, setShowBreakdown] = useState(false)
 
@@ -1532,6 +1533,19 @@ export default function ListDetail() {
           </div>
 
           <button
+            onClick={() => setPendingOnly(v => !v)}
+            className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-colors flex-shrink-0 ${
+              pendingOnly
+                ? 'bg-primary-600/15 text-primary-500 border border-primary-500/30'
+                : 'bg-dark-900 text-dark-400 border border-dark-800 hover:text-dark-200 hover:border-dark-700'
+            }`}
+            title={pendingOnly ? 'Mostrando solo pendientes' : 'Mostrar solo lo que falta por comprar'}
+          >
+            <Circle className="w-4 h-4" />
+            <span className="hidden sm:inline">Pendientes</span>
+          </button>
+
+          <button
             onClick={() => setGroupByCategory(v => !v)}
             className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-colors flex-shrink-0 ${
               groupByCategory
@@ -1572,9 +1586,10 @@ export default function ListDetail() {
                      const matchesSearch = item.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                                          item.store_name.toLowerCase().includes(searchTerm.toLowerCase());
                      const matchesStore = selectedStore === 'all' || item.store_name === selectedStore;
-                     return matchesSearch && matchesStore;
+                     const matchesPending = !pendingOnly || !item.checked;
+                     return matchesSearch && matchesStore && matchesPending;
                    });
-                   
+
                    if (filteredItems.length === 0) {
                      return (
                        <tr>
@@ -1582,12 +1597,14 @@ export default function ListDetail() {
                            <div className="flex flex-col items-center justify-center space-y-2">
                              {selectedStore !== 'all' ? <Store className="w-8 h-8 text-dark-700" /> : <Search className="w-8 h-8 text-dark-700" />}
                              <p className="text-dark-500 text-sm italic">
-                               No se encontraron productos {selectedStore !== 'all' ? `en "${selectedStore}"` : ''} 
+                               {pendingOnly
+                                 ? `No falta nada por comprar ${selectedStore !== 'all' ? `en "${selectedStore}"` : ''}`
+                                 : `No se encontraron productos ${selectedStore !== 'all' ? `en "${selectedStore}"` : ''}`}
                                {searchTerm ? ` que coincidan con "${searchTerm}"` : ''}
                              </p>
-                             {(searchTerm || selectedStore !== 'all') && (
-                               <button 
-                                 onClick={() => { setSearchTerm(''); setSelectedStore('all'); }}
+                             {(searchTerm || selectedStore !== 'all' || pendingOnly) && (
+                               <button
+                                 onClick={() => { setSearchTerm(''); setSelectedStore('all'); setPendingOnly(false); }}
                                  className="text-xs text-primary-600 hover:text-primary-700 underline font-medium pt-2"
                                >
                                  Limpiar todos los filtros
