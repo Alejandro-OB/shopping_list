@@ -291,7 +291,7 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <div className="text-center space-y-2 opacity-50">
-                  <AlertCircle className="w-12 h-12 text-dark-600 mx-auto" />
+                  <AlertCircle className="w-12 h-12 text-dark-400 mx-auto" />
                   <p className="text-dark-400">Sin compras registradas en este mes</p>
                 </div>
               )}
@@ -357,7 +357,7 @@ export default function Dashboard() {
                       <p className="text-xs text-dark-500">
                         Veces comprado
                         {item.total_quantity > item.times_bought && (
-                          <span className="text-dark-600"> · {item.total_quantity} u.</span>
+                          <span className="text-dark-400"> · {item.total_quantity} u.</span>
                         )}
                       </p>
                     </div>

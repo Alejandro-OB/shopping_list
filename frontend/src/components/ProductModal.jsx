@@ -196,7 +196,7 @@ export default function ProductModal({ product, stores, onClose, onSaved, initia
             <label className="label flex items-center gap-1.5">
               <Tag className="w-3.5 h-3.5 text-dark-500" />
               Categoría
-              <span className="text-dark-600 font-normal text-[10px] ml-1">(opcional, para agrupar por pasillo)</span>
+              <span className="text-dark-400 font-normal text-[10px] ml-1">(opcional, para agrupar por pasillo)</span>
             </label>
             <select name="category" value={form.category} onChange={handleChange} className="input">
               <option value="">— Sin categoría —</option>
@@ -256,7 +256,7 @@ export default function ProductModal({ product, stores, onClose, onSaved, initia
                 <button type="button" onClick={handleCreateStore} disabled={savingStore || !newStoreName.trim()} className="text-primary-600 hover:text-primary-500 disabled:opacity-40 transition-colors">
                   {savingStore ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                 </button>
-                <button type="button" onClick={() => setCreatingStore(false)} className="text-dark-600 hover:text-dark-400 transition-colors">
+                <button type="button" onClick={() => setCreatingStore(false)} className="text-dark-400 hover:text-dark-200 transition-colors">
                   <X className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -278,7 +278,7 @@ export default function ProductModal({ product, stores, onClose, onSaved, initia
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="relative">
-                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-dark-500 text-[10px]">$</span>
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-dark-400 text-[10px]">$</span>
                           <input
                             type="number" value={link.price_catalog}
                             onChange={e => handleUpdatePrice(i, e.target.value)}
