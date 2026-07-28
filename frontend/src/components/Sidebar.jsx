@@ -1,31 +1,9 @@
 import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import {
-  LayoutDashboard,
-  ShoppingCart,
-  BookOpen,
-  Store,
-  BarChart3,
-  Settings,
-  LogOut,
-  ChevronLeft,
-  Menu,
-  X,
-  Server,
-  TrendingUp,
-} from 'lucide-react'
+import { ShoppingCart, LogOut, ChevronLeft, X } from 'lucide-react'
 import { useAuth } from '../context/useAuth'
+import { NAV_ITEMS } from '../navItems'
 import toast from 'react-hot-toast'
-
-const NAV_ITEMS = [
-  { label: 'Dashboard',         icon: LayoutDashboard, to: '/' },
-  { label: 'Listas',            icon: ShoppingCart,    to: '/lists' },
-  { label: 'Catálogo',          icon: BookOpen,        to: '/catalog' },
-  { label: 'Tiendas',           icon: Store,           to: '/stores' },
-  { label: 'Precios',           icon: TrendingUp,      to: '/price-evolution' },
-  { label: 'Sistema',           icon: Server,          to: '/system-info' },
-  { label: 'Configuración',     icon: Settings,        to: '/settings' },
-]
 
 // ── Contenido del sidebar ────────────────────────────────────────────────────
 // Fuera del componente Sidebar para no recrearse (y resetear su estado) en cada render.
