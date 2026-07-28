@@ -12,6 +12,7 @@ import api from '../api/axios'
 import { apiCache } from '../api/cache'
 import toast from 'react-hot-toast'
 import ProductModal from '../components/ProductModal'
+import StickyActionBar from '../components/StickyActionBar'
 
 // ── Modal: Oportunidades de ahorro ─────────────────────────────────────────────
 function SavingsModal({ listId, onClose }) {
@@ -46,17 +47,17 @@ function SavingsModal({ listId, onClose }) {
             {hasOpportunities ? (
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-[10px] text-dark-500 uppercase font-bold tracking-wider">Ahorro potencial</p>
+                  <p className="text-[10px] text-dark-400 uppercase font-bold tracking-wider">Ahorro potencial</p>
                   <p className="text-lg font-bold font-mono text-teal-500">
                     ${data.total_potential.toLocaleString('es-CO')}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[10px] text-dark-500 uppercase font-bold tracking-wider">
+                  <p className="text-[10px] text-dark-400 uppercase font-bold tracking-wider">
                     {data.items_with_alternatives} oportunidad{data.items_with_alternatives > 1 ? 'es' : ''}
                   </p>
                   {data.items_optimal > 0 && (
-                    <p className="text-[10px] text-dark-500 mt-0.5">
+                    <p className="text-[10px] text-dark-400 mt-0.5">
                       {data.items_optimal} ya al mejor precio
                     </p>
                   )}
@@ -94,9 +95,9 @@ function SavingsModal({ listId, onClose }) {
                 </>
               ) : (
                 <>
-                  <Store className="w-8 h-8 text-dark-600 mx-auto" />
+                  <Store className="w-8 h-8 text-dark-400 mx-auto" />
                   <p className="text-dark-400 text-sm">No hay productos con tiendas alternativas.</p>
-                  <p className="text-dark-600 text-xs">
+                  <p className="text-dark-400 text-xs">
                     Vincula tus productos a varias tiendas en el Catálogo para descubrir ahorros.
                   </p>
                 </>
@@ -119,7 +120,7 @@ function SavingsModal({ listId, onClose }) {
                     <p className="text-sm font-bold font-mono text-teal-500">
                       -${op.savings_total.toLocaleString('es-CO')}
                     </p>
-                    <p className="text-[10px] text-dark-500">
+                    <p className="text-[10px] text-dark-400">
                       ${op.savings_per_unit.toLocaleString('es-CO')} c/u
                     </p>
                   </div>
@@ -455,6 +456,10 @@ function AddItemsModal({ listId, existingItems, onClose, onAdded }) {
   )
 }
 
+// Mismo template de columnas para el header (hidden sm:grid) y cada ItemRow,
+// así no se pueden desalinear entre sí.
+const ITEM_GRID_COLS = 'sm:grid-cols-[minmax(0,1fr)_110px_140px_100px]'
+
 function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteToProduct, isDisabled }) {
   // Persistir el precio digitado en localStorage para no perderlo al refrescar
   const storageKey = `pendingPrice:${listId}:${item.id}`
@@ -512,177 +517,168 @@ function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteT
 
 
   return (
-    <tr className={`border-b border-dark-800 transition-colors ${item.checked ? 'bg-dark-900/30' : 'hover:bg-dark-800/40'}`}>
-      <td className="px-4 py-4">
-        <div className="flex items-start gap-3">
-          <button
-            onClick={handleCheck}
-            disabled={isDisabled || item.checked || loading}
-            className={`flex-shrink-0 mt-0.5 transition-transform active:scale-90 ${item.checked ? 'text-teal-500' : 'text-black hover:text-primary-500'}`}
-          >
-            {loading ? (
-              <Loader2 className="w-6 h-6 animate-spin" />
-            ) : item.checked ? (
-              <CheckCircle2 className="w-6 h-6" />
-            ) : (
-              <Circle className="w-6 h-6 fill-white" />
-            )}
-          </button>
-          <div className="min-w-0 flex-1">
-            {/* Nombre */}
-            <p className={`text-sm font-medium transition-all ${item.checked ? 'text-dark-500 line-through' : 'text-dark-100'}`}>
-              {item.product_name}
-            </p>
-            {/* Tienda */}
-            <div className="flex items-center gap-1.5 mt-0.5">
-              {isFree ? (
-                <span className="text-[10px] bg-primary-600/15 text-primary-600 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
-                  Libre
-                </span>
-              ) : (
-                <>
-                  <Store className="hidden sm:inline w-3 h-3 text-dark-500" />
-                  <span className="text-xs text-dark-500">{item.store_name}</span>
-                </>
-              )}
-            </div>
-            {/* Precio catálogo — solo móvil (desktop lo muestra en columna separada) */}
-            {!isFree && item.price_catalog_snapshot != null && (
-              <p className="sm:hidden text-xs text-dark-500 mt-0.5">
-                Catálogo: <span className="text-dark-300 font-medium">${catalogPrice.toLocaleString('es-CO')}</span>
-                {item.quantity > 1 && (
-                  <span className="text-dark-600 ml-1">· subtotal ${(catalogPrice * item.quantity).toLocaleString('es-CO')}</span>
-                )}
-              </p>
-            )}
-            {/* Cantidad */}
-            <div className="flex items-center gap-1.5 mt-1.5">
-              <button
-                onClick={() => handleQuantityClick(-1)}
-                disabled={isDisabled || item.checked || updatingQty || item.quantity <= 1}
-                className="w-5 h-5 rounded bg-dark-800 text-dark-400 hover:text-primary-600 hover:bg-dark-700 transition-colors disabled:opacity-30 flex items-center justify-center"
-              >
-                <Minus className="w-3 h-3" />
-              </button>
-              <span className="text-[10px] bg-dark-800 text-dark-100 px-1.5 py-0.5 rounded font-bold min-w-[20px] text-center">
-                {item.quantity}
+    <div className={`grid grid-cols-1 ${ITEM_GRID_COLS} sm:items-center gap-y-3 sm:gap-y-0 px-4 py-4 border-b border-dark-800 transition-colors ${item.checked ? 'bg-dark-900/30' : 'hover:bg-dark-800/40'}`}>
+      {/* Grupo 1: checkbox + producto (siempre visible) */}
+      <div className="flex items-start gap-3">
+        <button
+          onClick={handleCheck}
+          disabled={isDisabled || item.checked || loading}
+          className={`tap-target -m-2.5 flex-shrink-0 rounded-full transition-transform active:scale-90 ${item.checked ? 'text-teal-500' : 'text-black hover:text-primary-500'}`}
+        >
+          {loading ? (
+            <Loader2 className="w-6 h-6 animate-spin" />
+          ) : item.checked ? (
+            <CheckCircle2 className="w-6 h-6" />
+          ) : (
+            <Circle className="w-6 h-6 fill-white" />
+          )}
+        </button>
+        <div className="min-w-0 flex-1">
+          {/* Nombre */}
+          <p className={`text-sm font-medium transition-all ${item.checked ? 'text-dark-500 line-through' : 'text-dark-100'}`}>
+            {item.product_name}
+          </p>
+          {/* Tienda */}
+          <div className="flex items-center gap-1.5 mt-1 sm:mt-0.5">
+            {isFree ? (
+              <span className="text-[10px] bg-primary-600/15 text-primary-600 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
+                Libre
               </span>
-              <button
-                onClick={() => handleQuantityClick(1)}
-                disabled={isDisabled || item.checked || updatingQty}
-                className="w-5 h-5 rounded bg-dark-800 text-dark-400 hover:text-primary-600 hover:bg-dark-700 transition-colors disabled:opacity-30 flex items-center justify-center"
-              >
-                <Plus className="w-3 h-3" />
-              </button>
-            </div>
+            ) : (
+              <>
+                <Store className="hidden sm:inline w-3 h-3 text-dark-400" />
+                <span className="text-xs text-dark-400">{item.store_name}</span>
+              </>
+            )}
+          </div>
+          {/* Precio catálogo — solo móvil (desktop lo muestra en columna separada) */}
+          {!isFree && item.price_catalog_snapshot != null && (
+            <p className="sm:hidden text-xs text-dark-400 mt-1">
+              Catálogo: <span className="text-dark-300 font-medium">${catalogPrice.toLocaleString('es-CO')}</span>
+              {item.quantity > 1 && (
+                <span className="text-dark-400 ml-1">· subtotal ${(catalogPrice * item.quantity).toLocaleString('es-CO')}</span>
+              )}
+            </p>
+          )}
+          {/* Cantidad */}
+          <div className="flex items-center gap-2 mt-2">
+            <button
+              onClick={() => handleQuantityClick(-1)}
+              disabled={isDisabled || item.checked || updatingQty || item.quantity <= 1}
+              className="tap-target rounded bg-dark-800 text-dark-400 hover:text-primary-600 hover:bg-dark-700 transition-colors disabled:opacity-30"
+            >
+              <Minus className="w-3.5 h-3.5" />
+            </button>
+            <span className="text-xs bg-dark-800 text-dark-100 px-2 py-1 rounded font-bold min-w-[24px] text-center">
+              {item.quantity}
+            </span>
+            <button
+              onClick={() => handleQuantityClick(1)}
+              disabled={isDisabled || item.checked || updatingQty}
+              className="tap-target rounded bg-dark-800 text-dark-400 hover:text-primary-600 hover:bg-dark-700 transition-colors disabled:opacity-30"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
-      </td>
+      </div>
 
-      <td className="px-4 py-4 text-right hidden sm:table-cell">
+      {/* Grupo 2: Catálogo — solo desde sm: (en mobile ya se muestra arriba, inline) */}
+      <div className="hidden sm:block text-right">
         <p className="text-xs text-dark-500 font-bold uppercase tracking-wider mb-1">Catálogo</p>
         {item.price_catalog_snapshot != null ? (
           <>
             <p className="text-sm text-dark-300">${catalogPrice.toLocaleString('es-CO')}</p>
-            <p className="text-[10px] text-dark-600 mt-1 font-medium">
+            <p className="text-[10px] text-dark-400 mt-1 font-medium">
               Subtotal: ${(catalogPrice * item.quantity).toLocaleString('es-CO')}
             </p>
           </>
         ) : (
-          <p className="text-sm text-dark-600">—</p>
+          <p className="text-sm text-dark-400">—</p>
         )}
-      </td>
+      </div>
 
-      <td className="px-4 py-4">
-        <div className="flex flex-col items-end">
-          <label className="text-[10px] text-dark-500 uppercase font-bold mb-1">Precio Real</label>
-          <div className="relative w-full">
-
-            <input
-              type="number"
-              value={price}
-              onChange={(e) => updatePrice(e.target.value)}
-              onFocus={(e) => e.target.select()}
-              disabled={isDisabled || item.checked}
-              placeholder="0"
-              className="input py-1.5 text-right text-xs"
-            />
-          </div>
+      {/* Grupo 3: Precio Real */}
+      <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-3 sm:gap-0 border-t sm:border-t-0 border-dark-800 pt-3 sm:pt-0">
+        <label className="text-[10px] text-dark-400 uppercase font-bold sm:mb-1 flex-shrink-0">Precio Real</label>
+        <div className="flex-1 sm:flex-none sm:w-full flex sm:block flex-col items-end">
+          <input
+            type="number"
+            value={price}
+            onChange={(e) => updatePrice(e.target.value)}
+            onFocus={(e) => e.target.select()}
+            disabled={isDisabled || item.checked}
+            placeholder="0"
+            className="input py-3 sm:py-1.5 text-right text-sm sm:text-xs w-full sm:w-auto"
+          />
           {price > 0 && (
-            <div className={`mt-1 text-[10px] font-bold ${item.checked ? 'text-dark-500' : 'text-primary-600'}`}>
+            <div className={`mt-1 text-[10px] font-bold ${item.checked ? 'text-dark-400' : 'text-primary-600'}`}>
               Subtotal: ${(parseFloat(price) * item.quantity).toLocaleString('es-CO')}
             </div>
           )}
           {/* Acciones rápidas de precio — solo cuando el ítem no está marcado */}
-          {!item.checked && !isDisabled && (
-            <div className="flex gap-2 mt-1.5 flex-wrap justify-end">
-
-              {isFree && (
-                <button
-                  onClick={() => onPromoteToProduct?.(item.product_name)}
-                  title="Guardar este producto en el catálogo"
-                  className="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-dark-800 text-dark-400 hover:text-primary-600 hover:bg-primary-600/10 transition-colors"
-                >
-                  <BookmarkPlus className="w-2.5 h-2.5" />
-                  Guardar como producto
-                </button>
-              )}
-            </div>
+          {!item.checked && !isDisabled && isFree && (
+            <button
+              onClick={() => onPromoteToProduct?.(item.product_name)}
+              title="Guardar este producto en el catálogo"
+              className="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 mt-1.5 rounded bg-dark-800 text-dark-400 hover:text-primary-600 hover:bg-primary-600/10 transition-colors"
+            >
+              <BookmarkPlus className="w-2.5 h-2.5" />
+              Guardar como producto
+            </button>
           )}
         </div>
-      </td>
+      </div>
 
-      <td className="px-4 py-4 text-right">
+      {/* Grupo 4: Ahorro / Eliminar */}
+      <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start">
         {item.checked ? (
-          <div className="flex flex-col items-end">
-            <p className="text-[10px] text-dark-500 uppercase font-bold mb-0.5">Ahorro</p>
+          <>
+            <p className="text-[10px] text-dark-400 uppercase font-bold sm:mb-0.5">Ahorro</p>
             <div className={`flex items-center gap-1 text-sm font-bold ${isSaving ? 'text-teal-600' : isExpensive ? 'text-red-600' : 'text-dark-400'}`}>
               {isSaving ? <TrendingDown className="w-3 h-3" /> : isExpensive ? <TrendingUp className="w-3 h-3" /> : <Minus className="w-3 h-3" />}
               ${Math.abs(diff).toLocaleString('es-CO')}
             </div>
-          </div>
+          </>
         ) : (
-          <div className="flex items-center justify-end gap-3">
-
-            {!isDisabled && (
-              showConfirm ? (
-                <div className="flex items-center gap-1">
-                  <button 
-                    onClick={async () => {
-                      setDeleting(true)
-                      await onDelete(item.id)
-                      setDeleting(false)
-                      setShowConfirm(false)
-                    }}
-                    title="Confirmar eliminación" 
-                    className="p-1.5 text-dark-400 hover:text-red-600 hover:bg-red-500/10 rounded transition-colors disabled:opacity-50"
-                    disabled={deleting}
-                  >
-                    {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                  </button>
-                  <button 
-                    onClick={() => setShowConfirm(false)}
-                    title="Cancelar" 
-                    className="p-1.5 text-dark-400 hover:text-dark-200 hover:bg-dark-800 rounded transition-colors"
-                    disabled={deleting}
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              ) : (
+          !isDisabled && (
+            showConfirm ? (
+              <div className="flex items-center gap-2 ml-auto">
                 <button
-                  onClick={() => setShowConfirm(true)}
-                  className="p-1.5 text-dark-500 hover:text-red-600 hover:bg-red-500/10 rounded transition-colors"
-                  title="Eliminar producto"
+                  onClick={async () => {
+                    setDeleting(true)
+                    await onDelete(item.id)
+                    setDeleting(false)
+                    setShowConfirm(false)
+                  }}
+                  title="Confirmar eliminación"
+                  className="tap-target text-dark-400 hover:text-red-600 hover:bg-red-500/10 rounded transition-colors disabled:opacity-50"
+                  disabled={deleting}
                 >
-                  <Trash2 className="w-4 h-4" />
+                  {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                 </button>
-              )
-            )}
-          </div>
+                <button
+                  onClick={() => setShowConfirm(false)}
+                  title="Cancelar"
+                  className="tap-target text-dark-400 hover:text-dark-200 hover:bg-dark-800 rounded transition-colors"
+                  disabled={deleting}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowConfirm(true)}
+                className="tap-target ml-auto text-dark-500 hover:text-red-600 hover:bg-red-500/10 rounded transition-colors"
+                title="Eliminar producto"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )
+          )
         )}
-      </td>
-    </tr>
+      </div>
+    </div>
   )
 }
 
@@ -1148,7 +1144,7 @@ export default function ListDetail() {
   const isCompleted = list.status === 'completed'
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className={`max-w-4xl mx-auto space-y-6 ${!isCompleted ? 'pb-24 lg:pb-0' : ''}`}>
 
       {showAddModal && (
         <AddItemsModal
@@ -1186,15 +1182,16 @@ export default function ListDetail() {
           Volver a listas
         </button>
 
-        <div className="flex items-center gap-2 self-center sm:self-auto">
+        <div className="flex items-center flex-wrap justify-center gap-1 self-center sm:self-auto">
           {/* Dropdown compartir/exportar */}
           <div className="relative">
             <button
               onClick={() => setShowExportMenu(v => !v)}
-              className="p-2 text-teal-500 hover:text-teal-400 transition-colors"
+              className="tap-target gap-1.5 px-2 text-teal-500 hover:text-teal-400 transition-colors"
               title="Compartir / Exportar"
             >
               <MessageSquare className="w-5 h-5" />
+              <span className="text-xs font-medium">Compartir</span>
             </button>
 
             {showExportMenu && (
@@ -1231,23 +1228,25 @@ export default function ListDetail() {
           {!isCompleted && (
             <button
               onClick={() => setShowCompareModal(true)}
-              className="p-2 text-teal-500 hover:text-teal-400 transition-colors"
+              className="tap-target gap-1.5 px-2 text-teal-500 hover:text-teal-400 transition-colors"
               title="Ver oportunidades de ahorro"
             >
               <TrendingDown className="w-5 h-5" />
+              <span className="text-xs font-medium">Ahorros</span>
             </button>
           )}
           {!isCompleted && (
             <button
               onClick={() => setShowAddModal(true)}
-              className="p-2 text-primary-500 hover:text-primary-400 transition-colors"
+              className="tap-target gap-1.5 px-2 text-primary-500 hover:text-primary-400 transition-colors"
               title="Agregar productos a la lista"
             >
-              <Plus className="w-6 h-6" />
+              <Plus className="w-5 h-5" />
+              <span className="text-xs font-medium">Agregar</span>
             </button>
           )}
           {!isCompleted && (
-            <div className="relative">
+            <div className="relative hidden lg:block">
               {showConfirm ? (
                 <div className="flex items-center gap-2 bg-dark-800/80 border border-dark-700 rounded-xl px-3 py-2 backdrop-blur-sm">
                   <span className="text-xs text-dark-400 mr-1">¿Finalizar?</span>
@@ -1398,11 +1397,11 @@ export default function ListDetail() {
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:flex md:items-center md:gap-8 border-t border-dark-800 md:border-0 pt-4 md:pt-0">
             <div className="text-center md:text-right">
-              <p className="text-[10px] text-dark-500 uppercase font-bold tracking-wider mb-0.5">Progreso</p>
+              <p className="text-[10px] text-dark-400 uppercase font-bold tracking-wider mb-0.5">Progreso</p>
               <p className="text-lg font-bold text-dark-200">{itemsBought} / {totalItems}</p>
             </div>
             <div className="text-center md:text-right">
-              <p className="text-[10px] text-dark-500 uppercase font-bold tracking-wider mb-0.5">Valor Estimado</p>
+              <p className="text-[10px] text-dark-400 uppercase font-bold tracking-wider mb-0.5">Valor Estimado</p>
               <p className="text-lg font-bold text-primary-600/50">${totalProjected.toLocaleString('es-CO')}</p>
             </div>
             <div className="text-center md:text-right">
@@ -1410,7 +1409,7 @@ export default function ListDetail() {
               <p className="text-lg font-bold text-teal-600 font-mono tracking-tight">${totalReal.toLocaleString('es-CO')}</p>
             </div>
             <div className="text-center md:text-right">
-               <p className="text-[10px] text-dark-500 uppercase font-bold tracking-wider mb-0.5">Ahorro Total</p>
+               <p className="text-[10px] text-dark-400 uppercase font-bold tracking-wider mb-0.5">Ahorro Total</p>
                <p className={`text-lg font-bold ${totalSaved >= 0 ? 'text-teal-600' : 'text-red-600'}`}>
                  ${totalSaved.toLocaleString('es-CO')}
                </p>
@@ -1438,8 +1437,8 @@ export default function ListDetail() {
             onClick={() => setShowBreakdown(v => !v)}
           >
             <Store className="w-3 h-3 text-primary-600 flex-shrink-0" />
-            <span className="text-[10px] font-bold text-dark-500 uppercase tracking-wider">Desglose por tienda</span>
-            <span className="text-[10px] text-dark-600 font-normal normal-case">· {storeBreakdown.length} tiendas</span>
+            <span className="text-[10px] font-bold text-dark-400 uppercase tracking-wider">Desglose por tienda</span>
+            <span className="text-[10px] text-dark-400 font-normal normal-case">· {storeBreakdown.length} tiendas</span>
             <span className="sm:hidden ml-auto">
               {showBreakdown
                 ? <ChevronUp className="w-3.5 h-3.5 text-dark-500" />
@@ -1466,7 +1465,7 @@ export default function ListDetail() {
                     {fullyChecked && <Check className="w-3 h-3 text-teal-500 flex-shrink-0" />}
                   </div>
                   <div className="flex items-baseline justify-between gap-1">
-                    <span className="text-[10px] text-dark-500">
+                    <span className="text-[10px] text-dark-400">
                       {s.checkedCount > 0 ? `${s.checkedCount}/${s.count}` : `${s.count}`} item{s.count > 1 ? 's' : ''}
                     </span>
                     <span className="text-sm font-bold font-mono text-dark-100">
@@ -1560,117 +1559,118 @@ export default function ListDetail() {
         </div>
       </div>
 
-      {/* Items Table */}
+      {/* Items — grid responsive: una sola columna apilada en mobile (sin scroll
+          horizontal), columnas tipo tabla desde sm: en adelante. */}
       <div className="card p-0 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-             <thead className="bg-dark-950/50 border-b border-dark-800">
-               <tr>
-                 <th className="px-4 py-3 text-xs font-bold text-dark-500 uppercase tracking-wider">Producto</th>
-                 <th className="px-4 py-3 text-xs font-bold text-dark-500 uppercase tracking-wider text-right hidden sm:table-cell">Referencia</th>
-                 <th className="px-4 py-3 text-xs font-bold text-dark-500 uppercase tracking-wider text-right">Monto Pagado</th>
-                 <th className="px-4 py-3 text-xs font-bold text-dark-500 uppercase tracking-wider text-right">Detalle</th>
-               </tr>
-             </thead>
-             <tbody>
-               {list.items.length === 0 ? (
-                 <tr>
-                   <td colSpan={4} className="px-4 py-12 text-center">
-                     <AlertCircle className="w-8 h-8 text-dark-700 mx-auto mb-2" />
-                     <p className="text-dark-500 text-sm">Esta lista no tiene productos registrados.</p>
-                   </td>
-                 </tr>
-               ) : (
-                 (() => {
-                   const filteredItems = list.items.filter(item => {
-                     const matchesSearch = item.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                         item.store_name.toLowerCase().includes(searchTerm.toLowerCase());
-                     const matchesStore = selectedStore === 'all' || item.store_name === selectedStore;
-                     const matchesPending = !pendingOnly || !item.checked;
-                     return matchesSearch && matchesStore && matchesPending;
-                   });
+        <div className={`hidden sm:grid ${ITEM_GRID_COLS} sm:items-center bg-dark-950/50 border-b border-dark-800`}>
+          <span className="px-4 py-3 text-xs font-bold text-dark-500 uppercase tracking-wider">Producto</span>
+          <span className="px-4 py-3 text-xs font-bold text-dark-500 uppercase tracking-wider text-right">Referencia</span>
+          <span className="px-4 py-3 text-xs font-bold text-dark-500 uppercase tracking-wider text-right">Monto Pagado</span>
+          <span className="px-4 py-3 text-xs font-bold text-dark-500 uppercase tracking-wider text-right">Detalle</span>
+        </div>
+        <div>
+          {list.items.length === 0 ? (
+            <div className="px-4 py-12 text-center">
+              <AlertCircle className="w-8 h-8 text-dark-700 mx-auto mb-2" />
+              <p className="text-dark-500 text-sm">Esta lista no tiene productos registrados.</p>
+            </div>
+          ) : (
+            (() => {
+              const filteredItems = list.items.filter(item => {
+                const matchesSearch = item.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                    item.store_name.toLowerCase().includes(searchTerm.toLowerCase());
+                const matchesStore = selectedStore === 'all' || item.store_name === selectedStore;
+                const matchesPending = !pendingOnly || !item.checked;
+                return matchesSearch && matchesStore && matchesPending;
+              });
 
-                   if (filteredItems.length === 0) {
-                     return (
-                       <tr>
-                         <td colSpan={4} className="px-4 py-12 text-center">
-                           <div className="flex flex-col items-center justify-center space-y-2">
-                             {selectedStore !== 'all' ? <Store className="w-8 h-8 text-dark-700" /> : <Search className="w-8 h-8 text-dark-700" />}
-                             <p className="text-dark-500 text-sm italic">
-                               {pendingOnly
-                                 ? `No falta nada por comprar ${selectedStore !== 'all' ? `en "${selectedStore}"` : ''}`
-                                 : `No se encontraron productos ${selectedStore !== 'all' ? `en "${selectedStore}"` : ''}`}
-                               {searchTerm ? ` que coincidan con "${searchTerm}"` : ''}
-                             </p>
-                             {(searchTerm || selectedStore !== 'all' || pendingOnly) && (
-                               <button
-                                 onClick={() => { setSearchTerm(''); setSelectedStore('all'); setPendingOnly(false); }}
-                                 className="text-xs text-primary-600 hover:text-primary-700 underline font-medium pt-2"
-                               >
-                                 Limpiar todos los filtros
-                               </button>
-                             )}
-                           </div>
-                         </td>
-                       </tr>
-                     );
-                   }
+              if (filteredItems.length === 0) {
+                return (
+                  <div className="px-4 py-12 text-center">
+                    <div className="flex flex-col items-center justify-center space-y-2">
+                      {selectedStore !== 'all' ? <Store className="w-8 h-8 text-dark-700" /> : <Search className="w-8 h-8 text-dark-700" />}
+                      <p className="text-dark-500 text-sm italic">
+                        {pendingOnly
+                          ? `No falta nada por comprar ${selectedStore !== 'all' ? `en "${selectedStore}"` : ''}`
+                          : `No se encontraron productos ${selectedStore !== 'all' ? `en "${selectedStore}"` : ''}`}
+                        {searchTerm ? ` que coincidan con "${searchTerm}"` : ''}
+                      </p>
+                      {(searchTerm || selectedStore !== 'all' || pendingOnly) && (
+                        <button
+                          onClick={() => { setSearchTerm(''); setSelectedStore('all'); setPendingOnly(false); }}
+                          className="text-xs text-primary-600 hover:text-primary-700 underline font-medium pt-2"
+                        >
+                          Limpiar todos los filtros
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              }
 
-                   if (!groupByCategory) {
-                     return filteredItems.map(item => (
-                       <ItemRow
-                         key={item.id}
-                         item={item}
-                         listId={id}
-                         onCheck={handleCheckItem}
-                         onDelete={handleDeleteItem}
-                         onUpdateQuantity={handleUpdateQuantity}
-                         onPromoteToProduct={(name) => setProductModalInitial(name)}
-                         isDisabled={isCompleted}
-                       />
-                     ));
-                   }
+              if (!groupByCategory) {
+                return filteredItems.map(item => (
+                  <ItemRow
+                    key={item.id}
+                    item={item}
+                    listId={id}
+                    onCheck={handleCheckItem}
+                    onDelete={handleDeleteItem}
+                    onUpdateQuantity={handleUpdateQuantity}
+                    onPromoteToProduct={(name) => setProductModalInitial(name)}
+                    isDisabled={isCompleted}
+                  />
+                ));
+              }
 
-                   // Agrupar por categoría — items sin categoría van al final
-                   const buckets = new Map()
-                   filteredItems.forEach(item => {
-                     const key = item.category || 'Sin categoría'
-                     if (!buckets.has(key)) buckets.set(key, [])
-                     buckets.get(key).push(item)
-                   })
-                   const sortedCategories = [...buckets.keys()].sort((a, b) => {
-                     if (a === 'Sin categoría') return 1
-                     if (b === 'Sin categoría') return -1
-                     return a.localeCompare(b)
-                   })
+              // Agrupar por categoría — items sin categoría van al final
+              const buckets = new Map()
+              filteredItems.forEach(item => {
+                const key = item.category || 'Sin categoría'
+                if (!buckets.has(key)) buckets.set(key, [])
+                buckets.get(key).push(item)
+              })
+              const sortedCategories = [...buckets.keys()].sort((a, b) => {
+                if (a === 'Sin categoría') return 1
+                if (b === 'Sin categoría') return -1
+                return a.localeCompare(b)
+              })
 
-                   return sortedCategories.flatMap(cat => [
-                     <tr key={`hdr-${cat}`} className="bg-dark-950/70 border-b border-dark-800">
-                       <td colSpan={4} className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-primary-500 flex items-center gap-1.5">
-                         <Tag className="w-3 h-3" />
-                         {cat}
-                         <span className="ml-1 text-dark-500 font-normal normal-case">· {buckets.get(cat).length}</span>
-                       </td>
-                     </tr>,
-                     ...buckets.get(cat).map(item => (
-                       <ItemRow
-                         key={item.id}
-                         item={item}
-                         listId={id}
-                         onCheck={handleCheckItem}
-                         onDelete={handleDeleteItem}
-                         onUpdateQuantity={handleUpdateQuantity}
-                         onPromoteToProduct={(name) => setProductModalInitial(name)}
-                         isDisabled={isCompleted}
-                       />
-                     )),
-                   ]);
-                 })()
-               )}
-             </tbody>
-          </table>
+              return sortedCategories.flatMap(cat => [
+                <div key={`hdr-${cat}`} className="bg-dark-950/70 border-b border-dark-800 px-4 py-2 text-xs font-bold uppercase tracking-wider text-primary-500 flex items-center gap-1.5">
+                  <Tag className="w-3 h-3" />
+                  {cat}
+                  <span className="ml-1 text-dark-500 font-normal normal-case">· {buckets.get(cat).length}</span>
+                </div>,
+                ...buckets.get(cat).map(item => (
+                  <ItemRow
+                    key={item.id}
+                    item={item}
+                    listId={id}
+                    onCheck={handleCheckItem}
+                    onDelete={handleDeleteItem}
+                    onUpdateQuantity={handleUpdateQuantity}
+                    onPromoteToProduct={(name) => setProductModalInitial(name)}
+                    isDisabled={isCompleted}
+                  />
+                )),
+              ]);
+            })()
+          )}
         </div>
       </div>
+
+      <StickyActionBar
+        visible={!isCompleted}
+        progressLabel={`${itemsBought}/${totalItems} comprados`}
+        primaryLabel="Finalizar Compra"
+        onPrimaryClick={() => setShowConfirm(true)}
+        confirming={showConfirm}
+        loading={completing}
+        onConfirm={handleComplete}
+        onCancel={() => setShowConfirm(false)}
+        disabled={completing || itemsBought === 0}
+      />
     </div>
   )
 }
