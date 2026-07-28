@@ -82,6 +82,16 @@
     @apply badge bg-blue-100 text-blue-700;
   }
 
+  /* Área táctil mínima (44x44) para usar además de las clases visuales de
+     un botón — el ícono se mantiene chico, solo crece el área tocable. */
+  .tap-target {
+    @apply min-w-[44px] min-h-[44px] inline-flex items-center justify-center;
+  }
+  /* Respeta el home-indicator/notch en iOS cuando viewport-fit=cover */
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
   /* ── Auth pages ────────────────────────────────────────────────────── */
   .auth-input {
     @apply w-full rounded-xl px-4 text-[15px] font-normal
