@@ -42,6 +42,9 @@ function getNextAvailableTuesday(existingLists) {
   return candidate
 }
 
+// Mismo template de columnas para el header (hidden sm:grid) y cada CatalogRow.
+const CATALOG_GRID_COLS = 'sm:grid-cols-[minmax(0,1fr)_140px_140px_100px]'
+
 // ── Fila: selección para lista + acciones CRUD ───────────────────────────────
 function CatalogRow({ row, productObj, isChecked, quantity, onToggle, onQuantityChange, onEdit, onDelete }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -57,116 +60,113 @@ function CatalogRow({ row, productObj, isChecked, quantity, onToggle, onQuantity
   const unlinked = row.unlinked
 
   return (
-    <tr
+    <div
       onClick={() => (unlinked ? onEdit(productObj) : onToggle(row.ps_id))}
-      className={`border-b border-dark-800 cursor-pointer transition-colors group
+      className={`grid grid-cols-1 ${CATALOG_GRID_COLS} sm:items-center gap-y-2 sm:gap-y-0 px-4 py-3 border-b border-dark-800 cursor-pointer transition-colors group
         ${unlinked ? 'opacity-70' : ''}
         ${isChecked ? 'bg-primary-600/10 hover:bg-primary-600/15' : 'hover:bg-dark-800/50'}`}
     >
-      {/* Checkbox */}
-      <td className="px-4 py-3">
+      {/* Grupo 1: checkbox + tienda + producto (+ precio/frecuencia inline en mobile) */}
+      <div className="flex items-center gap-3">
         {unlinked ? (
-          <div className="w-5 h-5 rounded border-2 border-dark-700 flex items-center justify-center flex-shrink-0" title="Vincula una tienda para poder agregarlo a una lista">
-            <AlertCircle className="w-3 h-3 text-fuchsia-600" />
-          </div>
-        ) : (
-          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all flex-shrink-0
-            ${isChecked ? 'bg-primary-600 border-primary-600' : 'border-dark-600'}`}>
-            {isChecked && <Check className="w-3 h-3 text-white" />}
-          </div>
-        )}
-      </td>
-
-      {/* Tienda */}
-      <td className="px-4 py-3">
-        {unlinked ? (
-          <button
-            onClick={e => { e.stopPropagation(); onEdit(productObj) }}
-            className="flex items-center gap-1.5 text-xs text-fuchsia-500 hover:text-fuchsia-400 transition-colors"
-          >
-            <Link2 className="w-3.5 h-3.5" /> Vincular tienda
-          </button>
-        ) : (
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-md bg-fuchsia-500/10 flex items-center justify-center flex-shrink-0">
-              <Store className="w-3.5 h-3.5 text-fuchsia-600" />
+          <div className="tap-target -m-2.5 flex-shrink-0" title="Vincula una tienda para poder agregarlo a una lista">
+            <div className="w-5 h-5 rounded border-2 border-dark-700 flex items-center justify-center">
+              <AlertCircle className="w-3 h-3 text-fuchsia-600" />
             </div>
-            <span className="text-sm text-dark-200">{row.store}</span>
+          </div>
+        ) : (
+          <div className="tap-target -m-2.5 flex-shrink-0">
+            <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all
+              ${isChecked ? 'bg-primary-600 border-primary-600' : 'border-dark-600'}`}>
+              {isChecked && <Check className="w-3 h-3 text-white" />}
+            </div>
           </div>
         )}
-      </td>
-
-      {/* Producto */}
-      <td className="px-4 py-3">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-md bg-primary-600/10 flex items-center justify-center flex-shrink-0">
-            <Package className="w-3.5 h-3.5 text-primary-600" />
-          </div>
-          <span className="text-sm font-medium text-dark-100">{row.product}</span>
+        <div className="w-7 h-7 rounded-md bg-primary-600/10 flex items-center justify-center flex-shrink-0">
+          <Package className="w-3.5 h-3.5 text-primary-600" />
         </div>
-      </td>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-dark-100 truncate">{row.product}</p>
+          {unlinked ? (
+            <button
+              onClick={e => { e.stopPropagation(); onEdit(productObj) }}
+              className="flex items-center gap-1.5 text-xs text-fuchsia-500 hover:text-fuchsia-400 transition-colors mt-0.5"
+            >
+              <Link2 className="w-3.5 h-3.5" /> Vincular tienda
+            </button>
+          ) : (
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <Store className="w-3 h-3 text-dark-400" />
+              <span className="text-xs text-dark-400">{row.store}</span>
+            </div>
+          )}
+          {/* Precio + frecuencia — solo mobile (desktop los muestra en columnas separadas) */}
+          <div className="sm:hidden flex items-center gap-2 mt-1">
+            <span className="text-xs font-mono text-dark-300">
+              {unlinked ? '—' : `$${row.price.toLocaleString('es-CO')}`}
+            </span>
+            <span className={freq.cls}>{freq.label}</span>
+          </div>
+        </div>
+      </div>
 
-      {/* Precio */}
-      <td className="px-4 py-3 text-right hidden sm:table-cell">
+      {/* Grupo 2: Precio + Frecuencia — solo desde sm: */}
+      <div className="hidden sm:flex flex-col items-end gap-1">
         <span className="text-sm font-mono text-dark-200">
           {unlinked ? '—' : `$${row.price.toLocaleString('es-CO')}`}
         </span>
-      </td>
-
-      {/* Frecuencia */}
-      <td className="px-4 py-3 hidden md:table-cell">
         <span className={freq.cls}>{freq.label}</span>
-      </td>
+      </div>
 
-      {/* Cantidad */}
-      <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+      {/* Grupo 3: Cantidad */}
+      <div onClick={e => e.stopPropagation()} className="flex sm:justify-center">
         {!unlinked && (
-          <div className={`flex items-center justify-center gap-2 transition-opacity
+          <div className={`flex items-center gap-2 transition-opacity
             ${isChecked ? 'opacity-100' : 'opacity-30 pointer-events-none'}`}>
             <button
               onClick={() => onQuantityChange(row.ps_id, -1)}
-              className="w-7 h-7 rounded-lg border border-dark-700 flex items-center justify-center hover:bg-dark-800 transition-colors text-dark-300"
+              className="tap-target rounded-lg border border-dark-700 hover:bg-dark-800 transition-colors text-dark-300"
             >
               <Plus className="w-3.5 h-3.5 rotate-45" />
             </button>
             <span className="w-6 text-center text-sm font-bold text-dark-200">{quantity}</span>
             <button
               onClick={() => onQuantityChange(row.ps_id, 1)}
-              className="w-7 h-7 rounded-lg border border-dark-700 flex items-center justify-center hover:bg-dark-800 transition-colors text-dark-300"
+              className="tap-target rounded-lg border border-dark-700 hover:bg-dark-800 transition-colors text-dark-300"
             >
               <Plus className="w-3.5 h-3.5" />
             </button>
           </div>
         )}
-      </td>
+      </div>
 
-      {/* Acciones CRUD */}
-      <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-end gap-1">
+      {/* Grupo 4: Acciones CRUD */}
+      <div onClick={e => e.stopPropagation()} className="flex items-center justify-end gap-1">
+        {!confirmDelete && (
           <button
             onClick={() => onEdit(productObj)}
-            className="btn-ghost p-1.5"
+            className="tap-target btn-ghost"
             title="Editar producto"
           >
             <Pencil className="w-3.5 h-3.5" />
           </button>
-          {confirmDelete ? (
-            <div className="flex items-center gap-1">
-              <button onClick={handleDelete} disabled={deleting} className="btn-ghost p-1.5 text-red-600 hover:text-red-600">
-                {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-              </button>
-              <button onClick={() => setConfirmDelete(false)} className="btn-ghost p-1.5">
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ) : (
-            <button onClick={() => setConfirmDelete(true)} className="btn-ghost p-1.5 hover:text-red-600" title="Eliminar producto">
-              <Trash2 className="w-3.5 h-3.5" />
+        )}
+        {confirmDelete ? (
+          <div className="flex items-center gap-1">
+            <button onClick={handleDelete} disabled={deleting} className="tap-target btn-ghost text-red-600 hover:text-red-600">
+              {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
             </button>
-          )}
-        </div>
-      </td>
-    </tr>
+            <button onClick={() => setConfirmDelete(false)} className="tap-target btn-ghost">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ) : (
+          <button onClick={() => setConfirmDelete(true)} className="tap-target btn-ghost hover:text-red-600" title="Eliminar producto">
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -513,77 +513,78 @@ export default function Catalog() {
           </div>
         )}
 
-        {/* Tabla */}
+        {/* Catálogo — grid responsive: apilado en mobile, columnas desde sm: */}
         {(loading || rows.length > 0) && (
           <div className="card p-0 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-dark-800 bg-dark-950/50">
-                    <th className="px-4 py-3 w-10">
-                      <button
-                        onClick={toggleAll}
-                        disabled={selectableFiltered.length === 0}
-                        className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all
-                          ${allFilteredSelected
-                            ? 'bg-primary-600 border-primary-600'
-                            : 'border-dark-600 hover:border-primary-500'
-                          }`}
-                      >
-                        {allFilteredSelected && <Check className="w-3 h-3 text-white" />}
-                      </button>
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-dark-400 uppercase tracking-wider">
-                      <span className="flex items-center gap-1.5"><Store className="w-3.5 h-3.5" />Tienda</span>
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-dark-400 uppercase tracking-wider">
-                      <span className="flex items-center gap-1.5"><Package className="w-3.5 h-3.5" />Producto</span>
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-dark-400 uppercase tracking-wider hidden sm:table-cell">
-                      Precio Catálogo
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-dark-400 uppercase tracking-wider hidden md:table-cell">
-                      Frecuencia
-                    </th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-dark-400 uppercase tracking-wider">
-                      Cantidad
-                    </th>
-                    <th className="px-4 py-3 w-20" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    [...Array(5)].map((_, i) => (
-                      <tr key={i} className="border-b border-dark-800">
-                        <td colSpan={7} className="px-4 py-3">
-                          <div className="h-8 bg-dark-800 rounded animate-pulse" />
-                        </td>
-                      </tr>
-                    ))
-                  ) : filtered.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="px-4 py-14 text-center">
-                        <BookOpen className="w-10 h-10 text-dark-700 mx-auto mb-3" />
-                        <p className="text-dark-500 text-sm">No se encontraron productos con esos filtros.</p>
-                      </td>
-                    </tr>
-                  ) : (
-                    filtered.map(row => (
-                      <CatalogRow
-                        key={row.ps_id ?? `unlinked-${row.product_id}`}
-                        row={row}
-                        productObj={productMap.get(row.product_id)}
-                        isChecked={selected.has(row.ps_id)}
-                        quantity={selected.get(row.ps_id) || 1}
-                        onToggle={toggleRow}
-                        onQuantityChange={updateQuantity}
-                        onEdit={p => setModal(p)}
-                        onDelete={handleDelete}
-                      />
-                    ))
-                  )}
-                </tbody>
-              </table>
+            <div className={`hidden sm:grid ${CATALOG_GRID_COLS} sm:items-center border-b border-dark-800 bg-dark-950/50`}>
+              <div className="px-4 py-3 flex items-center gap-3">
+                <button
+                  onClick={toggleAll}
+                  disabled={selectableFiltered.length === 0}
+                  className={`tap-target -m-2.5 rounded border-2 transition-all flex-shrink-0
+                    ${allFilteredSelected
+                      ? 'bg-primary-600 border-primary-600'
+                      : 'border-dark-600 hover:border-primary-500'
+                    }`}
+                >
+                  {allFilteredSelected && <Check className="w-3 h-3 text-white" />}
+                </button>
+                <span className="flex items-center gap-1.5 text-xs font-semibold text-dark-400 uppercase tracking-wider">
+                  <Package className="w-3.5 h-3.5" />Producto
+                </span>
+              </div>
+              <span className="px-4 py-3 text-right text-xs font-semibold text-dark-400 uppercase tracking-wider">
+                Precio / Frecuencia
+              </span>
+              <span className="px-4 py-3 text-center text-xs font-semibold text-dark-400 uppercase tracking-wider">
+                Cantidad
+              </span>
+              <span className="px-4 py-3" />
+            </div>
+            {/* Seleccionar todos — solo mobile (desktop lo tiene en el header de arriba) */}
+            {!loading && filtered.length > 0 && (
+              <button
+                onClick={toggleAll}
+                disabled={selectableFiltered.length === 0}
+                className="sm:hidden w-full flex items-center gap-3 px-4 py-2.5 border-b border-dark-800 bg-dark-950/50 text-xs font-semibold text-dark-400 uppercase tracking-wider"
+              >
+                <span className={`tap-target -m-2.5 rounded border-2 transition-all flex-shrink-0
+                  ${allFilteredSelected
+                    ? 'bg-primary-600 border-primary-600'
+                    : 'border-dark-600'
+                  }`}>
+                  {allFilteredSelected && <Check className="w-3 h-3 text-white" />}
+                </span>
+                Seleccionar todos
+              </button>
+            )}
+            <div>
+              {loading ? (
+                [...Array(5)].map((_, i) => (
+                  <div key={i} className="px-4 py-3 border-b border-dark-800">
+                    <div className="h-8 bg-dark-800 rounded animate-pulse" />
+                  </div>
+                ))
+              ) : filtered.length === 0 ? (
+                <div className="px-4 py-14 text-center">
+                  <BookOpen className="w-10 h-10 text-dark-700 mx-auto mb-3" />
+                  <p className="text-dark-500 text-sm">No se encontraron productos con esos filtros.</p>
+                </div>
+              ) : (
+                filtered.map(row => (
+                  <CatalogRow
+                    key={row.ps_id ?? `unlinked-${row.product_id}`}
+                    row={row}
+                    productObj={productMap.get(row.product_id)}
+                    isChecked={selected.has(row.ps_id)}
+                    quantity={selected.get(row.ps_id) || 1}
+                    onToggle={toggleRow}
+                    onQuantityChange={updateQuantity}
+                    onEdit={p => setModal(p)}
+                    onDelete={handleDelete}
+                  />
+                ))
+              )}
             </div>
 
             {/* Footer con resumen */}
