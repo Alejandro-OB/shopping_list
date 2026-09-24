@@ -26,9 +26,19 @@ async def scheduled_list_generation():
 
 class SchedulerManager:
     def __init__(self):
-        self.scheduler = AsyncIOScheduler(timezone=BOGOTA_TZ)
+        self.scheduler = None
 
     def start(self):
+        # El scheduler se construye aquí y no en __init__ a propósito:
+        # AsyncIOScheduler se ata al event loop que esté corriendo cuando se
+        # arranca, y este manager es una instancia global que se importa una
+        # sola vez. Reutilizar el mismo objeto en un segundo arranque lo dejaba
+        # enganchado a un loop ya cerrado —cada TestClient levanta y cierra el
+        # lifespan, así que la primera prueba pasaba y las siguientes morían con
+        # "Event loop is closed"—, y lo mismo ocurriría con cualquier reinicio
+        # del ciclo de vida de la aplicación.
+        self.scheduler = AsyncIOScheduler(timezone=BOGOTA_TZ)
+
         # Programar para que corra todos los días a las 00:05 AM hora Bogotá
         self.scheduler.add_job(
             scheduled_list_generation,
@@ -40,7 +50,12 @@ class SchedulerManager:
         logger.info("Programador de tareas iniciado (00:05 AM Bogotá).")
 
     def shutdown(self):
+        # Se suelta la referencia para que el próximo start() construya uno
+        # nuevo; parar el scheduler no lo desliga del loop en el que vivía.
+        if self.scheduler is None:
+            return
         self.scheduler.shutdown()
+        self.scheduler = None
         logger.info("Programador de tareas detenido.")
 
 # Instancia global del manager

@@ -71,9 +71,12 @@ def test_no_generation_if_future(session):
     session.commit()
     
     service = ShoppingListService(session)
-    lists_created = service.generate_auto_lists(user.id)
+    results = service.generate_auto_lists(user.id)
 
-    assert len(lists_created) == 0
+    # generate_auto_lists devuelve un resumen, no la colección de listas: con
+    # len() sobre el diccionario esto contaba sus claves y daba 3.
+    assert results["lists_created"] == 0
+    assert results["items_added"] == 0
 
 
 def test_week_bounds_and_tuesday_anchor():

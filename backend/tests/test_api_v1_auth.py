@@ -6,15 +6,29 @@ from app.models.action_token import ActionToken, ActionTokenType
 def test_register_user(client: TestClient):
     """
     Test que el registro de usuario cree un usuario no verificado.
+
+    La contraseña cumple las reglas de UserCreate —ocho caracteres, mayúscula,
+    número y símbolo—; con una que no las cumpla el registro responde 422, que
+    es lo que comprueba test_register_rejects_weak_password.
     """
     response = client.post(
         "/api/v1/users/",
-        json={"name": "Alice", "email": "alice@example.com", "password": "password123"}
+        json={"name": "Alice", "email": "alice@example.com", "password": "Password123!"}
     )
     assert response.status_code == 200
     data = response.json()
     assert data["email"] == "alice@example.com"
     assert data["is_verified"] is False
+
+def test_register_rejects_weak_password(client: TestClient):
+    """
+    Test que el registro rechace una contraseña que no cumpla las reglas.
+    """
+    response = client.post(
+        "/api/v1/users/",
+        json={"name": "Weak", "email": "weak@example.com", "password": "password123"}
+    )
+    assert response.status_code == 422
 
 def test_login_user(client: TestClient, session: Session):
     """
@@ -69,10 +83,18 @@ def test_verify_email_flow(client: TestClient, session: Session):
     session.refresh(at)
     assert at.is_used is True
 
-def test_login_invalid_password(client: TestClient):
+def test_login_invalid_password(client: TestClient, session: Session):
     """
     Test que login falle con clave errónea.
     """
+    # El usuario se crea aquí y no se toma prestado el de test_login_user: cada
+    # test corre en una transacción que se revierte al terminar, así que aquel
+    # bob no existe cuando este corre y el login respondía 404, no 401.
+    from app.core.security import get_password_hash
+    user = User(name="Bob", email="bob@example.com", password=get_password_hash("test-pwd"), is_verified=True)
+    session.add(user)
+    session.commit()
+
     response = client.post(
         "/api/v1/login",
         json={"email": "bob@example.com", "password": "wrong"}

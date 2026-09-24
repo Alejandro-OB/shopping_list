@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Numeric, Boolean, CheckConstraint, String
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, Numeric, Boolean, CheckConstraint, String, text
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 from app.core.db.base import Base
 
@@ -41,6 +41,20 @@ class ShoppingListItem(Base):
     product_store: Mapped[Optional["ProductStore"]] = relationship("ProductStore", back_populates="items")
 
     __table_args__ = (
+        # Un producto vinculado no se repite dentro de la misma lista: para eso
+        # está quantity. Va como índice parcial y no como UniqueConstraint
+        # porque los ítems libres llevan product_store_id nulo y quedarían todos
+        # bajo la misma clave. Lo creó la migración c7f1a2b8e9d3; se declara
+        # aquí para que el modelo diga lo que la base realmente tiene y para que
+        # las tablas creadas desde el modelo —las de los tests— lo tengan.
+        Index(
+            "uq_list_product_store_partial",
+            "list_id",
+            "product_store_id",
+            unique=True,
+            postgresql_where=text("product_store_id IS NOT NULL"),
+            sqlite_where=text("product_store_id IS NOT NULL"),
+        ),
         CheckConstraint("quantity > 0", name="ck_quantity_positive"),
         CheckConstraint("price_real >= 0", name="ck_price_real_non_negative"),
         CheckConstraint(
