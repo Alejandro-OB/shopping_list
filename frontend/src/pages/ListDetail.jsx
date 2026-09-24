@@ -493,7 +493,7 @@ function QuantityControls({ quantity, onChange, disabled }) {
   )
 }
 
-function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteToProduct, isDisabled }) {
+function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteToProduct, onCatalogUpdated, isDisabled }) {
   // Persistir el precio digitado en localStorage para no perderlo al refrescar
   const storageKey = `pendingPrice:${listId}:${item.id}`
   const [price, setPrice] = useState(() => {
@@ -520,7 +520,12 @@ function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteT
   const [showConfirm, setShowConfirm] = useState(false)
 
   const isFree = item.is_free || !item.product_store_id
+  // Dos precios distintos y no intercambiables: el congelado al armar la lista,
+  // con el que se calcula el ahorro de esta compra, y el vigente en la tienda,
+  // que es el que se le enseña al usuario y el que dice si su precio ya está en
+  // el catálogo. Un ítem libre no tiene tienda: ahí solo existe el congelado.
   const catalogPrice = item.price_catalog_snapshot ?? 0
+  const currentPrice = item.price_catalog_current ?? catalogPrice
   const diff = item.checked ? (catalogPrice - item.price_real) * item.quantity : 0
   const isSaving = diff > 0
   const isExpensive = diff < 0
@@ -534,7 +539,7 @@ function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteT
   const [catalogUpdated, setCatalogUpdated] = useState(false)
   const priceNum = parseFloat(price) || 0
   const canUpdateCatalog =
-    !isFree && !isDisabled && !catalogUpdated && priceNum > 0 && priceNum !== catalogPrice
+    !isFree && !isDisabled && !catalogUpdated && priceNum > 0 && priceNum !== currentPrice
 
   const handleUpdateCatalog = async () => {
     setUpdatingCatalog(true)
@@ -547,7 +552,8 @@ function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteT
       apiCache.invalidate('/products/')
       apiCache.invalidate('/lists/')
       setCatalogUpdated(true)
-      toast.success(`Catálogo actualizado a $${priceNum.toLocaleString('es-CO')}`)
+      toast.success(`Precio actualizado a $${priceNum.toLocaleString('es-CO')}`)
+      await onCatalogUpdated?.()
     } catch (err) {
       toast.error(err.response?.data?.detail || 'No se pudo actualizar el catálogo')
     } finally {
@@ -622,9 +628,9 @@ function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteT
               crearlos se guarda en el mismo campo. */}
           {item.price_catalog_snapshot != null && (
             <p className="sm:hidden text-xs text-dark-400 mt-1">
-              Precio: <span className="text-dark-300 font-medium">${catalogPrice.toLocaleString('es-CO')}</span>
+              Precio: <span className="text-dark-300 font-medium">${currentPrice.toLocaleString('es-CO')}</span>
               {item.quantity > 1 && (
-                <span className="text-dark-400 ml-1">· subtotal ${(catalogPrice * item.quantity).toLocaleString('es-CO')}</span>
+                <span className="text-dark-400 ml-1">· subtotal ${(currentPrice * item.quantity).toLocaleString('es-CO')}</span>
               )}
             </p>
           )}
@@ -652,9 +658,9 @@ function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteT
       <div className="hidden sm:block text-right">
         {item.price_catalog_snapshot != null ? (
           <>
-            <p className="text-sm text-dark-300">${catalogPrice.toLocaleString('es-CO')}</p>
+            <p className="text-sm text-dark-300">${currentPrice.toLocaleString('es-CO')}</p>
             <p className="text-[10px] text-dark-400 mt-1 font-medium">
-              Subtotal: ${(catalogPrice * item.quantity).toLocaleString('es-CO')}
+              Subtotal: ${(currentPrice * item.quantity).toLocaleString('es-CO')}
             </p>
           </>
         ) : (
@@ -1724,6 +1730,7 @@ export default function ListDetail() {
                     onDelete={handleDeleteItem}
                     onUpdateQuantity={handleUpdateQuantity}
                     onPromoteToProduct={(name) => setProductModalInitial(name)}
+                    onCatalogUpdated={fetchList}
                     isDisabled={isCompleted}
                   />
                 ));
@@ -1757,6 +1764,7 @@ export default function ListDetail() {
                     onDelete={handleDeleteItem}
                     onUpdateQuantity={handleUpdateQuantity}
                     onPromoteToProduct={(name) => setProductModalInitial(name)}
+                    onCatalogUpdated={fetchList}
                     isDisabled={isCompleted}
                   />
                 )),

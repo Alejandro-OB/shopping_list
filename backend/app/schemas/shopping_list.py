@@ -67,6 +67,21 @@ class ShoppingListItemOut(BaseModel):
         return None
 
     @computed_field
+    def price_catalog_current(self) -> Optional[float]:
+        """
+        Precio de catálogo vigente de la tienda, distinto de
+        price_catalog_snapshot, que es el que se congeló al armar la lista y con
+        el que se calcula el ahorro de esta compra.
+
+        Hace falta para saber si el precio que el usuario acaba de pagar ya está
+        en el catálogo: contra el snapshot no se puede saber, porque ese número
+        no cambia nunca. Devuelve None para ítems libres, que no tienen tienda.
+        """
+        if not self.product_store:
+            return None
+        return float(self.product_store.price_catalog)
+
+    @computed_field
     def last_price_real(self) -> Optional[float]:
         """
         Último precio real pagado para este product_store (sugerencia inteligente).
