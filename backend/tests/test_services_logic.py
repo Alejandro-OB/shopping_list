@@ -151,3 +151,136 @@ def test_weekly_and_biweekly_products_share_one_weekly_list(session):
     all_lists = session.query(ShoppingList).filter(ShoppingList.user_id == user.id).all()
     assert len(all_lists) == 1
     assert len(all_lists[0].items) == 2
+
+
+# ── Inventario ───────────────────────────────────────────────────────────────
+# Con existencias declaradas el calendario deja de mandar: se repone al llegar
+# al mínimo y se salta mientras quede algo. Los productos sin inventario
+# —stock nulo, que es como nacen los que ya existían— siguen por calendario.
+
+def _user_with_product(session, *, frequency, start_date, stock=None, stock_min=0, units_per_purchase=1):
+    """Usuario verificado con un producto vinculado a una tienda."""
+    from app.models.user import User
+    from app.models.product import Product
+    from app.models.store import Store
+    from app.models.product_store import ProductStore
+
+    user = User(name="T", email=f"inv{id(session)}@e.com", password="p", is_verified=True)
+    session.add(user)
+    session.commit()
+
+    product = Product(
+        name="Pollo entero",
+        frequency=frequency,
+        frequency_start_date=start_date,
+        user=user,
+        stock=stock,
+        stock_min=stock_min,
+        units_per_purchase=units_per_purchase,
+    )
+    store = Store(name="S", user=user)
+    session.add_all([product, store])
+    session.commit()
+
+    ps = ProductStore(product=product, store=store, price_catalog=100)
+    session.add(ps)
+    session.commit()
+    return user, product, ps
+
+
+def test_stock_above_minimum_skips_its_date(session):
+    """
+    Test que un producto con existencias no entre aunque le toque por fecha.
+    """
+    from app.services.shopping_list_service import ShoppingListService
+
+    today = datetime.now(timezone.utc)
+    user, _, _ = _user_with_product(
+        session, frequency=FrequencyEnum.weekly, start_date=today, stock=8, stock_min=2
+    )
+
+    results = ShoppingListService(session).generate_auto_lists(user.id)
+
+    assert results["items_added"] == 0
+
+
+def test_stock_at_minimum_enters_regardless_of_date(session):
+    """
+    Test que un producto en el mínimo entre aunque hoy no le toque por fecha.
+    """
+    from app.services.shopping_list_service import ShoppingListService
+
+    # Fecha de inicio futura: por calendario no le tocaría hoy de ninguna forma.
+    start_date = datetime.now(timezone.utc) + timedelta(days=3)
+    user, _, _ = _user_with_product(
+        session, frequency=FrequencyEnum.weekly, start_date=start_date, stock=2, stock_min=2
+    )
+
+    results = ShoppingListService(session).generate_auto_lists(user.id)
+
+    assert results["items_added"] == 1
+
+
+def test_occasional_product_enters_when_it_runs_out(session):
+    """
+    Test que un ocasional agotado entre, siendo que por calendario no aparece nunca.
+    """
+    from app.services.shopping_list_service import ShoppingListService
+
+    today = datetime.now(timezone.utc)
+    user, _, _ = _user_with_product(
+        session, frequency=FrequencyEnum.occasional, start_date=today, stock=0
+    )
+
+    results = ShoppingListService(session).generate_auto_lists(user.id)
+
+    assert results["items_added"] == 1
+
+
+def test_product_without_inventory_still_follows_the_calendar(session):
+    """
+    Test que un producto sin existencias declaradas se siga generando por fecha.
+    """
+    from app.services.shopping_list_service import ShoppingListService
+
+    # Un ocasional sin inventario no aparece nunca, como antes de que el
+    # inventario existiera.
+    today = datetime.now(timezone.utc)
+    user, _, _ = _user_with_product(
+        session, frequency=FrequencyEnum.occasional, start_date=today, stock=None
+    )
+
+    results = ShoppingListService(session).generate_auto_lists(user.id)
+
+    assert results["items_added"] == 0
+
+
+def test_buying_adds_to_stock_in_consumption_units(session):
+    """
+    Test que comprar sume a la despensa en unidades de consumo, no de compra.
+    """
+    from app.services.shopping_list_service import ShoppingListService
+    from app.models.shopping_list import ShoppingList, ListStatus
+    from app.models.shopping_list_item import ShoppingListItem
+
+    today = datetime.now(timezone.utc)
+    user, product, ps = _user_with_product(
+        session, frequency=FrequencyEnum.weekly, start_date=today,
+        stock=0, stock_min=2, units_per_purchase=8,
+    )
+
+    shopping_list = ShoppingList(user=user, name="L", date=today, status=ListStatus.draft)
+    session.add(shopping_list)
+    session.commit()
+    item = ShoppingListItem(
+        shopping_list=shopping_list, product_store=ps, quantity=1,
+        price_catalog_snapshot=100, price_real=0,
+    )
+    session.add(item)
+    session.commit()
+
+    ShoppingListService(session).check_item(item.id, price_real=120)
+
+    # Un pollo comprado son ocho presas en la despensa.
+    session.refresh(product)
+    assert float(product.stock) == 8

@@ -23,6 +23,27 @@ class ShoppingListService:
         self.list_repo = ShoppingListRepository(db)
         self.item_repo = ShoppingListItemRepository(db)
 
+    @staticmethod
+    def _product_is_due(product, today_bogota: datetime) -> bool:
+        """
+        Decide si un producto entra hoy en la lista.
+
+        Con inventario manda el inventario y la fecha no pinta nada: se repone
+        al llegar al mínimo y se salta mientras queden existencias, aunque le
+        toque por calendario. Es lo que evita seguir comprando lo que ya se
+        tiene, y lo que da sentido a la frecuencia 'occasional', que por
+        calendario no aparece nunca.
+
+        Sin inventario —stock nulo— se decide por calendario, igual que antes de
+        que esto existiera. Los productos que ya estaban en el catálogo nacen
+        así, y solo cambian de régimen cuando alguien les declara existencias.
+        """
+        if product.stock is None:
+            return should_appear_today(
+                product.frequency.value, product.frequency_start_date, today_bogota
+            )
+        return float(product.stock) <= float(product.stock_min)
+
     def generate_auto_lists(self, user_id: Optional[int] = None, reference_date_bogota: Optional[datetime] = None):
         """
         Genera automáticamente las listas usando los repositorios.
@@ -57,7 +78,7 @@ class ShoppingListService:
 
             products_to_add = []
             for product in products:
-                if should_appear_today(product.frequency.value, product.frequency_start_date, today_bogota):
+                if self._product_is_due(product, today_bogota):
                     # Tomar la tienda activa más barata (price_catalog mínimo).
                     # Si está vinculado a una sola tienda, esa gana por defecto.
                     active_stores = [ps for ps in product.product_stores if not ps.is_deleted]
@@ -165,6 +186,16 @@ class ShoppingListService:
                 date=to_utc(now_bogota())
             )
             self.db.add(history)
+
+            # Entra a la despensa lo que se acaba de comprar, contado en las
+            # unidades en que el producto se consume: una compra de un pollo son
+            # ocho presas. Solo para productos con inventario declarado; los
+            # demás siguen sin saber nada de existencias.
+            product = item.product_store.product if item.product_store else None
+            if product is not None and product.stock is not None:
+                product.stock = float(product.stock) + item.quantity * float(product.units_per_purchase)
+                self.db.add(product)
+
         self.db.commit()
         return item
 

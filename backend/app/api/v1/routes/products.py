@@ -6,7 +6,7 @@ from app.core.db.session import get_db
 from app.api.deps import get_current_user
 from app.models.user import User
 from app.repositories.product_repo import ProductRepository
-from app.schemas.product import ProductCreate, ProductUpdate, ProductOut
+from app.schemas.product import ProductCreate, ProductUpdate, ProductOut, StockAdjust
 
 router = APIRouter()
 
@@ -68,6 +68,44 @@ def update_product(
     if not product or product.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     return product_repo.update(db_obj=product, obj_in=product_in)
+
+@router.patch("/{id}/stock/", response_model=ProductOut)
+def adjust_product_stock(
+    *,
+    db: Session = Depends(get_db),
+    id: int,
+    adjust: StockAdjust,
+    current_user: User = Depends(get_current_user),
+) -> Any:
+    """
+    Descuenta o repone existencias de un producto.
+
+    La merma es manual por decisión de diseño: el consumo no se puede observar y
+    estimarlo por la frecuencia haría que el sistema comprara lo que no hace
+    falta sin que nadie sepa por qué. Ver el modelo Product.
+    """
+    product_repo = ProductRepository(db)
+    product = product_repo.get(id)
+    if not product or product.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+    if product.stock is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Este producto no lleva inventario. Actívalo antes de ajustar existencias.",
+        )
+
+    if adjust.delta is not None:
+        # Nunca por debajo de cero: "me quedan menos que ninguno" no significa
+        # nada y ensuciaría la comparación con el mínimo.
+        new_stock = max(0.0, float(product.stock) + adjust.delta)
+    else:
+        new_stock = adjust.stock
+
+    product.stock = new_stock
+    db.add(product)
+    db.commit()
+    db.refresh(product)
+    return product
 
 @router.delete("/{id}/", response_model=ProductOut)
 def delete_product(

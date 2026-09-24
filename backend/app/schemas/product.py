@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from datetime import datetime
 from typing import Optional, List
 from enum import Enum
@@ -14,6 +14,11 @@ class ProductBase(BaseModel):
     category: Optional[str] = Field(None, max_length=50)
     frequency: FrequencyEnum
     frequency_start_date: datetime
+    # Inventario: stock nulo es "no se lleva inventario de este producto", que
+    # no es lo mismo que cero. Ver el modelo Product.
+    stock: Optional[float] = Field(None, ge=0)
+    stock_min: float = Field(0, ge=0)
+    units_per_purchase: float = Field(1, gt=0)
 
 class ProductCreate(ProductBase):
     pass
@@ -24,6 +29,25 @@ class ProductUpdate(BaseModel):
     frequency: Optional[FrequencyEnum] = None
     frequency_start_date: Optional[datetime] = None
     is_deleted: Optional[bool] = None
+    stock: Optional[float] = Field(None, ge=0)
+    stock_min: Optional[float] = Field(None, ge=0)
+    units_per_purchase: Optional[float] = Field(None, gt=0)
+
+
+class StockAdjust(BaseModel):
+    """
+    Ajuste de existencias. `delta` descuenta o repone sobre lo que haya (es lo
+    que usa la merma de cada día) y `stock` fija un valor exacto, para cuando se
+    cuenta lo que hay en casa. Exactamente uno de los dos.
+    """
+    delta: Optional[float] = None
+    stock: Optional[float] = Field(None, ge=0)
+
+    @model_validator(mode="after")
+    def delta_xor_stock(self):
+        if (self.delta is None) == (self.stock is None):
+            raise ValueError("Debe enviar delta O stock (exactamente uno).")
+        return self
 
 # Store summary for nested use
 class StoreSummary(BaseModel):
