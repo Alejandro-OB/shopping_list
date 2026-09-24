@@ -17,7 +17,7 @@ const formatCurrency = (val) =>
 // Eran siete columnas dentro de un overflow-x-auto: en el teléfono la tabla
 // aparecía ya corrida y la primera columna —el nombre del producto— quedaba
 // fuera de la pantalla, de modo que se veían precios sin saber de qué eran.
-const PRICE_GRID_COLS = 'sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_90px_90px_100px_90px_110px]'
+const PRICE_GRID_COLS = 'sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_90px_90px_100px_100px_110px] sm:gap-x-4'
 
 // Sparkline SVG inline — sin dependencias
 function Sparkline({ points, width = 96, height = 32 }) {
