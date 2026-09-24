@@ -10,6 +10,22 @@ from app.schemas.store import StoreCreate, StoreUpdate, StoreOut, ProductStoreCr
 
 router = APIRouter()
 
+
+def _owned_product_store(db: Session, ps_id: int, user_id: int):
+    """
+    Devuelve el vínculo producto-tienda si es del usuario, o 404.
+
+    Los tres endpoints de vínculo buscaban por id y actuaban sin mirar de quién
+    era lo que tocaban, a diferencia del resto del proyecto: con un id numérico
+    cualquiera podía cambiarle el precio de catálogo a otro usuario o borrarle
+    un vínculo. Se responde 404 y no 403 para no confirmar que el id existe.
+    """
+    from app.models.product_store import ProductStore
+    db_obj = db.get(ProductStore, ps_id)
+    if not db_obj or db_obj.product is None or db_obj.product.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Relación no encontrada")
+    return db_obj
+
 @router.get("/", response_model=List[StoreOut])
 def read_stores(
     db: Session = Depends(get_db),
@@ -96,6 +112,16 @@ def associate_product_store(
     Asocia un producto con una tienda y define su precio de catálogo.
     """
     from app.models.product_store import ProductStore
+    from app.models.product import Product
+    from app.models.store import Store
+
+    product = db.get(Product, ps_in.product_id)
+    store = db.get(Store, ps_in.store_id)
+    if not product or product.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+    if not store or store.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Tienda no encontrada")
+
     db_obj = ProductStore(
         product_id=ps_in.product_id,
         store_id=ps_in.store_id,
@@ -117,10 +143,7 @@ def update_product_store_price(
     """
     Actualiza el precio de catálogo de una relación producto-tienda.
     """
-    from app.models.product_store import ProductStore
-    db_obj = db.get(ProductStore, id)
-    if not db_obj:
-        raise HTTPException(status_code=404, detail="Relación no encontrada")
+    db_obj = _owned_product_store(db, id, current_user.id)
     if price_catalog <= 0:
         raise HTTPException(status_code=400, detail="El precio debe ser mayor a 0")
     db_obj.price_catalog = price_catalog
@@ -139,11 +162,7 @@ def delete_product_store(
     """
     Elimina (Soft Delete) una relación producto-tienda.
     """
-    from app.models.product_store import ProductStore
-    db_obj = db.get(ProductStore, id)
-    if not db_obj:
-        raise HTTPException(status_code=404, detail="Relación no encontrada")
-    
+    db_obj = _owned_product_store(db, id, current_user.id)
     db_obj.is_deleted = True
     db.add(db_obj)
     db.commit()

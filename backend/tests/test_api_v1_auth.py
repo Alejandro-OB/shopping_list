@@ -124,3 +124,83 @@ def test_login_invalid_password(client: TestClient, session: Session):
         json={"email": "bob@example.com", "password": "wrong"}
     )
     assert response.status_code == 401
+
+
+# ── Autorización sobre vínculos producto-tienda ──────────────────────────────
+# Estos tres endpoints buscaban por id y actuaban sin mirar de quién era el
+# vínculo, así que con un id numérico se podía tocar el catálogo ajeno.
+
+def _other_users_product_store(session: Session):
+    """Vínculo producto-tienda de un usuario distinto al autenticado."""
+    from datetime import datetime, timezone
+    from app.models.product import Product, FrequencyEnum
+    from app.models.store import Store
+    from app.models.product_store import ProductStore
+    from app.core.security import get_password_hash
+
+    other = User(name="Otro", email="otro@example.com", password=get_password_hash("x"), is_verified=True)
+    session.add(other)
+    session.commit()
+    product = Product(
+        name="Ajeno", frequency=FrequencyEnum.weekly,
+        frequency_start_date=datetime.now(timezone.utc), user=other,
+    )
+    store = Store(name="Tienda ajena", user=other)
+    session.add_all([product, store])
+    session.commit()
+    ps = ProductStore(product=product, store=store, price_catalog=1000)
+    session.add(ps)
+    session.commit()
+    return ps
+
+
+def test_cannot_change_price_of_another_users_link(client: TestClient, session: Session, auth_headers):
+    """
+    Test que no se pueda cambiar el precio de un vínculo ajeno.
+    """
+    ps = _other_users_product_store(session)
+
+    response = client.patch(
+        f"/api/v1/stores/product-store/{ps.id}/",
+        json={"price_catalog": 1},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 404
+    session.refresh(ps)
+    assert float(ps.price_catalog) == 1000
+
+
+def test_cannot_delete_another_users_link(client: TestClient, session: Session, auth_headers):
+    """
+    Test que no se pueda borrar un vínculo ajeno.
+    """
+    ps = _other_users_product_store(session)
+
+    response = client.delete(
+        f"/api/v1/stores/product-store/{ps.id}/",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 404
+    session.refresh(ps)
+    assert ps.is_deleted is False
+
+
+def test_cannot_link_a_store_to_another_users_product(client: TestClient, session: Session, auth_headers, test_user):
+    """
+    Test que no se pueda vincular nada a un producto ajeno.
+    """
+    from app.models.store import Store
+    ps = _other_users_product_store(session)
+    my_store = Store(name="Mi tienda", user=test_user)
+    session.add(my_store)
+    session.commit()
+
+    response = client.post(
+        "/api/v1/stores/product-store/",
+        json={"product_id": ps.product_id, "store_id": my_store.id, "price_catalog": 500},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 404
