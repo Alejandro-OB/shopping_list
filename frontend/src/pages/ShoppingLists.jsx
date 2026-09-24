@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ShoppingCart, Trash2, Eye, Filter, Loader2, Search, Check, X } from 'lucide-react'
 import api from '../api/axios'
 import { apiCache } from '../api/cache'
-import { listTitle } from '../listLabels'
+import { autoListDate, listTitle } from '../listLabels'
 import toast from 'react-hot-toast'
 
 const LISTS_TTL = 5 * 60 * 1000 // 5 minutos (listas cambian más seguido que productos)
@@ -14,6 +14,13 @@ const STATUS_MAP = {
   completed: { label: 'Completada', cls: 'badge-green'  },
 }
 
+// Mismo template de columnas para el header (hidden sm:grid) y cada ListRow.
+// La tabla anterior desbordaba el ancho del teléfono: el estado quedaba
+// cortado contra el borde y los botones de ver y eliminar caían fuera de la
+// pantalla, sin forma de alcanzarlos. El mismo cambio que ya se hizo en el
+// catálogo (CatalogRow): rejilla que se apila en mobile y sin scroll lateral.
+const LIST_GRID_COLS = 'sm:grid-cols-[minmax(0,1fr)_160px_130px_110px]'
+
 function ListRow({ list, onView, onDelete }) {
   const s = STATUS_MAP[list.status] || { label: list.status, cls: 'badge-purple' }
   const date = new Date(list.date).toLocaleDateString('es-CO', {
@@ -22,6 +29,9 @@ function ListRow({ list, onView, onDelete }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const isCompleted = list.status === 'completed'
+  // En las automáticas el título ya es la fecha, así que repetirla en mobile
+  // parte el renglón en dos y no añade nada. En las demás sí informa.
+  const titleHasDate = autoListDate(list) !== null
 
   const handleDelete = async () => {
     setDeleting(true)
@@ -34,32 +44,45 @@ function ListRow({ list, onView, onDelete }) {
   }
 
   return (
-    <tr
-      className="border-b border-dark-800 hover:bg-dark-800/50 transition-colors cursor-pointer"
+    // En mobile son dos columnas —contenido y acciones— y no una pila: las
+    // celdas de fecha y estado están ocultas ahí, así que no ocupan lugar en la
+    // rejilla y los botones suben a la misma línea del nombre.
+    <div
+      className={`grid grid-cols-[minmax(0,1fr)_auto] ${LIST_GRID_COLS} items-center gap-x-2 px-4 py-3 border-b border-dark-800 last:border-0 hover:bg-dark-800/50 transition-colors cursor-pointer`}
       onClick={() => onView(list)}
     >
-      <td className="px-4 py-3">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-primary-600/20 flex items-center justify-center flex-shrink-0">
-            <ShoppingCart className="w-3.5 h-3.5 text-primary-600" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-dark-100 truncate max-w-[220px]">{listTitle(list)}</p>
-            {list.is_auto_generated && (
-              <p className="text-xs text-primary-500">Auto-generada</p>
-            )}
+      {/* Grupo 1: icono + nombre (+ fecha y estado inline en mobile) */}
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="w-8 h-8 rounded-lg bg-primary-600/20 flex items-center justify-center flex-shrink-0">
+          <ShoppingCart className="w-3.5 h-3.5 text-primary-600" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-dark-100 truncate">{listTitle(list)}</p>
+          {list.is_auto_generated && (
+            <p className="text-xs text-primary-500">Auto-generada</p>
+          )}
+          {/* Fecha + estado — solo mobile (desktop los muestra en columnas) */}
+          <div className="sm:hidden flex items-center gap-2 mt-1">
+            {!titleHasDate && <span className="text-xs text-dark-400">{date}</span>}
+            <span className={s.cls}>{s.label}</span>
           </div>
         </div>
-      </td>
-      <td className="px-4 py-3 text-sm text-dark-400 hidden sm:table-cell">{date}</td>
-      <td className="px-4 py-3">
+      </div>
+
+      {/* Grupo 2: Fecha — solo desde sm: */}
+      <span className="hidden sm:block text-sm text-dark-400">{date}</span>
+
+      {/* Grupo 3: Estado — solo desde sm: */}
+      <span className="hidden sm:block">
         <span className={s.cls}>{s.label}</span>
-      </td>
-      <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+      </span>
+
+      {/* Grupo 4: Acciones */}
+      <div onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-end gap-1">
           <button
             onClick={() => onView(list)}
-            className="btn-ghost text-xs px-2 py-1"
+            className="tap-target btn-ghost text-xs px-2 py-1"
           >
             <Eye className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Ver</span>
@@ -73,7 +96,7 @@ function ListRow({ list, onView, onDelete }) {
                 <button
                   onClick={() => setConfirmDelete(false)}
                   title="Cancelar"
-                  className="w-6 h-6 flex items-center justify-center text-dark-400 hover:text-dark-200 rounded transition-colors"
+                  className="tap-target text-dark-400 hover:text-dark-200 rounded transition-colors"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -81,7 +104,7 @@ function ListRow({ list, onView, onDelete }) {
                   onClick={handleDelete}
                   disabled={deleting}
                   title="Confirmar eliminación"
-                  className="w-6 h-6 flex items-center justify-center text-dark-400 hover:text-red-600 rounded transition-colors disabled:opacity-50"
+                  className="tap-target text-dark-400 hover:text-red-600 rounded transition-colors disabled:opacity-50"
                 >
                   {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                 </button>
@@ -90,15 +113,15 @@ function ListRow({ list, onView, onDelete }) {
               <button
                 onClick={() => setConfirmDelete(true)}
                 title="Eliminar lista"
-                className="btn-ghost text-xs px-2 py-1 text-dark-500 hover:text-red-600"
+                className="tap-target btn-ghost text-xs px-2 py-1 text-dark-500 hover:text-red-600"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
             )
           )}
         </div>
-      </td>
-    </tr>
+      </div>
+    </div>
   )
 }
 
@@ -194,41 +217,31 @@ export default function ShoppingLists() {
         </div>
       </div>
 
-      {/* Table */}
+      {/* Listado — grid responsive: apilado en mobile, columnas desde sm: */}
       <div className="card p-0 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-dark-800 bg-dark-950/50">
-                <th className="px-4 py-3 text-left text-xs font-semibold text-dark-400 uppercase tracking-wider">Lista</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-dark-400 uppercase tracking-wider hidden sm:table-cell">Fecha</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-dark-400 uppercase tracking-wider">Estado</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                [...Array(4)].map((_, i) => (
-                  <tr key={i} className="border-b border-dark-800">
-                    <td colSpan={4} className="px-4 py-3">
-                      <div className="h-8 bg-dark-800 rounded animate-pulse" />
-                    </td>
-                  </tr>
-                ))
-              ) : filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="px-4 py-16 text-center">
-                    <ShoppingCart className="w-10 h-10 text-dark-700 mx-auto mb-3" />
-                    <p className="text-dark-500 text-sm">No se encontraron listas.</p>
-                  </td>
-                </tr>
-              ) : (
-                filtered.map((l) => (
-                  <ListRow key={l.id} list={l} onView={(l) => navigate(`/lists/${l.id}`)} onDelete={handleDeleteList} />
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className={`hidden sm:grid ${LIST_GRID_COLS} sm:items-center px-4 py-3 border-b border-dark-800 bg-dark-950/50`}>
+          <span className="text-xs font-semibold text-dark-400 uppercase tracking-wider">Lista</span>
+          <span className="text-xs font-semibold text-dark-400 uppercase tracking-wider">Fecha</span>
+          <span className="text-xs font-semibold text-dark-400 uppercase tracking-wider">Estado</span>
+          <span />
+        </div>
+        <div>
+          {loading ? (
+            [...Array(4)].map((_, i) => (
+              <div key={i} className="px-4 py-3 border-b border-dark-800">
+                <div className="h-8 bg-dark-800 rounded animate-pulse" />
+              </div>
+            ))
+          ) : filtered.length === 0 ? (
+            <div className="px-4 py-16 text-center">
+              <ShoppingCart className="w-10 h-10 text-dark-700 mx-auto mb-3" />
+              <p className="text-dark-500 text-sm">No se encontraron listas.</p>
+            </div>
+          ) : (
+            filtered.map((l) => (
+              <ListRow key={l.id} list={l} onView={(l) => navigate(`/lists/${l.id}`)} onDelete={handleDeleteList} />
+            ))
+          )}
         </div>
       </div>
     </div>
