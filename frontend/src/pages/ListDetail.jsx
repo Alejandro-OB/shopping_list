@@ -519,7 +519,7 @@ function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteT
   return (
     <div className={`grid grid-cols-1 ${ITEM_GRID_COLS} sm:items-center gap-y-3 sm:gap-y-0 px-4 py-4 border-b border-dark-800 transition-colors ${item.checked ? 'bg-dark-900/30' : 'hover:bg-dark-800/40'}`}>
       {/* Grupo 1: checkbox + producto (siempre visible) */}
-      <div className="flex items-start gap-3">
+      <div className="flex items-center gap-3">
         <button
           onClick={handleCheck}
           disabled={isDisabled || item.checked || loading}
@@ -599,9 +599,9 @@ function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteT
       </div>
 
       {/* Grupo 3: Precio Real */}
-      <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-3 sm:gap-0 border-t sm:border-t-0 border-dark-800 pt-3 sm:pt-0">
+      <div className="flex flex-col items-center sm:items-end gap-1 sm:gap-0 border-t sm:border-t-0 border-dark-800 pt-3 sm:pt-0">
         <label className="text-[10px] text-dark-400 uppercase font-bold sm:mb-1 flex-shrink-0">Precio Real</label>
-        <div className="flex-1 sm:flex-none sm:w-full flex sm:block flex-col items-end">
+        <div className="w-36 sm:w-auto flex flex-col items-center sm:items-end">
           <input
             type="number"
             value={price}
@@ -609,7 +609,7 @@ function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteT
             onFocus={(e) => e.target.select()}
             disabled={isDisabled || item.checked}
             placeholder="0"
-            className="input py-3 sm:py-1.5 text-right text-sm sm:text-xs w-full sm:w-auto"
+            className="input py-3 sm:py-1.5 text-center sm:text-right text-sm sm:text-xs w-full sm:w-auto"
           />
           {price > 0 && (
             <div className={`mt-1 text-[10px] font-bold ${item.checked ? 'text-dark-400' : 'text-primary-600'}`}>
@@ -631,7 +631,7 @@ function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteT
       </div>
 
       {/* Grupo 4: Ahorro / Eliminar */}
-      <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start">
+      <div className="flex flex-col items-center sm:items-end gap-1 sm:gap-0">
         {item.checked ? (
           <>
             <p className="text-[10px] text-dark-400 uppercase font-bold sm:mb-0.5">Ahorro</p>
@@ -643,7 +643,7 @@ function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteT
         ) : (
           !isDisabled && (
             showConfirm ? (
-              <div className="flex items-center gap-2 ml-auto">
+              <div className="flex items-center gap-2">
                 <button
                   onClick={async () => {
                     setDeleting(true)
@@ -669,7 +669,7 @@ function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteT
             ) : (
               <button
                 onClick={() => setShowConfirm(true)}
-                className="tap-target ml-auto text-dark-500 hover:text-red-600 hover:bg-red-500/10 rounded transition-colors"
+                className="tap-target text-dark-500 hover:text-red-600 hover:bg-red-500/10 rounded transition-colors"
                 title="Eliminar producto"
               >
                 <Trash2 className="w-4 h-4" />
