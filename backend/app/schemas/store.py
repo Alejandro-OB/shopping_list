@@ -27,10 +27,20 @@ class ProductStoreBase(BaseModel):
     price_catalog: float = Field(..., ge=0)
 
 class ProductStoreCreate(ProductStoreBase):
-    pass
+    is_preferred: bool = False
+
+class ProductStoreUpdate(BaseModel):
+    """
+    Campos editables de un vínculo. Ambos opcionales: el precio se cambia solo
+    al actualizarlo desde una compra, y la preferencia sola al marcar la tienda
+    habitual.
+    """
+    price_catalog: Optional[float] = Field(None, gt=0)
+    is_preferred: Optional[bool] = None
 
 class ProductStoreOut(ProductStoreBase):
     id: int
     is_deleted: bool
+    is_preferred: bool = False
     
     model_config = ConfigDict(from_attributes=True)

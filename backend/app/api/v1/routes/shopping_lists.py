@@ -114,11 +114,21 @@ def create_shopping_list(
     new_list.items = []
 
     # 3. Agregar los ítems (vinculados o libres)
+    # Un producto entra una sola vez aunque venga por dos tiendas distintas: en
+    # el catálogo las filas se ordenan por tienda y las dos apariciones del
+    # mismo producto quedan lejos una de otra, así que marcar las dos es fácil
+    # y el resultado era comprarlo dos veces. La primera que llega manda.
+    seen_product_ids = set()
     for item_in in list_in.items:
         if item_in.product_store_id:
             ps = db.get(ProductStore, item_in.product_store_id)
-            if not ps:
+            # Se comprueba el dueño: sin esto, un product_store ajeno entraba en
+            # la lista y su producto quedaba a la vista.
+            if not ps or ps.product is None or ps.product.user_id != current_user.id:
                 continue
+            if ps.product_id in seen_product_ids:
+                continue
+            seen_product_ids.add(ps.product_id)
             item = ShoppingListItem(
                 product_store_id=item_in.product_store_id,
                 quantity=item_in.quantity,
@@ -168,16 +178,23 @@ def add_items_to_list(
     if shopping_list.status == ModelListStatus.completed:
         raise HTTPException(status_code=400, detail="No se pueden agregar ítems a una lista ya completada")
 
-    # IDs de product_store ya presentes en la lista (solo items vinculados)
-    existing_ps_ids = {item.product_store_id for item in shopping_list.items if item.product_store_id is not None}
+    # Productos ya presentes en la lista. Se mira el producto y no el vínculo:
+    # el mismo producto comprado en otra tienda sigue siendo el mismo producto,
+    # y tenerlo dos veces significaba comprarlo dos veces.
+    existing_product_ids = {
+        item.product_store.product_id
+        for item in shopping_list.items
+        if item.product_store is not None
+    }
 
     for item_in in items_in:
         if item_in.product_store_id:
-            if item_in.product_store_id in existing_ps_ids:
-                continue  # Ya existe, saltar
             ps = db.get(ProductStore, item_in.product_store_id)
-            if not ps:
+            if not ps or ps.product is None or ps.product.user_id != current_user.id:
                 continue
+            if ps.product_id in existing_product_ids:
+                continue  # Ya está en la lista, por esta tienda o por otra
+            existing_product_ids.add(ps.product_id)
             item = ShoppingListItem(
                 list_id=shopping_list.id,
                 product_store_id=item_in.product_store_id,

@@ -284,3 +284,65 @@ def test_buying_adds_to_stock_in_consumption_units(session):
     # Un pollo comprado son ocho presas en la despensa.
     session.refresh(product)
     assert float(product.stock) == 8
+
+
+# ── Elección de tienda ───────────────────────────────────────────────────────
+
+def test_preferred_store_wins_over_the_cheapest(session):
+    """
+    Test que la generación use la tienda marcada como habitual, no la más barata.
+    """
+    from app.services.shopping_list_service import ShoppingListService
+    from app.models.store import Store
+    from app.models.product_store import ProductStore
+
+    today = datetime.now(timezone.utc)
+    user, product, cheap_ps = _user_with_product(
+        session, frequency=FrequencyEnum.weekly, start_date=today, stock=0
+    )
+    cheap_ps.price_catalog = 100
+
+    # Una segunda tienda, más cara, pero marcada como la habitual.
+    usual_store = Store(name="La de siempre", user=user)
+    session.add(usual_store)
+    session.commit()
+    usual_ps = ProductStore(
+        product=product, store=usual_store, price_catalog=150, is_preferred=True
+    )
+    session.add(usual_ps)
+    session.commit()
+
+    ShoppingListService(session).generate_auto_lists(user.id)
+
+    from app.models.shopping_list_item import ShoppingListItem
+    items = session.query(ShoppingListItem).all()
+    assert len(items) == 1
+    assert items[0].product_store_id == usual_ps.id
+
+
+def test_without_a_preferred_store_the_cheapest_still_wins(session):
+    """
+    Test que sin tienda habitual se siga eligiendo la más barata.
+    """
+    from app.services.shopping_list_service import ShoppingListService
+    from app.models.store import Store
+    from app.models.product_store import ProductStore
+
+    today = datetime.now(timezone.utc)
+    user, product, cheap_ps = _user_with_product(
+        session, frequency=FrequencyEnum.weekly, start_date=today, stock=0
+    )
+    cheap_ps.price_catalog = 100
+
+    other_store = Store(name="Otra", user=user)
+    session.add(other_store)
+    session.commit()
+    session.add(ProductStore(product=product, store=other_store, price_catalog=150))
+    session.commit()
+
+    ShoppingListService(session).generate_auto_lists(user.id)
+
+    from app.models.shopping_list_item import ShoppingListItem
+    items = session.query(ShoppingListItem).all()
+    assert len(items) == 1
+    assert items[0].product_store_id == cheap_ps.id

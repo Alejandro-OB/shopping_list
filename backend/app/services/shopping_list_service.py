@@ -24,6 +24,25 @@ class ShoppingListService:
         self.item_repo = ShoppingListItemRepository(db)
 
     @staticmethod
+    def _store_for(active_stores):
+        """
+        Elige en qué tienda se compra el producto.
+
+        Manda la tienda marcada como habitual: ir a otra por ahorrar unos pesos
+        en un producto no compensa el viaje, y eso lo sabe quien compra, no el
+        catálogo. Sin ninguna marcada se queda la más barata, que es como se
+        elegía antes de que la preferencia existiera. El comparador de tiendas y
+        las oportunidades de ahorro siguen estando para avisar cuándo la
+        diferencia sí vale la pena.
+        """
+        if not active_stores:
+            return None
+        preferred = [ps for ps in active_stores if ps.is_preferred]
+        if preferred:
+            return preferred[0]
+        return min(active_stores, key=lambda ps: ps.price_catalog)
+
+    @staticmethod
     def _product_is_due(product, today_bogota: datetime) -> bool:
         """
         Decide si un producto entra hoy en la lista.
@@ -79,12 +98,10 @@ class ShoppingListService:
             products_to_add = []
             for product in products:
                 if self._product_is_due(product, today_bogota):
-                    # Tomar la tienda activa más barata (price_catalog mínimo).
-                    # Si está vinculado a una sola tienda, esa gana por defecto.
                     active_stores = [ps for ps in product.product_stores if not ps.is_deleted]
-                    if active_stores:
-                        cheapest = min(active_stores, key=lambda ps: ps.price_catalog)
-                        products_to_add.append(cheapest)
+                    chosen = self._store_for(active_stores)
+                    if chosen is not None:
+                        products_to_add.append(chosen)
 
             if not products_to_add:
                 continue

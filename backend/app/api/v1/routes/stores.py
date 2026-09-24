@@ -6,7 +6,7 @@ from app.core.db.session import get_db
 from app.api.deps import get_current_user
 from app.models.user import User
 from app.repositories.store_repo import StoreRepository
-from app.schemas.store import StoreCreate, StoreUpdate, StoreOut, ProductStoreCreate, ProductStoreOut
+from app.schemas.store import StoreCreate, StoreUpdate, StoreOut, ProductStoreCreate, ProductStoreUpdate, ProductStoreOut
 
 router = APIRouter()
 
@@ -125,7 +125,8 @@ def associate_product_store(
     db_obj = ProductStore(
         product_id=ps_in.product_id,
         store_id=ps_in.store_id,
-        price_catalog=ps_in.price_catalog
+        price_catalog=ps_in.price_catalog,
+        is_preferred=ps_in.is_preferred,
     )
     db.add(db_obj)
     db.commit()
@@ -133,20 +134,38 @@ def associate_product_store(
     return db_obj
 
 @router.patch("/product-store/{id}/", response_model=ProductStoreOut)
-def update_product_store_price(
+def update_product_store(
     *,
     db: Session = Depends(get_db),
     id: int,
-    price_catalog: float = Body(..., embed=True),
+    ps_in: ProductStoreUpdate,
     current_user: User = Depends(get_current_user),
 ) -> Any:
     """
-    Actualiza el precio de catálogo de una relación producto-tienda.
+    Actualiza el precio de catálogo o la tienda habitual de un vínculo.
     """
+    from app.models.product_store import ProductStore
+
     db_obj = _owned_product_store(db, id, current_user.id)
-    if price_catalog <= 0:
-        raise HTTPException(status_code=400, detail="El precio debe ser mayor a 0")
-    db_obj.price_catalog = price_catalog
+
+    if ps_in.price_catalog is not None:
+        db_obj.price_catalog = ps_in.price_catalog
+
+    if ps_in.is_preferred is not None:
+        if ps_in.is_preferred:
+            # Solo puede haber una habitual por producto, y la base lo exige con
+            # un índice único: se apagan las demás en la misma transacción para
+            # no chocar contra él al marcar una nueva.
+            siblings = db.query(ProductStore).filter(
+                ProductStore.product_id == db_obj.product_id,
+                ProductStore.id != db_obj.id,
+                ProductStore.is_preferred == True,  # noqa: E712
+            ).all()
+            for sibling in siblings:
+                sibling.is_preferred = False
+                db.add(sibling)
+        db_obj.is_preferred = ps_in.is_preferred
+
     db.add(db_obj)
     db.commit()
     db.refresh(db_obj)
