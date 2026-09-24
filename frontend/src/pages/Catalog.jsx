@@ -63,12 +63,16 @@ function CatalogRow({ row, productObj, isChecked, quantity, onToggle, onQuantity
   return (
     <div
       onClick={() => (unlinked ? onEdit(productObj) : onToggle(row.ps_id))}
-      className={`grid grid-cols-1 ${CATALOG_GRID_COLS} sm:items-center gap-y-2 sm:gap-y-0 px-4 py-3 border-b border-dark-800 cursor-pointer transition-colors group
+      // Mismo criterio que la fila de la lista: en mobile, dos columnas y dos
+      // líneas —producto con sus acciones arriba, cantidad abajo— en vez de
+      // tres bloques apilados a lo ancho. El orden de las celdas se reordena
+      // con order-* porque en escritorio el DOM sigue el de las columnas.
+      className={`grid grid-cols-[minmax(0,1fr)_auto] ${CATALOG_GRID_COLS} sm:items-center gap-x-3 gap-y-2 sm:gap-y-0 px-4 py-3 border-b border-dark-800 cursor-pointer transition-colors group
         ${unlinked ? 'opacity-70' : ''}
         ${isChecked ? 'bg-primary-600/10 hover:bg-primary-600/15' : 'hover:bg-dark-800/50'}`}
     >
       {/* Grupo 1: checkbox + tienda + producto (+ precio/frecuencia inline en mobile) */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 order-1 sm:order-none col-span-2 sm:col-span-1">
         {unlinked ? (
           <div className="tap-target -m-2.5 flex-shrink-0" title="Vincula una tienda para poder agregarlo a una lista">
             <div className="w-5 h-5 rounded border-2 border-dark-700 flex items-center justify-center">
@@ -96,8 +100,8 @@ function CatalogRow({ row, productObj, isChecked, quantity, onToggle, onQuantity
               <Link2 className="w-3.5 h-3.5" /> Vincular tienda
             </button>
           ) : (
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <Store className="w-3 h-3 text-dark-400" />
+            <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+              <Store className="w-3 h-3 text-dark-400 flex-shrink-0" />
               <span className="text-xs text-dark-400">{row.store}</span>
             </div>
           )}
@@ -120,20 +124,20 @@ function CatalogRow({ row, productObj, isChecked, quantity, onToggle, onQuantity
       </div>
 
       {/* Grupo 3: Cantidad */}
-      <div onClick={e => e.stopPropagation()} className="flex sm:justify-center">
+      <div onClick={e => e.stopPropagation()} className="flex sm:justify-center order-2 sm:order-none pl-[4.5rem] sm:pl-0">
         {!unlinked && (
           <div className={`flex items-center gap-2 transition-opacity
             ${isChecked ? 'opacity-100' : 'opacity-30 pointer-events-none'}`}>
             <button
               onClick={() => onQuantityChange(row.ps_id, -1)}
-              className="tap-target rounded-lg border border-dark-700 hover:bg-dark-800 transition-colors text-dark-300"
+              className="w-9 h-9 inline-flex items-center justify-center rounded-lg border border-dark-700 hover:bg-dark-800 transition-colors text-dark-300"
             >
               <Minus className="w-3.5 h-3.5" />
             </button>
             <span className="w-6 text-center text-sm font-bold text-dark-200">{quantity}</span>
             <button
               onClick={() => onQuantityChange(row.ps_id, 1)}
-              className="tap-target rounded-lg border border-dark-700 hover:bg-dark-800 transition-colors text-dark-300"
+              className="w-9 h-9 inline-flex items-center justify-center rounded-lg border border-dark-700 hover:bg-dark-800 transition-colors text-dark-300"
             >
               <Plus className="w-3.5 h-3.5" />
             </button>
@@ -142,7 +146,7 @@ function CatalogRow({ row, productObj, isChecked, quantity, onToggle, onQuantity
       </div>
 
       {/* Grupo 4: Acciones CRUD */}
-      <div onClick={e => e.stopPropagation()} className="flex items-center justify-end gap-1">
+      <div onClick={e => e.stopPropagation()} className="flex items-center justify-end gap-1 order-3 sm:order-none">
         {!confirmDelete && (
           <button
             onClick={() => onEdit(productObj)}
