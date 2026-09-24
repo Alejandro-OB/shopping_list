@@ -461,6 +461,33 @@ function AddItemsModal({ listId, existingItems, onClose, onAdded }) {
 // así no se pueden desalinear entre sí.
 const ITEM_GRID_COLS = 'sm:grid-cols-[minmax(0,1fr)_110px_140px_100px]'
 
+// El mismo control aparece en dos sitios de la fila: dentro del bloque del
+// producto en escritorio y como celda propia en mobile, donde comparte línea
+// con el precio real. Se escribe una vez para que no se separen al cambiar uno.
+function QuantityControls({ quantity, onChange, disabled }) {
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        onClick={() => onChange(-1)}
+        disabled={disabled || quantity <= 1}
+        className="w-9 h-9 inline-flex items-center justify-center rounded bg-dark-800 text-dark-400 hover:text-primary-600 hover:bg-dark-700 transition-colors disabled:opacity-30"
+      >
+        <Minus className="w-3.5 h-3.5" />
+      </button>
+      <span className="text-xs bg-dark-800 text-dark-100 px-2 py-1 rounded font-bold min-w-[24px] text-center">
+        {quantity}
+      </span>
+      <button
+        onClick={() => onChange(1)}
+        disabled={disabled}
+        className="w-9 h-9 inline-flex items-center justify-center rounded bg-dark-800 text-dark-400 hover:text-primary-600 hover:bg-dark-700 transition-colors disabled:opacity-30"
+      >
+        <Plus className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  )
+}
+
 function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteToProduct, isDisabled }) {
   // Persistir el precio digitado en localStorage para no perderlo al refrescar
   const storageKey = `pendingPrice:${listId}:${item.id}`
@@ -493,6 +520,36 @@ function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteT
   const isSaving = diff > 0
   const isExpensive = diff < 0
 
+  // Llevar el precio pagado al catálogo. Marcar un ítem como comprado solo
+  // registra el precio en el historial; el precio de referencia de esa tienda
+  // se queda con el viejo y las próximas listas siguen estimando con él. Esto
+  // es lo que faltaba para cerrar ese lazo, y se ofrece solo cuando el precio
+  // escrito difiere del de catálogo, que es cuando tiene sentido.
+  const [updatingCatalog, setUpdatingCatalog] = useState(false)
+  const [catalogUpdated, setCatalogUpdated] = useState(false)
+  const priceNum = parseFloat(price) || 0
+  const canUpdateCatalog =
+    !isFree && !isDisabled && !catalogUpdated && priceNum > 0 && priceNum !== catalogPrice
+
+  const handleUpdateCatalog = async () => {
+    setUpdatingCatalog(true)
+    try {
+      await api.patch(`/stores/product-store/${item.product_store_id}/`, {
+        price_catalog: priceNum,
+      })
+      // El catálogo y las listas leen de estas dos cachés; sin invalidarlas el
+      // precio viejo seguiría a la vista hasta que expiren.
+      apiCache.invalidate('/products/')
+      apiCache.invalidate('/lists/')
+      setCatalogUpdated(true)
+      toast.success(`Catálogo actualizado a $${priceNum.toLocaleString('es-CO')}`)
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'No se pudo actualizar el catálogo')
+    } finally {
+      setUpdatingCatalog(false)
+    }
+  }
+
   const handleQuantityClick = async (delta) => {
     setUpdatingQty(true)
     try {
@@ -518,9 +575,15 @@ function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteT
 
 
   return (
-    <div className={`grid grid-cols-1 ${ITEM_GRID_COLS} sm:items-center gap-y-3 sm:gap-y-0 px-4 py-4 border-b border-dark-800 transition-colors ${item.checked ? 'bg-dark-900/30' : 'hover:bg-dark-800/40'}`}>
+    // En mobile la fila son dos columnas y dos líneas: arriba el producto con
+    // su acción, abajo cantidad y precio real. Antes cada dato tomaba un
+    // renglón centrado de ancho completo y un solo producto ocupaba media
+    // pantalla del teléfono, que es donde esta lista se usa. El orden de las
+    // celdas se reordena con order-* porque en escritorio el DOM tiene que
+    // seguir el de las columnas.
+    <div className={`grid grid-cols-[minmax(0,1fr)_auto] ${ITEM_GRID_COLS} sm:items-center gap-x-3 gap-y-2 sm:gap-y-0 px-4 py-3 sm:py-4 border-b border-dark-800 transition-colors ${item.checked ? 'bg-dark-900/30' : 'hover:bg-dark-800/40'}`}>
       {/* Grupo 1: checkbox + producto (siempre visible) */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-start sm:items-center gap-3 order-1 sm:order-none">
         <button
           onClick={handleCheck}
           disabled={isDisabled || item.checked || loading}
@@ -555,33 +618,30 @@ function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteT
           {/* Precio catálogo — solo móvil (desktop lo muestra en columna separada) */}
           {!isFree && item.price_catalog_snapshot != null && (
             <p className="sm:hidden text-xs text-dark-400 mt-1">
-              Catálogo: <span className="text-dark-300 font-medium">${catalogPrice.toLocaleString('es-CO')}</span>
+              Precio: <span className="text-dark-300 font-medium">${catalogPrice.toLocaleString('es-CO')}</span>
               {item.quantity > 1 && (
                 <span className="text-dark-400 ml-1">· subtotal ${(catalogPrice * item.quantity).toLocaleString('es-CO')}</span>
               )}
             </p>
           )}
-          {/* Cantidad */}
-          <div className="flex items-center gap-2 mt-2">
-            <button
-              onClick={() => handleQuantityClick(-1)}
-              disabled={isDisabled || item.checked || updatingQty || item.quantity <= 1}
-              className="tap-target rounded bg-dark-800 text-dark-400 hover:text-primary-600 hover:bg-dark-700 transition-colors disabled:opacity-30"
-            >
-              <Minus className="w-3.5 h-3.5" />
-            </button>
-            <span className="text-xs bg-dark-800 text-dark-100 px-2 py-1 rounded font-bold min-w-[24px] text-center">
-              {item.quantity}
-            </span>
-            <button
-              onClick={() => handleQuantityClick(1)}
+          {/* Cantidad — en mobile baja a su propia celda, junto al precio */}
+          <div className="hidden sm:block mt-2">
+            <QuantityControls
+              quantity={item.quantity}
+              onChange={handleQuantityClick}
               disabled={isDisabled || item.checked || updatingQty}
-              className="tap-target rounded bg-dark-800 text-dark-400 hover:text-primary-600 hover:bg-dark-700 transition-colors disabled:opacity-30"
-            >
-              <Plus className="w-3.5 h-3.5" />
-            </button>
+            />
           </div>
         </div>
+      </div>
+
+      {/* Cantidad — solo mobile: segunda línea, a la izquierda del precio */}
+      <div className="sm:hidden order-3 pl-9">
+        <QuantityControls
+          quantity={item.quantity}
+          onChange={handleQuantityClick}
+          disabled={isDisabled || item.checked || updatingQty}
+        />
       </div>
 
       {/* Grupo 2: Catálogo — solo desde sm: (en mobile ya se muestra arriba, inline) */}
@@ -600,22 +660,45 @@ function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteT
       </div>
 
       {/* Grupo 3: Precio Real */}
-      <div className="flex flex-col items-center sm:items-end gap-1 sm:gap-0 border-t sm:border-t-0 border-dark-800 pt-3 sm:pt-0">
-        <label className="text-[10px] text-dark-400 uppercase font-bold sm:mb-1 flex-shrink-0">Precio Real</label>
-        <div className="w-36 sm:w-auto flex flex-col items-center sm:items-end">
+      {/* Sin rótulo: se repetía en cada producto y comía un renglón por fila.
+          En escritorio lo dice la cabecera de la columna y en mobile lo dice el
+          propio texto guía del campo. */}
+      <div className="flex flex-col items-end gap-0.5 sm:gap-0 order-4 sm:order-none">
+        <div className="flex flex-col items-end">
           <input
             type="number"
             value={price}
             onChange={(e) => updatePrice(e.target.value)}
             onFocus={(e) => e.target.select()}
             disabled={isDisabled || item.checked}
-            placeholder="0"
-            className="input py-3 sm:py-1.5 text-center sm:text-right text-sm sm:text-xs w-full sm:w-auto"
+            placeholder="Precio"
+            className="input py-2 sm:py-1.5 text-right text-sm sm:text-xs w-28 sm:w-auto"
           />
           {price > 0 && (
             <div className={`mt-1 text-[10px] font-bold ${item.checked ? 'text-dark-400' : 'text-primary-600'}`}>
               Subtotal: ${(parseFloat(price) * item.quantity).toLocaleString('es-CO')}
             </div>
+          )}
+          {/* Llevar el precio pagado al catálogo de esa tienda. Sigue disponible
+              después de marcar el ítem: es justo cuando se sabe lo que costó. */}
+          {canUpdateCatalog && (
+            <button
+              onClick={handleUpdateCatalog}
+              disabled={updatingCatalog}
+              title={`Dejar $${priceNum.toLocaleString('es-CO')} como precio de catálogo de ${item.store_name}`}
+              className="flex items-center gap-1 whitespace-nowrap text-[10px] px-1.5 py-0.5 mt-1 rounded bg-dark-800 text-dark-400 hover:text-primary-600 hover:bg-primary-600/10 transition-colors disabled:opacity-50"
+            >
+              {updatingCatalog
+                ? <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                : <RefreshCw className="w-2.5 h-2.5" />}
+              Actualizar precio
+            </button>
+          )}
+          {catalogUpdated && (
+            <span className="flex items-center gap-1 text-[10px] mt-1.5 text-teal-600 font-medium">
+              <Check className="w-2.5 h-2.5" />
+              Precio actualizado
+            </span>
           )}
           {/* Acciones rápidas de precio — solo cuando el ítem no está marcado */}
           {!item.checked && !isDisabled && isFree && (
@@ -631,8 +714,8 @@ function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteT
         </div>
       </div>
 
-      {/* Grupo 4: Ahorro / Eliminar */}
-      <div className="flex flex-col items-center sm:items-end gap-1 sm:gap-0">
+      {/* Grupo 4: Ahorro / Eliminar — en mobile sube a la línea del nombre */}
+      <div className="flex flex-col items-end gap-1 sm:gap-0 order-2 sm:order-none">
         {item.checked ? (
           <>
             <p className="text-[10px] text-dark-400 uppercase font-bold sm:mb-0.5">Ahorro</p>
