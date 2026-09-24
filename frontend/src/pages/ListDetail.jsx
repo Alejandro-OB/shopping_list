@@ -646,7 +646,6 @@ function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteT
 
       {/* Grupo 2: Catálogo — solo desde sm: (en mobile ya se muestra arriba, inline) */}
       <div className="hidden sm:block text-right">
-        <p className="text-xs text-dark-500 font-bold uppercase tracking-wider mb-1">Catálogo</p>
         {item.price_catalog_snapshot != null ? (
           <>
             <p className="text-sm text-dark-300">${catalogPrice.toLocaleString('es-CO')}</p>
@@ -1651,7 +1650,7 @@ export default function ListDetail() {
       <div className="card p-0 overflow-hidden">
         <div className={`hidden sm:grid ${ITEM_GRID_COLS} sm:items-center bg-dark-950/50 border-b border-dark-800`}>
           <span className="px-4 py-3 text-xs font-bold text-dark-500 uppercase tracking-wider">Producto</span>
-          <span className="px-4 py-3 text-xs font-bold text-dark-500 uppercase tracking-wider text-right">Referencia</span>
+          <span className="px-4 py-3 text-xs font-bold text-dark-500 uppercase tracking-wider text-right">Precio</span>
           <span className="px-4 py-3 text-xs font-bold text-dark-500 uppercase tracking-wider text-right">Monto Pagado</span>
           <span className="px-4 py-3 text-xs font-bold text-dark-500 uppercase tracking-wider text-right">Detalle</span>
         </div>
