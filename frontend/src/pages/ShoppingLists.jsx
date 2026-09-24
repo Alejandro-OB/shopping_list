@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ShoppingCart, Trash2, Eye, Filter, Loader2, Search, Check, X } from 'lucide-react'
 import api from '../api/axios'
 import { apiCache } from '../api/cache'
+import { listTitle } from '../listLabels'
 import toast from 'react-hot-toast'
 
 const LISTS_TTL = 5 * 60 * 1000 // 5 minutos (listas cambian más seguido que productos)
@@ -43,7 +44,7 @@ function ListRow({ list, onView, onDelete }) {
             <ShoppingCart className="w-3.5 h-3.5 text-primary-600" />
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-medium text-dark-100 truncate max-w-[220px]">{list.name}</p>
+            <p className="text-sm font-medium text-dark-100 truncate max-w-[220px]">{listTitle(list)}</p>
             {list.is_auto_generated && (
               <p className="text-xs text-primary-500">Auto-generada</p>
             )}
@@ -142,7 +143,12 @@ export default function ShoppingLists() {
   }
 
   const filtered = lists.filter((l) => {
-    const matchSearch = l.name.toLowerCase().includes(search.toLowerCase())
+    // Se busca contra los dos textos a propósito: el título que el usuario ve
+    // ("Lista del 22 de sept") y el nombre guardado, que en las automáticas
+    // trae la fecha ISO y es la única forma de buscar por "2026-09".
+    const needle = search.toLowerCase()
+    const matchSearch =
+      l.name.toLowerCase().includes(needle) || listTitle(l).toLowerCase().includes(needle)
     const matchFilter = filter === 'all' || l.status === filter
     return matchSearch && matchFilter
   })

@@ -8,6 +8,7 @@ import {
 import api from '../api/axios'
 import { apiCache } from '../api/cache'
 import { useAuth } from '../context/useAuth'
+import { autoListDate, listTitle } from '../listLabels'
 import toast from 'react-hot-toast'
 
 const METRICS_TTL  = 2 * 60 * 1000  // 2 min — cambia al marcar ítems
@@ -54,6 +55,17 @@ function RecentList({ list, onClick }) {
   const s = statusMap[list.status] || { label: list.status, cls: 'badge-purple' }
   const date = new Date(list.date).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })
 
+  // En las listas automáticas el título ya dice la fecha, así que repetirla
+  // debajo desperdicia el único renglón que queda para decir algo útil: cuántos
+  // productos trae, que es lo que de verdad distingue una semana de otra.
+  const isAuto = autoListDate(list) !== null
+  const itemCount = Array.isArray(list.items) ? list.items.length : null
+  const subtitle = isAuto
+    ? ['Automática', itemCount === null ? null : `${itemCount} ${itemCount === 1 ? 'producto' : 'productos'}`]
+        .filter(Boolean)
+        .join(' · ')
+    : date
+
   return (
     <div
       className="flex items-center gap-3 py-3 border-b border-dark-800 last:border-0 cursor-pointer hover:bg-dark-800/40 rounded-lg px-2 -mx-2 transition-colors"
@@ -61,8 +73,8 @@ function RecentList({ list, onClick }) {
     >
       <ShoppingCart className="w-4 h-4 text-dark-500 flex-shrink-0" />
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-dark-200 truncate">{list.name}</p>
-        <p className="text-xs text-dark-500">{date}</p>
+        <p className="text-sm font-medium text-dark-200 truncate">{listTitle(list)}</p>
+        <p className="text-xs text-dark-500">{subtitle}</p>
       </div>
       <span className={s.cls}>{s.label}</span>
     </div>

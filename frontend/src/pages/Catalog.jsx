@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import api from '../api/axios'
 import { apiCache } from '../api/cache'
+import { defaultListName, listTitle } from '../listLabels'
 import toast from 'react-hot-toast'
 import ProductModal from '../components/ProductModal'
 
@@ -337,7 +338,10 @@ export default function Catalog() {
         quantity,
       }))
       const { data } = await api.post('/lists/', {
-        name: `Lista del ${nextTuesdayLabel}`,
+        // El mismo nombre que el título de las listas automáticas. La etiqueta
+        // de la interfaz sigue diciendo el día de la semana porque ahí informa
+        // cuándo es; dentro del nombre sobra, porque siempre es martes.
+        name: defaultListName(nextTuesday),
         date: nextTuesday.toISOString(),
         items,
       })
@@ -452,7 +456,7 @@ export default function Catalog() {
               <ShoppingCart className="w-4 h-4 text-teal-600" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-dark-200">Lista activa: <span className="text-teal-700">{activeList.name}</span></p>
+              <p className="text-sm font-semibold text-dark-200">Lista activa: <span className="text-teal-700">{listTitle(activeList)}</span></p>
               <div className="flex items-center gap-2 mt-0.5">
                 <p className="text-xs text-dark-400">Selecciona productos del catálogo y agrégalos directamente.</p>
                 <button

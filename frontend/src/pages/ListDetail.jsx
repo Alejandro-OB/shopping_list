@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import api from '../api/axios'
 import { apiCache } from '../api/cache'
+import { listTitle } from '../listLabels'
 import toast from 'react-hot-toast'
 import ProductModal from '../components/ProductModal'
 import StickyActionBar from '../components/StickyActionBar'
@@ -1046,7 +1047,7 @@ export default function ListDetail() {
       month: 'long' 
     })
 
-    let message = `🛒 *Lista de Compras: ${list.name}*\n`
+    let message = `🛒 *Lista de Compras: ${listTitle(list)}*\n`
     message += `📅 Fecha: ${formattedDate}\n\n`
     
     // Agrupar por tienda para el mensaje. Items libres → "Sin tienda".
@@ -1332,7 +1333,10 @@ export default function ListDetail() {
                 </div>
               ) : (
                 <div className="flex items-center gap-3">
-                  <h1 className="text-xl font-bold text-dark-200 leading-tight">{list.name}</h1>
+                  {/* El título mostrado; el campo de edición de al lado sigue
+                      cargando list.name, que es el nombre realmente guardado y
+                      lo que el usuario está por modificar. */}
+                  <h1 className="text-xl font-bold text-dark-200 leading-tight">{listTitle(list)}</h1>
                   {!isCompleted && (
                     <button
                       onClick={() => setIsEditingName(true)}
