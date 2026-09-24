@@ -65,6 +65,9 @@ local_settings.py
 db.sqlite3
 db.sqlite3-journal
 
+# La base SQLite que crean los tests del backend (ver tests/conftest.py).
+backend/test.db
+
 # Flask stuff:
 instance/
 .webassets-cache

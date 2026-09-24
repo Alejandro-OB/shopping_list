@@ -27,17 +27,16 @@ def login_access_token(
     """
     user_repo = UserRepository(db)
     user = user_repo.get_by_email(email)
-    
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Cuenta no registrada",
-        )
-        
-    if not verify_password(password, user.password):
+
+    # La misma respuesta para un correo que no existe y para una contraseña
+    # equivocada. Antes el correo desconocido daba 404 "Cuenta no registrada" y
+    # la clave mala 401: con eso cualquiera averigua qué correos tienen cuenta
+    # probándolos uno por uno. Es la misma razón por la que recover-password
+    # responde siempre lo mismo exista o no el correo.
+    if not user or not verify_password(password, user.password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Contraseña incorrecta",
+            detail="Correo o contraseña incorrectos",
         )
     
     # Check verification (Soft rule: can be hard-blocked if desired)

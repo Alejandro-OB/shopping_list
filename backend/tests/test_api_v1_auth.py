@@ -83,6 +83,30 @@ def test_verify_email_flow(client: TestClient, session: Session):
     session.refresh(at)
     assert at.is_used is True
 
+def test_login_unknown_email_looks_like_wrong_password(client: TestClient, session: Session):
+    """
+    Test que un correo sin cuenta responda igual que una contraseña errónea.
+
+    Si se distinguieran, bastaría con probar correos para saber cuáles están
+    registrados.
+    """
+    from app.core.security import get_password_hash
+    user = User(name="Bob", email="bob@example.com", password=get_password_hash("test-pwd"), is_verified=True)
+    session.add(user)
+    session.commit()
+
+    unknown = client.post(
+        "/api/v1/login",
+        json={"email": "nadie@example.com", "password": "test-pwd"}
+    )
+    wrong_password = client.post(
+        "/api/v1/login",
+        json={"email": "bob@example.com", "password": "wrong"}
+    )
+
+    assert unknown.status_code == wrong_password.status_code == 401
+    assert unknown.json()["detail"] == wrong_password.json()["detail"]
+
 def test_login_invalid_password(client: TestClient, session: Session):
     """
     Test que login falle con clave errónea.

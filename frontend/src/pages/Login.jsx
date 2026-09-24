@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { Eye, EyeOff, ShoppingCart, Loader2, X, Mail, Send } from 'lucide-react'
 import api from '../api/axios'
 import toast from 'react-hot-toast'
@@ -7,7 +7,6 @@ import { useAuth } from '../context/useAuth'
 
 export default function Login() {
   const { login } = useAuth()
-  const navigate = useNavigate()
   const [form, setForm] = useState({ email: '', password: '' })
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -25,11 +24,11 @@ export default function Login() {
       await login(form.email, form.password)
       toast.success('¡Bienvenido de vuelta!')
     } catch (err) {
-      const msg = err.response?.data?.detail || 'Credenciales inválidas'
-      if (msg === 'Cuenta no registrada') {
-        toast.error('Cuenta no registrada. Regístrate para comenzar.')
-        navigate('/register', { state: { email: form.email, password: form.password } })
-      } else { toast.error(msg) }
+      // Ya no se distingue "cuenta no registrada" para llevar al registro con
+      // los datos puestos: el servidor responde igual exista o no el correo,
+      // justamente para que nadie averigüe qué correos tienen cuenta. El enlace
+      // de registro sigue estando debajo del formulario.
+      toast.error(err.response?.data?.detail || 'Credenciales inválidas')
     } finally { setLoading(false) }
   }
 
