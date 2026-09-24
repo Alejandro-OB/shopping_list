@@ -43,7 +43,7 @@ function StoreModal({ store, onClose, onSaved }) {
             <Store className="w-4 h-4 text-primary-600" />
             {isEdit ? 'Editar Tienda' : 'Nueva Tienda'}
           </h2>
-          <button onClick={onClose} className="btn-ghost p-1.5"><X className="w-4 h-4" /></button>
+          <button onClick={onClose} className="tap-target btn-ghost p-1.5"><X className="w-4 h-4" /></button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -99,20 +99,20 @@ function StoreRow({ store, onEdit, onDelete }) {
       </td>
       <td className="px-4 py-3 text-right">
         <div className="flex items-center justify-end gap-1">
-          <button onClick={() => onEdit(store)} className="btn-ghost p-1.5 text-xs">
+          <button onClick={() => onEdit(store)} className="tap-target btn-ghost p-1.5 text-xs">
             <Pencil className="w-3.5 h-3.5" />
           </button>
           {confirmDelete ? (
             <div className="flex items-center gap-1">
-              <button onClick={handleDelete} disabled={deleting} className="btn-ghost p-1.5 text-red-600 hover:text-red-600">
+              <button onClick={handleDelete} disabled={deleting} className="tap-target btn-ghost p-1.5 text-red-600 hover:text-red-600">
                 {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
               </button>
-              <button onClick={() => setConfirmDelete(false)} className="btn-ghost p-1.5">
+              <button onClick={() => setConfirmDelete(false)} className="tap-target btn-ghost p-1.5">
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
           ) : (
-            <button onClick={() => setConfirmDelete(true)} className="btn-ghost p-1.5 text-xs hover:text-red-600">
+            <button onClick={() => setConfirmDelete(true)} className="tap-target btn-ghost p-1.5 text-xs hover:text-red-600">
               <Trash2 className="w-3.5 h-3.5" />
             </button>
           )}

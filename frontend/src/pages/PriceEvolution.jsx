@@ -13,6 +13,12 @@ const formatCurrency = (val) =>
     minimumFractionDigits: 0,
   }).format(val || 0)
 
+// Mismo template de columnas para el header (hidden sm:grid) y cada PriceRow.
+// Eran siete columnas dentro de un overflow-x-auto: en el teléfono la tabla
+// aparecía ya corrida y la primera columna —el nombre del producto— quedaba
+// fuera de la pantalla, de modo que se veían precios sin saber de qué eran.
+const PRICE_GRID_COLS = 'sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_90px_90px_100px_90px_110px]'
+
 // Sparkline SVG inline — sin dependencias
 function Sparkline({ points, width = 96, height = 32 }) {
   if (points.length < 2) {
@@ -133,27 +139,21 @@ export default function PriceEvolution() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-dark-800 text-xs text-dark-500 uppercase tracking-wider">
-                    <th className="text-left px-5 py-3 font-semibold">Producto</th>
-                    <th className="text-left px-4 py-3 font-semibold">Tienda</th>
-                    <th className="text-right px-4 py-3 font-semibold">Mín</th>
-                    <th className="text-right px-4 py-3 font-semibold">Máx</th>
-                    <th className="text-right px-4 py-3 font-semibold">Último</th>
-                    <th className="text-right px-4 py-3 font-semibold">Var.</th>
-                    <th className="px-4 py-3 font-semibold">Tendencia</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-dark-800">
-                  {[...filtered]
-                    .sort((a, b) => a.store_name.localeCompare(b.store_name) || a.product_name.localeCompare(b.product_name))
-                    .map((item) => (
-                      <PriceRow key={item.product_store_id} item={item} />
-                    ))}
-                </tbody>
-              </table>
+            <div className="text-sm">
+              <div className={`hidden sm:grid ${PRICE_GRID_COLS} sm:items-center px-4 py-3 border-b border-dark-800 text-xs text-dark-500 uppercase tracking-wider`}>
+                <span className="font-semibold">Producto</span>
+                <span className="font-semibold">Tienda</span>
+                <span className="font-semibold text-right">Mín</span>
+                <span className="font-semibold text-right">Máx</span>
+                <span className="font-semibold text-right">Último</span>
+                <span className="font-semibold text-right">Var.</span>
+                <span className="font-semibold">Tendencia</span>
+              </div>
+              {[...filtered]
+                .sort((a, b) => a.store_name.localeCompare(b.store_name) || a.product_name.localeCompare(b.product_name))
+                .map((item) => (
+                  <PriceRow key={item.product_store_id} item={item} />
+                ))}
             </div>
           )}
         </div>
@@ -178,54 +178,64 @@ function PriceRow({ item }) {
       ? 'bg-red-500/10 text-red-400 border border-red-500/20'
       : 'bg-teal-500/10 text-teal-400 border border-teal-500/20'
 
+  const variation = (
+    <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${badgeClass}`}>
+      <TrendIcon className="w-3 h-3" />
+      {isFlat ? '—' : `${isUp ? '+' : ''}${pct}%`}
+    </span>
+  )
+
   return (
-    <tr className="hover:bg-dark-800/40 transition-colors group">
-      {/* Producto */}
-      <td className="px-5 py-3">
-        <span className="font-medium text-dark-100 group-hover:text-dark-200 transition-colors">
+    <div className={`grid grid-cols-1 ${PRICE_GRID_COLS} sm:items-center gap-y-2 sm:gap-y-0 px-4 py-3 border-b border-dark-800 last:border-0 hover:bg-dark-800/40 transition-colors group`}>
+      {/* Grupo 1: producto (+ tienda y cifras inline en mobile) */}
+      <div className="min-w-0">
+        <p className="font-medium text-dark-100 group-hover:text-dark-200 transition-colors truncate">
           {item.product_name}
-        </span>
-      </td>
+        </p>
+        <p className="sm:hidden text-xs text-dark-400 mt-0.5 truncate">{item.store_name}</p>
+        {/* Las cifras van en una línea propia en mobile: en columnas dejaban el
+            nombre del producto —el dato que identifica la fila— fuera de la
+            pantalla, con los precios visibles y sin saber de qué eran. */}
+        <div className="sm:hidden flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs">
+          <span className="text-dark-400">
+            Mín <span className="text-teal-500 font-medium">{formatCurrency(Math.min(...prices))}</span>
+          </span>
+          <span className="text-dark-400">
+            Máx <span className="text-red-400 font-medium">{formatCurrency(Math.max(...prices))}</span>
+          </span>
+          <span className="text-dark-400">
+            Último <span className="text-dark-200 font-semibold">{formatCurrency(last)}</span>
+          </span>
+          {variation}
+        </div>
+      </div>
 
-      {/* Tienda */}
-      <td className="px-4 py-3">
-        <span className="text-xs text-dark-400">{item.store_name}</span>
-      </td>
+      {/* Tienda — solo desde sm: */}
+      <span className="hidden sm:block text-xs text-dark-400 truncate">{item.store_name}</span>
 
-      {/* Mín */}
-      <td className="px-4 py-3 text-right">
-        <span className="text-teal-500 font-medium text-xs">
-          {formatCurrency(Math.min(...prices))}
-        </span>
-      </td>
+      {/* Mín — solo desde sm: */}
+      <span className="hidden sm:block text-right text-teal-500 font-medium text-xs">
+        {formatCurrency(Math.min(...prices))}
+      </span>
 
-      {/* Máx */}
-      <td className="px-4 py-3 text-right">
-        <span className="text-red-400 font-medium text-xs">
-          {formatCurrency(Math.max(...prices))}
-        </span>
-      </td>
+      {/* Máx — solo desde sm: */}
+      <span className="hidden sm:block text-right text-red-400 font-medium text-xs">
+        {formatCurrency(Math.max(...prices))}
+      </span>
 
-      {/* Último precio */}
-      <td className="px-4 py-3 text-right">
-        <span className="font-semibold text-dark-200">
-          {formatCurrency(last)}
-        </span>
-      </td>
+      {/* Último precio — solo desde sm: */}
+      <span className="hidden sm:block text-right font-semibold text-dark-200">
+        {formatCurrency(last)}
+      </span>
 
-      {/* Variación % */}
-      <td className="px-4 py-3 text-right">
-        <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${badgeClass}`}>
-          <TrendIcon className="w-3 h-3" />
-          {isFlat ? '—' : `${isUp ? '+' : ''}${pct}%`}
-        </span>
-      </td>
+      {/* Variación % — solo desde sm: */}
+      <span className="hidden sm:block text-right">{variation}</span>
 
-      {/* Sparkline */}
-      <td className="px-4 py-3">
+      {/* Tendencia: en mobile ocupa su propia línea a lo ancho */}
+      <div className="flex justify-start">
         <Sparkline points={item.points} />
-      </td>
-    </tr>
+      </div>
+    </div>
   )
 }
 
