@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   BookOpen, Search, Loader2, Package, Store,
   CalendarDays, ShoppingCart, Check, AlertCircle, Plus, PlusCircle,
-  Pencil, Trash2, X, Link2,
+  Pencil, Trash2, X, Link2, Minus,
 } from 'lucide-react'
 import api from '../api/axios'
 import { apiCache } from '../api/cache'
@@ -128,7 +128,7 @@ function CatalogRow({ row, productObj, isChecked, quantity, onToggle, onQuantity
               onClick={() => onQuantityChange(row.ps_id, -1)}
               className="tap-target rounded-lg border border-dark-700 hover:bg-dark-800 transition-colors text-dark-300"
             >
-              <Plus className="w-3.5 h-3.5 rotate-45" />
+              <Minus className="w-3.5 h-3.5" />
             </button>
             <span className="w-6 text-center text-sm font-bold text-dark-200">{quantity}</span>
             <button
