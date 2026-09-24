@@ -457,6 +457,11 @@ function AddItemsModal({ listId, existingItems, onClose, onAdded }) {
   )
 }
 
+// Valor del selector de tiendas para los ítems sin tienda (los libres).
+// Lleva los signos que un nombre de tienda no puede traer, así nunca choca
+// con una tienda real que llegue a llamarse así.
+const NO_STORE = '\u0000sin-tienda'
+
 // Mismo template de columnas para el header (hidden sm:grid) y cada ItemRow,
 // así no se pueden desalinear entre sí.
 const ITEM_GRID_COLS = 'sm:grid-cols-[minmax(0,1fr)_110px_140px_100px]'
@@ -602,21 +607,20 @@ function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteT
           <p className={`text-sm font-medium transition-all ${item.checked ? 'text-dark-500 line-through' : 'text-dark-100'}`}>
             {item.product_name}
           </p>
-          {/* Tienda */}
+          {/* Tienda. El ítem libre dice "Sin tienda" en el mismo renglón y con
+              el mismo tono en que los demás dicen la suya: antes llevaba una
+              insignia en mayúscula y color que pesaba más que el nombre del
+              producto y rompía la lectura vertical de la columna. */}
           <div className="flex items-center gap-1.5 mt-1 sm:mt-0.5">
-            {isFree ? (
-              <span className="text-[10px] bg-primary-600/15 text-primary-600 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
-                Libre
-              </span>
-            ) : (
-              <>
-                <Store className="hidden sm:inline w-3 h-3 text-dark-400" />
-                <span className="text-xs text-dark-400">{item.store_name}</span>
-              </>
-            )}
+            <Store className="hidden sm:inline w-3 h-3 text-dark-400" />
+            <span className={`text-xs ${isFree ? 'text-dark-500 italic' : 'text-dark-400'}`}>
+              {isFree ? 'Sin tienda' : item.store_name}
+            </span>
           </div>
-          {/* Precio catálogo — solo móvil (desktop lo muestra en columna separada) */}
-          {!isFree && item.price_catalog_snapshot != null && (
+          {/* Precio — solo móvil (desktop lo muestra en columna separada). Los
+              ítems libres también lo tienen: el precio que se les pone al
+              crearlos se guarda en el mismo campo. */}
+          {item.price_catalog_snapshot != null && (
             <p className="sm:hidden text-xs text-dark-400 mt-1">
               Precio: <span className="text-dark-300 font-medium">${catalogPrice.toLocaleString('es-CO')}</span>
               {item.quantity > 1 && (
@@ -704,10 +708,10 @@ function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteT
             <button
               onClick={() => onPromoteToProduct?.(item.product_name)}
               title="Guardar este producto en el catálogo"
-              className="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 mt-1.5 rounded bg-dark-800 text-dark-400 hover:text-primary-600 hover:bg-primary-600/10 transition-colors"
+              className="flex items-center gap-1 whitespace-nowrap text-[10px] px-1.5 py-0.5 mt-1 rounded bg-dark-800 text-dark-400 hover:text-primary-600 hover:bg-primary-600/10 transition-colors"
             >
               <BookmarkPlus className="w-2.5 h-2.5" />
-              Guardar como producto
+              Guardar
             </button>
           )}
         </div>
@@ -1611,6 +1615,12 @@ export default function ListDetail() {
               {Array.from(new Set(list.items.filter(i => i.store_name).map(i => i.store_name))).sort().map(store => (
                 <option key={store} value={store}>{store}</option>
               ))}
+              {/* Los ítems libres entran como una "tienda" más en vez de llevar
+                  su propio control: es donde el usuario ya va a buscar por
+                  procedencia, y son los únicos que no tienen ninguna. */}
+              {list.items.some(i => !i.store_name) && (
+                <option value={NO_STORE}>Sin tienda</option>
+              )}
             </select>
             <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-dark-500">
               <Filter className="w-4 h-4" />
@@ -1663,6 +1673,9 @@ export default function ListDetail() {
           ) : (
             (() => {
               const needle = searchTerm.toLowerCase();
+              // Lo que se le enseña al usuario cuando el filtro no devuelve nada:
+              // el centinela de "sin tienda" no es un texto presentable.
+              const storeLabel = selectedStore === NO_STORE ? 'Sin tienda' : selectedStore;
               const filteredItems = list.items.filter(item => {
                 // store_name llega nulo en los ítems libres —es la señal que usa
                 // el backend para decir "este producto no es de ninguna tienda"—,
@@ -1670,7 +1683,9 @@ export default function ListDetail() {
                 // entera en cuanto una contenía uno.
                 const matchesSearch = item.product_name.toLowerCase().includes(needle) ||
                                     (item.store_name ?? '').toLowerCase().includes(needle);
-                const matchesStore = selectedStore === 'all' || item.store_name === selectedStore;
+                const matchesStore =
+                  selectedStore === 'all' ||
+                  (selectedStore === NO_STORE ? !item.store_name : item.store_name === selectedStore);
                 const matchesPending = !pendingOnly || !item.checked;
                 return matchesSearch && matchesStore && matchesPending;
               });
@@ -1682,8 +1697,8 @@ export default function ListDetail() {
                       {selectedStore !== 'all' ? <Store className="w-8 h-8 text-dark-700" /> : <Search className="w-8 h-8 text-dark-700" />}
                       <p className="text-dark-500 text-sm italic">
                         {pendingOnly
-                          ? `No falta nada por comprar ${selectedStore !== 'all' ? `en "${selectedStore}"` : ''}`
-                          : `No se encontraron productos ${selectedStore !== 'all' ? `en "${selectedStore}"` : ''}`}
+                          ? `No falta nada por comprar ${selectedStore !== 'all' ? `en "${storeLabel}"` : ''}`
+                          : `No se encontraron productos ${selectedStore !== 'all' ? `en "${storeLabel}"` : ''}`}
                         {searchTerm ? ` que coincidan con "${searchTerm}"` : ''}
                       </p>
                       {(searchTerm || selectedStore !== 'all' || pendingOnly) && (
