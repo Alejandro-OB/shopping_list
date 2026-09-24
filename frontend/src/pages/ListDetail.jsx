@@ -1580,9 +1580,14 @@ export default function ListDetail() {
             </div>
           ) : (
             (() => {
+              const needle = searchTerm.toLowerCase();
               const filteredItems = list.items.filter(item => {
-                const matchesSearch = item.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                    item.store_name.toLowerCase().includes(searchTerm.toLowerCase());
+                // store_name llega nulo en los ítems libres —es la señal que usa
+                // el backend para decir "este producto no es de ninguna tienda"—,
+                // y llamar toLowerCase() sobre él rompía el render de la lista
+                // entera en cuanto una contenía uno.
+                const matchesSearch = item.product_name.toLowerCase().includes(needle) ||
+                                    (item.store_name ?? '').toLowerCase().includes(needle);
                 const matchesStore = selectedStore === 'all' || item.store_name === selectedStore;
                 const matchesPending = !pendingOnly || !item.checked;
                 return matchesSearch && matchesStore && matchesPending;
