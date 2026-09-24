@@ -47,7 +47,7 @@ function getNextAvailableTuesday(existingLists) {
 const CATALOG_GRID_COLS = 'sm:grid-cols-[minmax(0,1fr)_140px_140px_100px]'
 
 // ── Fila: selección para lista + acciones CRUD ───────────────────────────────
-function CatalogRow({ row, productObj, isChecked, quantity, onToggle, onQuantityChange, onEdit, onDelete, onConsume }) {
+function CatalogRow({ row, productObj, isChecked, quantity, onToggle, onQuantityChange, onEdit, onDelete, onConsume, onStoreChange }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const freq = FREQ_LABELS[row.frequency] ?? { label: row.frequency, cls: 'badge-purple' }
@@ -99,6 +99,24 @@ function CatalogRow({ row, productObj, isChecked, quantity, onToggle, onQuantity
             >
               <Link2 className="w-3.5 h-3.5" /> Vincular tienda
             </button>
+          ) : row.stores.length > 1 ? (
+            // Con varias tiendas, la fila deja elegir en cuál se compra. Viene
+            // puesta la habitual, o la más barata si no hay ninguna marcada.
+            <div onClick={e => e.stopPropagation()} className="flex items-center gap-1.5 mt-0.5 min-w-0">
+              <Store className="w-3 h-3 text-dark-400 flex-shrink-0" />
+              <select
+                value={row.ps_id}
+                onChange={e => onStoreChange(row.product_id, Number(e.target.value))}
+                className="text-xs text-dark-400 bg-transparent border-0 p-0 pr-4 focus:ring-0 cursor-pointer max-w-[11rem] truncate"
+              >
+                {row.stores.map(st => (
+                  <option key={st.ps_id} value={st.ps_id}>
+                    {st.store} · ${Number(st.price).toLocaleString('es-CO')}
+                    {st.is_preferred ? ' ★' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
           ) : (
             <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
               <Store className="w-3 h-3 text-dark-400 flex-shrink-0" />
@@ -259,9 +277,12 @@ export default function Catalog() {
       setProductsRaw(validProducts)
       setStores(validStores)
 
-      // Aplanar productos en filas producto×tienda. Los productos sin ninguna
-      // tienda vinculada aún deben aparecer (fila "sin tienda"), para que no
-      // desaparezcan silenciosamente del catálogo.
+      // Una fila por producto, no por combinación producto×tienda. Con una fila
+      // por vínculo, un producto vendido en dos tiendas aparecía dos veces y
+      // lejos —las filas se ordenaban por tienda—, se marcaba dos veces sin
+      // querer y terminaba comprado dos veces. La tienda pasa a ser un dato de
+      // la fila que se puede cambiar. Los productos sin ninguna tienda
+      // vinculada siguen apareciendo, para que no desaparezcan en silencio.
       const flat = []
       for (const p of validProducts) {
         const links = (p.product_stores ?? []).filter(ps => !ps.is_deleted)
@@ -278,21 +299,36 @@ export default function Catalog() {
           })
           continue
         }
-        for (const ps of links) {
-          flat.push({
-            ps_id:      ps.id,
-            product_id: p.id,
-            store_id:   ps.store_id,
-            store:      ps.store?.name ?? '—',
-            product:    p.name,
-            frequency:  p.frequency,
-            price:      ps.price_catalog,
-            stock:      p.stock,
-            stock_min:  p.stock_min,
-          })
-        }
+        // La tienda que la fila trae puesta es la habitual del producto y, si no
+        // hay ninguna marcada, la más barata: el mismo criterio con el que el
+        // generador arma las listas automáticas, para que lo que se ve en el
+        // catálogo sea lo que se va a comprar.
+        const preferred = links.find(ps => ps.is_preferred)
+        const chosen = preferred ?? links.reduce(
+          (min, ps) => (Number(ps.price_catalog) < Number(min.price_catalog) ? ps : min),
+          links[0],
+        )
+        flat.push({
+          product_id: p.id,
+          product:    p.name,
+          frequency:  p.frequency,
+          stock:      p.stock,
+          stock_min:  p.stock_min,
+          ps_id:      chosen.id,
+          store_id:   chosen.store_id,
+          store:      chosen.store?.name ?? '—',
+          price:      chosen.price_catalog,
+          is_preferred: !!chosen.is_preferred,
+          stores:     links.map(ps => ({
+            ps_id: ps.id,
+            store_id: ps.store_id,
+            store: ps.store?.name ?? '—',
+            price: ps.price_catalog,
+            is_preferred: !!ps.is_preferred,
+          })),
+        })
       }
-      flat.sort((a, b) => (a.store ?? '').localeCompare(b.store ?? ''))
+      flat.sort((a, b) => (a.product ?? '').localeCompare(b.product ?? ''))
       setRows(flat)
     } catch {
       toast.error('Error al cargar el catálogo')
@@ -308,9 +344,16 @@ export default function Catalog() {
   const filtered = useMemo(() => {
     return rows.filter(r => {
       const q = search.toLowerCase()
-      const matchSearch = r.product.toLowerCase().includes(q) || (r.store ?? '').toLowerCase().includes(q)
+      // Se busca y se filtra contra todas las tiendas del producto y no solo
+      // contra la que la fila trae puesta: el producto se vende en varias y
+      // seguiría estando en las demás.
+      const stores = r.stores ?? []
+      const matchSearch =
+        r.product.toLowerCase().includes(q) ||
+        stores.some(st => (st.store ?? '').toLowerCase().includes(q))
       const matchFreq   = freqFilter === 'all' || r.frequency === freqFilter
-      const matchStore  = storeFilter === 'all' || String(r.store_id) === storeFilter
+      const matchStore  =
+        storeFilter === 'all' || stores.some(st => String(st.store_id) === storeFilter)
       return matchSearch && matchFreq && matchStore
     })
   }, [rows, search, freqFilter, storeFilter])
@@ -319,7 +362,9 @@ export default function Catalog() {
 
   const storeOptions = useMemo(() => {
     const seen = new Map()
-    rows.forEach(r => { if (r.store_id != null && !seen.has(r.store_id)) seen.set(r.store_id, r.store) })
+    rows.forEach(r => (r.stores ?? []).forEach(st => {
+      if (st.store_id != null && !seen.has(st.store_id)) seen.set(st.store_id, st.store)
+    }))
     return [...seen.entries()].map(([id, name]) => ({ id, name }))
   }, [rows])
 
@@ -410,6 +455,29 @@ export default function Catalog() {
     }
   }
 
+  // ── Tienda de la fila ─────────────────────────────────────────────────────
+  // Cambiar de tienda cambia el vínculo con el que el producto entrará en la
+  // lista, así que la selección tiene que viajar con él o se añadiría la tienda
+  // que ya no está a la vista.
+  const handleStoreChange = (productId, psId) => {
+    const row = rows.find(r => r.product_id === productId)
+    if (!row) return
+    const next = row.stores.find(st => st.ps_id === psId)
+    if (!next) return
+
+    setRows(prev => prev.map(r => r.product_id === productId
+      ? { ...r, ps_id: next.ps_id, store_id: next.store_id, store: next.store, price: next.price, is_preferred: next.is_preferred }
+      : r))
+    setSelected(prev => {
+      if (!prev.has(row.ps_id)) return prev
+      const copy = new Map(prev)
+      const quantity = copy.get(row.ps_id)
+      copy.delete(row.ps_id)
+      copy.set(next.ps_id, quantity)
+      return copy
+    })
+  }
+
   // ── Merma ─────────────────────────────────────────────────────────────────
   // Descontar lo consumido es la única parte del inventario que nadie puede
   // hacer por el usuario: el consumo no se observa. Se actualiza en memoria en
@@ -473,7 +541,7 @@ export default function Catalog() {
               Catálogo de Productos
             </h1>
             <p className="text-dark-400 text-sm mt-0.5">
-              {rows.length - unlinkedCount} combinación(es) producto-tienda disponibles
+              {rows.length - unlinkedCount} producto(s) con tienda
               {unlinkedCount > 0 && ` · ${unlinkedCount} sin tienda vinculada`}
             </p>
           </div>
@@ -648,6 +716,7 @@ export default function Catalog() {
                     onEdit={p => setModal(p)}
                     onDelete={handleDelete}
                     onConsume={handleConsume}
+                    onStoreChange={handleStoreChange}
                   />
                 ))
               )}

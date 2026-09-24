@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  Package, Plus, X, Check, Loader2, Store, Link2, AlertCircle, Tag, Boxes,
+  Package, Plus, X, Check, Loader2, Store, Link2, AlertCircle, Tag, Boxes, Star,
 } from 'lucide-react'
 import api from '../api/axios'
 import { apiCache } from '../api/cache'
@@ -76,6 +76,10 @@ export default function ProductModal({ product, stores, onClose, onSaved, initia
     }
   }
 
+  const markPreferred = (index) => {
+    setStoreLinks(prev => prev.map((l, i) => ({ ...l, is_preferred: i === index })))
+  }
+
   const handleChange = (e) => setForm(f => ({ ...f, [e.target.name]: e.target.value }))
 
   // Construye un link a partir de los campos sueltos de "Tienda..."/"Precio $".
@@ -138,22 +142,30 @@ export default function ProductModal({ product, stores, onClose, onSaved, initia
       if (removedLinks.length > 0)
         await Promise.all(removedLinks.map(id => api.delete(`/stores/product-store/${id}/`)))
 
-      await Promise.all(finalStoreLinks.map(link => {
+      // Los vínculos se guardan en serie y no en paralelo: marcar una tienda
+      // como habitual apaga las demás en el servidor, y dos de esas peticiones
+      // a la vez pueden pisarse contra el índice que exige una sola por
+      // producto.
+      for (const link of finalStoreLinks) {
         if (!link.id) {
-          return api.post('/stores/product-store/', {
+          await api.post('/stores/product-store/', {
             product_id,
             store_id: link.store_id,
             price_catalog: Number(link.price_catalog),
+            is_preferred: !!link.is_preferred,
           })
+          continue
         }
         const original = product?.product_stores?.find(ps => ps.id === link.id)
-        if (original && Number(original.price_catalog) !== Number(link.price_catalog)) {
-          return api.patch(`/stores/product-store/${link.id}/`, {
-            price_catalog: Number(link.price_catalog),
+        const priceChanged = original && Number(original.price_catalog) !== Number(link.price_catalog)
+        const preferredChanged = original && !!original.is_preferred !== !!link.is_preferred
+        if (priceChanged || preferredChanged) {
+          await api.patch(`/stores/product-store/${link.id}/`, {
+            ...(priceChanged ? { price_catalog: Number(link.price_catalog) } : {}),
+            ...(preferredChanged ? { is_preferred: !!link.is_preferred } : {}),
           })
         }
-        return Promise.resolve()
-      }))
+      }
 
       apiCache.invalidate('/products/')
       onSaved()
@@ -347,9 +359,20 @@ export default function ProductModal({ product, stores, onClose, onSaved, initia
                 <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
                   {storeLinks.map((link, i) => (
                     <div key={i} className="flex items-center justify-between bg-dark-800 rounded-lg px-3 py-2 text-sm border border-dark-700/50">
-                      <div className="flex items-center gap-2">
-                        <Store className="w-3.5 h-3.5 text-fuchsia-600" />
-                        <span className="text-dark-200 truncate max-w-[150px]">{link.store?.name || link.store_name}</span>
+                      <div className="flex items-center gap-2 min-w-0">
+                        {/* La estrella marca dónde se compra habitualmente este
+                            producto: es la tienda que usa la generación
+                            automática, por encima de la más barata. */}
+                        <button
+                          type="button"
+                          onClick={() => markPreferred(i)}
+                          title={link.is_preferred ? 'Es la tienda habitual' : 'Marcar como tienda habitual'}
+                          className={`p-0.5 transition-colors ${link.is_preferred ? 'text-amber-500' : 'text-dark-600 hover:text-amber-500'}`}
+                        >
+                          <Star className={`w-3.5 h-3.5 ${link.is_preferred ? 'fill-amber-500' : ''}`} />
+                        </button>
+                        <Store className="w-3.5 h-3.5 text-fuchsia-600 flex-shrink-0" />
+                        <span className="text-dark-200 truncate max-w-[130px]">{link.store?.name || link.store_name}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="relative">
