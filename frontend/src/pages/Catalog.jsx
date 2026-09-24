@@ -47,7 +47,7 @@ function getNextAvailableTuesday(existingLists) {
 const CATALOG_GRID_COLS = 'sm:grid-cols-[minmax(0,1fr)_140px_140px_100px]'
 
 // ── Fila: selección para lista + acciones CRUD ───────────────────────────────
-function CatalogRow({ row, productObj, isChecked, quantity, onToggle, onQuantityChange, onEdit, onDelete }) {
+function CatalogRow({ row, productObj, isChecked, quantity, onToggle, onQuantityChange, onEdit, onDelete, onConsume }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const freq = FREQ_LABELS[row.frequency] ?? { label: row.frequency, cls: 'badge-purple' }
@@ -112,6 +112,35 @@ function CatalogRow({ row, productObj, isChecked, quantity, onToggle, onQuantity
             </span>
             <span className={freq.cls}>{freq.label}</span>
           </div>
+          {/* Existencias. Solo aparece en los productos que llevan inventario;
+              el resto se sigue generando por fecha y no tiene nada que contar. */}
+          {row.stock != null && (
+            <div onClick={e => e.stopPropagation()} className="flex items-center gap-1.5 mt-1.5">
+              <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded ${
+                Number(row.stock) <= Number(row.stock_min)
+                  ? 'bg-red-500/10 text-red-600'
+                  : 'bg-teal-500/10 text-teal-700'
+              }`}>
+                Quedan {Number(row.stock)}
+              </span>
+              <button
+                onClick={() => onConsume(row.product_id, -1)}
+                disabled={Number(row.stock) <= 0}
+                title="Descontar uno"
+                className="w-7 h-7 inline-flex items-center justify-center rounded border border-dark-700 text-dark-400 hover:text-primary-600 hover:bg-dark-800 transition-colors disabled:opacity-30"
+              >
+                <Minus className="w-3 h-3" />
+              </button>
+              <button
+                onClick={() => onConsume(row.product_id, -Number(row.stock))}
+                disabled={Number(row.stock) <= 0}
+                title="Se acabó"
+                className="text-[11px] px-1.5 py-1 rounded text-dark-500 hover:text-red-600 hover:bg-red-500/10 transition-colors disabled:opacity-30"
+              >
+                Se acabó
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -258,6 +287,8 @@ export default function Catalog() {
             product:    p.name,
             frequency:  p.frequency,
             price:      ps.price_catalog,
+            stock:      p.stock,
+            stock_min:  p.stock_min,
           })
         }
       }
@@ -376,6 +407,28 @@ export default function Catalog() {
       toast.error(err.response?.data?.detail || 'Error al agregar productos')
     } finally {
       setAdding(false)
+    }
+  }
+
+  // ── Merma ─────────────────────────────────────────────────────────────────
+  // Descontar lo consumido es la única parte del inventario que nadie puede
+  // hacer por el usuario: el consumo no se observa. Se actualiza en memoria en
+  // vez de recargar el catálogo entero para no perder el scroll a media lista.
+  const handleConsume = async (productId, delta) => {
+    try {
+      const { data } = await api.patch(`/products/${productId}/stock/`, { delta })
+      apiCache.invalidate('/products/')
+      setRows(prev => prev.map(r =>
+        r.product_id === productId ? { ...r, stock: data.stock } : r
+      ))
+      setProductsRaw(prev => prev.map(p =>
+        p.id === productId ? { ...p, stock: data.stock } : p
+      ))
+      if (Number(data.stock) <= Number(data.stock_min)) {
+        toast.success('Anotado. Entra en la próxima lista generada.')
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'No se pudo actualizar el inventario')
     }
   }
 
@@ -594,6 +647,7 @@ export default function Catalog() {
                     onQuantityChange={updateQuantity}
                     onEdit={p => setModal(p)}
                     onDelete={handleDelete}
+                    onConsume={handleConsume}
                   />
                 ))
               )}

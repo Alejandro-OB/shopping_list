@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  Package, Plus, X, Check, Loader2, Store, Link2, AlertCircle, Tag,
+  Package, Plus, X, Check, Loader2, Store, Link2, AlertCircle, Tag, Boxes,
 } from 'lucide-react'
 import api from '../api/axios'
 import { apiCache } from '../api/cache'
@@ -33,6 +33,19 @@ export default function ProductModal({ product, stores, onClose, onSaved, initia
       : new Date().toISOString().split('T')[0],
   })
   const [loading, setLoading] = useState(false)
+
+  // Inventario. Se guarda aparte del resto del formulario porque su interruptor
+  // decide si los campos viajan o no: con el inventario apagado, stock va nulo,
+  // que es lo que el backend entiende por "de este producto no se lleva
+  // cuenta", y el producto se sigue generando por calendario.
+  const [tracksStock, setTracksStock] = useState(product?.stock != null)
+  const [stockForm, setStockForm] = useState({
+    stock: product?.stock ?? 0,
+    stock_min: product?.stock_min ?? 0,
+    units_per_purchase: product?.units_per_purchase ?? 1,
+  })
+  const handleStockChange = (e) =>
+    setStockForm(f => ({ ...f, [e.target.name]: e.target.value }))
 
   const [localStores, setLocalStores] = useState(stores)
   const [creatingStore, setCreatingStore] = useState(false)
@@ -102,7 +115,13 @@ export default function ProductModal({ product, stores, onClose, onSaved, initia
       }
 
       // Normalizar payload: enviar category=null si está vacío (en vez de "")
-      const payload = { ...form, category: form.category || null }
+      const payload = {
+        ...form,
+        category: form.category || null,
+        stock: tracksStock ? Number(stockForm.stock) || 0 : null,
+        stock_min: tracksStock ? Number(stockForm.stock_min) || 0 : 0,
+        units_per_purchase: tracksStock ? Number(stockForm.units_per_purchase) || 1 : 1,
+      }
       let savedProduct
       if (isEdit) {
         const { data } = await api.put(`/products/${product.id}/`, payload)
@@ -224,6 +243,62 @@ export default function ProductModal({ product, stores, onClose, onSaved, initia
                 className="input"
               />
             </div>
+          </div>
+
+          {/* Inventario. Apagado, el producto entra en las listas por
+              calendario, como siempre. Encendido, manda lo que haya en casa. */}
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => setTracksStock(v => !v)}
+              className="flex items-center gap-2 text-left w-full"
+            >
+              <span className={`w-9 h-5 rounded-full flex-shrink-0 transition-colors relative ${tracksStock ? 'bg-primary-600' : 'bg-dark-700'}`}>
+                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${tracksStock ? 'left-4' : 'left-0.5'}`} />
+              </span>
+              <span className="label mb-0 flex items-center gap-1.5">
+                <Boxes className="w-3.5 h-3.5" /> Llevar inventario
+              </span>
+            </button>
+
+            {tracksStock ? (
+              <>
+                <div className="grid grid-cols-3 gap-3 mt-3">
+                  <div>
+                    <label className="label">Tengo</label>
+                    <input
+                      name="stock" type="number" min="0" step="1"
+                      value={stockForm.stock} onChange={handleStockChange}
+                      className="input" />
+                  </div>
+                  <div>
+                    <label className="label">Reponer en</label>
+                    <input
+                      name="stock_min" type="number" min="0" step="1"
+                      value={stockForm.stock_min} onChange={handleStockChange}
+                      className="input" />
+                  </div>
+                  <div>
+                    <label className="label">Trae por compra</label>
+                    <input
+                      name="units_per_purchase" type="number" min="1" step="1"
+                      value={stockForm.units_per_purchase} onChange={handleStockChange}
+                      className="input" />
+                  </div>
+                </div>
+                <p className="text-[11px] text-dark-500 mt-2 leading-relaxed">
+                  Se cuenta en lo que consumes, no en lo que compras: si un pollo
+                  da 8 presas, pon 8 en «trae por compra» y lleva la cuenta en
+                  presas. Entra en la lista al llegar a «reponer en», sin esperar
+                  a la fecha, y se salta mientras quede algo.
+                </p>
+              </>
+            ) : (
+              <p className="text-[11px] text-dark-500 mt-2 leading-relaxed">
+                Sin inventario, este producto entra en las listas según su
+                frecuencia y fecha de inicio.
+              </p>
+            )}
           </div>
 
           <div className="space-y-3 pt-2">
