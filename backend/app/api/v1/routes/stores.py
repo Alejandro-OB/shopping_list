@@ -181,7 +181,24 @@ def delete_product_store(
     """
     Elimina (Soft Delete) una relación producto-tienda.
     """
+    from app.models.product_store import ProductStore
+
     db_obj = _owned_product_store(db, id, current_user.id)
+
+    # No se quita la última: un producto sin tienda no tiene precio ni se puede
+    # añadir a una lista, así que dejarlo así lo saca del catálogo en la
+    # práctica sin que nadie lo haya pedido. Para eso está borrar el producto.
+    remaining = db.query(ProductStore).filter(
+        ProductStore.product_id == db_obj.product_id,
+        ProductStore.id != db_obj.id,
+        ProductStore.is_deleted == False,  # noqa: E712
+    ).count()
+    if remaining == 0:
+        raise HTTPException(
+            status_code=400,
+            detail="El producto debe quedar con al menos una tienda. Vincula otra antes de quitar esta.",
+        )
+
     db_obj.is_deleted = True
     db.add(db_obj)
     db.commit()

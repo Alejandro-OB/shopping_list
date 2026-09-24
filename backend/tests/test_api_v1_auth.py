@@ -204,3 +204,50 @@ def test_cannot_link_a_store_to_another_users_product(client: TestClient, sessio
     )
 
     assert response.status_code == 404
+
+
+# ── Un producto no existe sin tienda ─────────────────────────────────────────
+
+def test_product_requires_at_least_one_store(client: TestClient, auth_headers):
+    """
+    Test que no se pueda crear un producto sin ninguna tienda.
+    """
+    from datetime import datetime, timezone
+    response = client.post(
+        "/api/v1/products/",
+        json={
+            "name": "Suelto",
+            "frequency": "weekly",
+            "frequency_start_date": datetime.now(timezone.utc).isoformat(),
+            "stores": [],
+        },
+        headers=auth_headers,
+    )
+    assert response.status_code == 422
+
+
+def test_cannot_unlink_the_last_store_of_a_product(client: TestClient, session: Session, auth_headers, test_user):
+    """
+    Test que no se pueda quitar la única tienda de un producto.
+    """
+    from datetime import datetime, timezone
+    from app.models.product import Product, FrequencyEnum
+    from app.models.store import Store
+    from app.models.product_store import ProductStore
+
+    product = Product(
+        name="Con una sola", frequency=FrequencyEnum.weekly,
+        frequency_start_date=datetime.now(timezone.utc), user=test_user,
+    )
+    store = Store(name="Única", user=test_user)
+    session.add_all([product, store])
+    session.commit()
+    ps = ProductStore(product=product, store=store, price_catalog=100)
+    session.add(ps)
+    session.commit()
+
+    response = client.delete(f"/api/v1/stores/product-store/{ps.id}/", headers=auth_headers)
+
+    assert response.status_code == 400
+    session.refresh(ps)
+    assert ps.is_deleted is False

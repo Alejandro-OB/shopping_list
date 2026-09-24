@@ -118,6 +118,15 @@ export default function ProductModal({ product, stores, onClose, onSaved, initia
         finalStoreLinks = [...finalStoreLinks, pending]
       }
 
+      // Un producto sin tienda no tiene precio ni se puede añadir a una lista:
+      // el servidor lo rechaza y aquí se dice antes, con el texto de la acción
+      // que falta en vez de un error del formulario.
+      if (finalStoreLinks.length === 0) {
+        toast.error('Vincula al menos una tienda con su precio antes de guardar.')
+        setLoading(false)
+        return
+      }
+
       // Normalizar payload: enviar category=null si está vacío (en vez de "")
       const payload = {
         ...form,
@@ -132,9 +141,23 @@ export default function ProductModal({ product, stores, onClose, onSaved, initia
         savedProduct = data
         toast.success('Producto actualizado')
       } else {
-        const { data } = await api.post('/products/', payload)
+        // Al crear, las tiendas viajan con el producto: el servidor exige al
+        // menos una y las guarda en la misma transacción, así no queda un
+        // producto suelto si algo falla después.
+        const { data } = await api.post('/products/', {
+          ...payload,
+          stores: finalStoreLinks.map(link => ({
+            store_id: link.store_id,
+            price_catalog: Number(link.price_catalog),
+            is_preferred: !!link.is_preferred,
+          })),
+        })
         savedProduct = data
         toast.success('Producto creado')
+        apiCache.invalidate('/products/')
+        onSaved()
+        onClose()
+        return
       }
 
       const product_id = savedProduct.id
@@ -187,6 +210,10 @@ export default function ProductModal({ product, stores, onClose, onSaved, initia
   }
 
   const removeLink = (index) => {
+    if (storeLinks.length === 1) {
+      toast.error('El producto debe quedar con al menos una tienda.')
+      return
+    }
     const link = storeLinks[index]
     if (link.id) setRemovedLinks(prev => [...prev, link.id])
     setStoreLinks(prev => prev.filter((_, i) => i !== index))

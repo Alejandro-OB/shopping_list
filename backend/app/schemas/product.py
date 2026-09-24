@@ -20,8 +20,19 @@ class ProductBase(BaseModel):
     stock_min: float = Field(0, ge=0)
     units_per_purchase: float = Field(1, gt=0)
 
+class ProductStoreInProduct(BaseModel):
+    """Tienda con la que nace el producto."""
+    store_id: int
+    price_catalog: float = Field(..., ge=0)
+    is_preferred: bool = False
+
+
 class ProductCreate(ProductBase):
-    pass
+    # Al menos una tienda, y en la misma petición: un producto sin tienda no se
+    # puede añadir a ninguna lista ni tiene precio, así que no es un producto
+    # todavía, es un nombre suelto. Crearlo en dos pasos dejaba ese estado a
+    # medias si el segundo fallaba.
+    stores: List[ProductStoreInProduct] = Field(..., min_length=1)
 
 class ProductUpdate(BaseModel):
     name: Optional[str] = None

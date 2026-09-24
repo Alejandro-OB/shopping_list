@@ -31,10 +31,53 @@ def create_product(
     current_user: User = Depends(get_current_user),
 ) -> Any:
     """
-    Crea un nuevo producto en el catálogo del usuario.
+    Crea un nuevo producto en el catálogo del usuario, con sus tiendas.
     """
-    product_repo = ProductRepository(db)
-    return product_repo.create(obj_in=product_in, user_id=current_user.id)
+    from app.models.product_store import ProductStore
+    from app.models.store import Store
+
+    store_ids = [s.store_id for s in product_in.stores]
+    if len(set(store_ids)) != len(store_ids):
+        raise HTTPException(status_code=400, detail="Hay una tienda repetida en el producto")
+    if sum(1 for s in product_in.stores if s.is_preferred) > 1:
+        raise HTTPException(status_code=400, detail="Solo puede haber una tienda habitual")
+
+    owned = {
+        store.id
+        for store in db.query(Store).filter(Store.id.in_(store_ids)).all()
+        if store.user_id == current_user.id
+    }
+    if len(owned) != len(set(store_ids)):
+        raise HTTPException(status_code=404, detail="Tienda no encontrada")
+
+    # El producto se construye aquí y no con el create genérico del repositorio:
+    # ese vuelca todos los campos del esquema sobre el modelo, y "stores" no es
+    # una columna sino los vínculos que se crean a continuación.
+    from app.models.product import Product
+
+    product = Product(
+        name=product_in.name,
+        category=product_in.category,
+        frequency=product_in.frequency,
+        frequency_start_date=product_in.frequency_start_date,
+        stock=product_in.stock,
+        stock_min=product_in.stock_min,
+        units_per_purchase=product_in.units_per_purchase,
+        user_id=current_user.id,
+    )
+    db.add(product)
+    db.flush()
+
+    for link in product_in.stores:
+        db.add(ProductStore(
+            product_id=product.id,
+            store_id=link.store_id,
+            price_catalog=link.price_catalog,
+            is_preferred=link.is_preferred,
+        ))
+    db.commit()
+    db.refresh(product)
+    return product
 
 @router.get("/{id}/", response_model=ProductOut)
 def read_product(
