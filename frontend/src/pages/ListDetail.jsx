@@ -482,7 +482,7 @@ const money = (n) => `$${Math.round(n).toLocaleString('es-CO')}`
 // distintas no se pagan lo del otro.
 const NO_STORE_GROUP = 'Sin tienda'
 
-function CartCheckoutModal({ items, listId, onClose, onConfirm }) {
+function CartCheckoutModal({ items, listId, onClose, onConfirm, title = 'Pagar la cesta' }) {
   const [prices, setPrices] = useState(() =>
     Object.fromEntries(items.map(i => [i.id, String(expectedPrice(i, listId) || '')]))
   )
@@ -572,8 +572,8 @@ function CartCheckoutModal({ items, listId, onClose, onConfirm }) {
           <h2 className="text-sm font-bold text-dark-200 flex items-center gap-2">
             <ShoppingBasket className="w-4 h-4 text-primary-500" />
             {single
-              ? `Pagar la cesta · ${groups[0]?.[0] ?? ''}`
-              : `Pagar la cesta · ${groups.length} tiendas`}
+              ? `${title} · ${groups[0]?.[0] ?? ''}`
+              : `${title} · ${groups.length} tiendas`}
           </h2>
           <button onClick={onClose} disabled={savingGroup !== null} className="btn-ghost p-1.5"><X className="w-4 h-4" /></button>
         </div>
@@ -1007,7 +1007,8 @@ export default function ListDetail() {
   const [loading, setLoading] = useState(true)
   const [completing, setCompleting] = useState(false)
   const [archiving, setArchiving] = useState(false)
-  const [showCheckout, setShowCheckout] = useState(false)
+  // Qué abre el modal de pago: la cesta, o todo lo que falta por comprar.
+  const [checkoutMode, setCheckoutMode] = useState(null) // null | 'cart' | 'pending'
   const [showCarryModal, setShowCarryModal] = useState(false)
   const [carriedTo, setCarriedTo] = useState(null)
   const [isEditingBudget, setIsEditingBudget] = useState(false)
@@ -1017,7 +1018,7 @@ export default function ListDetail() {
   // recalcular el total de la cesta cuando cambia uno.
   const [, setDraftVersion] = useState(0)
   const bumpDrafts = useCallback(() => setDraftVersion(v => v + 1), [])
-  const closeCheckout = useCallback(() => setShowCheckout(false), [])
+  const closeCheckout = useCallback(() => setCheckoutMode(null), [])
   const [showConfirm, setShowConfirm] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
   const [showCompareModal, setShowCompareModal] = useState(false)
@@ -1606,6 +1607,7 @@ export default function ListDetail() {
   // Completada o archivada, la lista se consulta pero ya no se edita.
   const isLocked = isCompleted || isArchived
   const cartItems = list.items.filter(i => i.in_cart && !i.checked)
+  const pendingItems = list.items.filter(i => !i.checked)
   const itemsInCart = cartItems.length
   const cartTotal = cartItems.reduce((acc, i) => acc + expectedPrice(i, id) * i.quantity, 0)
   const committed = totalReal + cartTotal
@@ -1624,9 +1626,10 @@ export default function ListDetail() {
         />
       )}
 
-      {showCheckout && (
+      {checkoutMode && (
         <CartCheckoutModal
-          items={cartItems}
+          items={checkoutMode === 'cart' ? cartItems : pendingItems}
+          title={checkoutMode === 'cart' ? 'Pagar la cesta' : 'Pagar todo lo pendiente'}
           listId={id}
           onClose={closeCheckout}
           onConfirm={handleCheckoutCart}
@@ -1939,7 +1942,7 @@ export default function ListDetail() {
                 </div>
                 {!isLocked && (
                   <button
-                    onClick={() => setShowCheckout(true)}
+                    onClick={() => setCheckoutMode('cart')}
                     className="ml-auto sm:ml-2 tap-target rounded-lg bg-teal-600 text-white font-semibold text-xs px-3 hover:bg-teal-500 transition-colors gap-1.5 flex-shrink-0"
                   >
                     <Check className="w-4 h-4" />
@@ -2014,6 +2017,22 @@ export default function ListDetail() {
                 </button>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Pagar todo lo que falta de una vez, sin pasarlo antes por la cesta:
+            para cuando se compró todo y solo queda registrarlo. Abre el mismo
+            modal de la cesta, así se revisan los precios y se puede pagar
+            tienda por tienda. */}
+        {!isLocked && pendingItems.length > 1 && (
+          <div className="mt-3 flex justify-end">
+            <button
+              onClick={() => setCheckoutMode('pending')}
+              className="btn-ghost text-xs text-teal-600 hover:text-teal-500 -mr-2"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              Marcar todo lo pendiente como comprado · {pendingItems.length}
+            </button>
           </div>
         )}
       </div>
