@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ShoppingCart, Trash2, Eye, Filter, Loader2, Search, Check, X } from 'lucide-react'
+import { ShoppingCart, Trash2, Eye, Filter, Loader2, Search, Check, X, Archive, ArchiveRestore } from 'lucide-react'
 import api from '../api/axios'
 import { apiCache } from '../api/cache'
 import { autoListDate, listTitle } from '../listLabels'
@@ -19,15 +19,17 @@ const STATUS_MAP = {
 // cortado contra el borde y los botones de ver y eliminar caían fuera de la
 // pantalla, sin forma de alcanzarlos. El mismo cambio que ya se hizo en el
 // catálogo (CatalogRow): rejilla que se apila en mobile y sin scroll lateral.
-const LIST_GRID_COLS = 'sm:grid-cols-[minmax(0,1fr)_160px_130px_110px]'
+const LIST_GRID_COLS = 'sm:grid-cols-[minmax(0,1fr)_160px_130px_140px]'
 
-function ListRow({ list, onView, onDelete }) {
+function ListRow({ list, onView, onDelete, onArchive }) {
   const s = STATUS_MAP[list.status] || { label: list.status, cls: 'badge-purple' }
   const date = new Date(list.date).toLocaleDateString('es-CO', {
     day: '2-digit', month: 'short', year: 'numeric'
   })
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [archiving, setArchiving] = useState(false)
+  const isArchived = !!list.archived_at
   const isCompleted = list.status === 'completed'
   // En las automáticas el título ya es la fecha, así que repetirla en mobile
   // parte el renglón en dos y no añade nada. En las demás sí informa.
@@ -40,6 +42,15 @@ function ListRow({ list, onView, onDelete }) {
     } finally {
       setDeleting(false)
       setConfirmDelete(false)
+    }
+  }
+
+  const handleArchive = async () => {
+    setArchiving(true)
+    try {
+      await onArchive(list.id, !isArchived)
+    } finally {
+      setArchiving(false)
     }
   }
 
@@ -88,6 +99,19 @@ function ListRow({ list, onView, onDelete }) {
             <span className="hidden sm:inline">Ver</span>
           </button>
 
+          {!confirmDelete && (
+            <button
+              onClick={handleArchive}
+              disabled={archiving}
+              title={isArchived ? 'Restaurar lista' : 'Archivar lista'}
+              className="tap-target btn-ghost text-xs px-2 py-1 text-dark-500 hover:text-dark-200 disabled:opacity-50"
+            >
+              {archiving
+                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                : isArchived ? <ArchiveRestore className="w-3.5 h-3.5" /> : <Archive className="w-3.5 h-3.5" />}
+            </button>
+          )}
+
           {/* Botón eliminar: solo en listas activas/draft */}
           {!isCompleted && (
             confirmDelete ? (
@@ -131,10 +155,28 @@ export default function ShoppingLists() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch]   = useState('')
   const [filter, setFilter]   = useState('all')
+  // Las archivadas no vienen con el resto: se piden aparte y solo cuando se
+  // elige verlas, así el listado y el inicio no cargan con ellas.
+  const [archivedLists, setArchivedLists] = useState(null)
+  const showingArchived = filter === 'archived'
 
   useEffect(() => {
     fetchLists()
   }, [])
+
+  useEffect(() => {
+    if (showingArchived && archivedLists === null) fetchArchived()
+  }, [showingArchived, archivedLists])
+
+  const fetchArchived = async () => {
+    try {
+      const { data } = await api.get('/lists/', { params: { archived: true } })
+      setArchivedLists(Array.isArray(data) ? data : [])
+    } catch {
+      toast.error('Error al cargar las listas archivadas')
+      setArchivedLists([])
+    }
+  }
 
   const fetchLists = async (force = false) => {
     if (!force) {
@@ -160,19 +202,38 @@ export default function ShoppingLists() {
       toast.success('Lista eliminada')
       apiCache.invalidate('/lists/')
       setLists(prev => prev.filter(l => l.id !== listId))
+      setArchivedLists(prev => prev && prev.filter(l => l.id !== listId))
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Error al eliminar la lista')
     }
   }
 
-  const filtered = lists.filter((l) => {
+  const handleArchiveList = async (listId, archive) => {
+    try {
+      const { data } = await api.post(`/lists/${listId}/${archive ? 'archive' : 'unarchive'}/`)
+      apiCache.invalidate('/lists/')
+      // La lista pasa de un grupo al otro. El de archivadas solo se toca si ya
+      // se cargó; si no, se pedirá completo al abrirlo.
+      const from = archive ? setLists : setArchivedLists
+      const to   = archive ? setArchivedLists : setLists
+      from(prev => prev && prev.filter(l => l.id !== listId))
+      to(prev => prev && [...prev, data].sort((a, b) => new Date(b.date) - new Date(a.date)))
+      toast.success(archive ? 'Lista archivada' : 'Lista restaurada')
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'No se pudo actualizar la lista')
+    }
+  }
+
+  const visibleLists = showingArchived ? (archivedLists || []) : lists
+
+  const filtered = visibleLists.filter((l) => {
     // Se busca contra los dos textos a propósito: el título que el usuario ve
     // ("Lista del 22 de sept") y el nombre guardado, que en las automáticas
     // trae la fecha ISO y es la única forma de buscar por "2026-09".
     const needle = search.toLowerCase()
     const matchSearch =
       l.name.toLowerCase().includes(needle) || listTitle(l).toLowerCase().includes(needle)
-    const matchFilter = filter === 'all' || l.status === filter
+    const matchFilter = filter === 'all' || showingArchived || l.status === filter
     return matchSearch && matchFilter
   })
 
@@ -213,6 +274,7 @@ export default function ShoppingLists() {
             <option value="draft">Borrador</option>
             <option value="active">Activa</option>
             <option value="completed">Completada</option>
+            <option value="archived">Archivadas</option>
           </select>
         </div>
       </div>
@@ -226,7 +288,7 @@ export default function ShoppingLists() {
           <span />
         </div>
         <div>
-          {loading ? (
+          {loading || (showingArchived && archivedLists === null) ? (
             [...Array(4)].map((_, i) => (
               <div key={i} className="px-4 py-3 border-b border-dark-800">
                 <div className="h-8 bg-dark-800 rounded animate-pulse" />
@@ -235,11 +297,13 @@ export default function ShoppingLists() {
           ) : filtered.length === 0 ? (
             <div className="px-4 py-16 text-center">
               <ShoppingCart className="w-10 h-10 text-dark-700 mx-auto mb-3" />
-              <p className="text-dark-500 text-sm">No se encontraron listas.</p>
+              <p className="text-dark-500 text-sm">
+                {showingArchived ? 'No hay listas archivadas.' : 'No se encontraron listas.'}
+              </p>
             </div>
           ) : (
             filtered.map((l) => (
-              <ListRow key={l.id} list={l} onView={(l) => navigate(`/lists/${l.id}`)} onDelete={handleDeleteList} />
+              <ListRow key={l.id} list={l} onView={(l) => navigate(`/lists/${l.id}`)} onDelete={handleDeleteList} onArchive={handleArchiveList} />
             ))
           )}
         </div>

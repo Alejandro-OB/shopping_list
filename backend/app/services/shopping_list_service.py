@@ -117,6 +117,12 @@ class ShoppingListService:
                 user.id, to_utc(week_start), to_utc(week_end)
             )
 
+            # Si la lista de la semana se archivó, el usuario ya decidió que
+            # esa semana no se compra: ni se le agregan ítems a escondidas ni
+            # se crea otra que le reaparezca al día siguiente.
+            if existing_list is not None and existing_list.archived_at is not None:
+                continue
+
             list_was_created = False
             if not existing_list:
                 from app.models.shopping_list import ShoppingList
@@ -183,14 +189,19 @@ class ShoppingListService:
         if item.shopping_list.status == ListStatus.completed:
             raise ValueError("No se puede editar una lista completada")
 
+        if item.shopping_list.archived_at is not None:
+            raise ValueError("No se puede editar una lista archivada")
+
         if item.checked:
             raise ValueError("El ítem ya ha sido comprado. El precio real no es modificable.")
 
         if price_real <= 0:
             raise ValueError("Se requiere un precio real mayor a 0 para completar la compra")
 
-        # Actualizar ítem
+        # Actualizar ítem. Pagado ya no está "en la cesta": esa marca solo
+        # tiene sentido mientras falta pasar por la caja.
         item.checked = True
+        item.in_cart = False
         item.price_real = price_real
 
         # Registrar en Historial de Precios (solo aplica a ítems vinculados a un
@@ -227,12 +238,43 @@ class ShoppingListService:
         
         if shopping_list.status == ListStatus.completed:
             raise ValueError("La lista ya ha sido completada")
+
+        if shopping_list.archived_at is not None:
+            raise ValueError("No se puede completar una lista archivada")
             
         shopping_list.status = ListStatus.completed
         self.db.add(shopping_list)
         self.db.commit()
         self.db.refresh(shopping_list)
         return shopping_list
+
+    def archive_list(self, list_id: int):
+        """
+        Aparta la lista sin borrarla. Vale para cualquier estado: una lista que
+        nunca se usó o una completada que ya no interesa ver. Lo comprado en
+        ella sigue contando en el historial y las métricas.
+        """
+        shopping_list = self.list_repo.get(list_id)
+        if not shopping_list:
+            raise ValueError("Lista no encontrada")
+        if shopping_list.archived_at is not None:
+            raise ValueError("La lista ya está archivada")
+
+        shopping_list.archived_at = to_utc(now_bogota())
+        self.db.commit()
+        return self.list_repo.get(list_id)
+
+    def unarchive_list(self, list_id: int):
+        """Devuelve la lista al listado con el estado que tenía al archivarla."""
+        shopping_list = self.list_repo.get(list_id)
+        if not shopping_list:
+            raise ValueError("Lista no encontrada")
+        if shopping_list.archived_at is None:
+            raise ValueError("La lista no está archivada")
+
+        shopping_list.archived_at = None
+        self.db.commit()
+        return self.list_repo.get(list_id)
 
     def compare_stores_for_list(self, list_id: int, user_id: int):
         """

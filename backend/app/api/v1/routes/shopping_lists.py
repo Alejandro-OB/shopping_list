@@ -92,6 +92,9 @@ def create_shopping_list(
                 ShoppingList.user_id == current_user.id,
                 ShoppingList.date >= week_start,
                 ShoppingList.date <  week_end,
+                # Archivar una lista es dar esa semana por libre: si no, la
+                # lista que nunca se usó impediría armar la que sí se va a usar.
+                ShoppingList.archived_at.is_(None),
             )
         )
     ).scalars().first()
@@ -177,6 +180,8 @@ def add_items_to_list(
         raise HTTPException(status_code=404, detail="Lista no encontrada")
     if shopping_list.status == ModelListStatus.completed:
         raise HTTPException(status_code=400, detail="No se pueden agregar ítems a una lista ya completada")
+    if shopping_list.archived_at is not None:
+        raise HTTPException(status_code=400, detail="No se pueden agregar ítems a una lista archivada")
 
     # Productos ya presentes en la lista. Se mira el producto y no el vínculo:
     # el mismo producto comprado en otra tienda sigue siendo el mismo producto,
@@ -224,14 +229,16 @@ def read_shopping_lists(
     db: Session = Depends(get_db),
     skip: int = 0,
     limit: int = 100,
+    archived: bool = False,
     current_user: User = Depends(get_current_user),
 ) -> Any:
     """
-    Obtiene el historial de listas de compras del usuario.
+    Obtiene el historial de listas de compras del usuario. Por defecto deja
+    fuera las archivadas; con `archived=true` devuelve solo esas.
     """
     from app.repositories.shopping_list_repo import ShoppingListRepository
     repo = ShoppingListRepository(db)
-    return repo.get_by_user(current_user.id, skip=skip, limit=limit)
+    return repo.get_by_user(current_user.id, skip=skip, limit=limit, archived=archived)
 
 @router.patch("/{id}/", response_model=ShoppingListOut)
 def update_shopping_list(
@@ -255,6 +262,8 @@ def update_shopping_list(
         
     if shopping_list.status == ListStatus.completed:
         raise HTTPException(status_code=400, detail="No se puede modificar una lista completada")
+    if shopping_list.archived_at is not None:
+        raise HTTPException(status_code=400, detail="No se puede modificar una lista archivada")
 
     update_data = list_in.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -324,8 +333,12 @@ def update_shopping_item(
         
     if item.shopping_list.status == ListStatus.completed:
         raise HTTPException(status_code=400, detail="No se puede editar ítems de una lista completada")
+    if item.shopping_list.archived_at is not None:
+        raise HTTPException(status_code=400, detail="No se puede editar ítems de una lista archivada")
 
     update_data = item_in.model_dump(exclude_unset=True)
+    if update_data.get("in_cart") and item.checked:
+        raise HTTPException(status_code=400, detail="El ítem ya fue comprado")
     for field, value in update_data.items():
         setattr(item, field, value)
 
@@ -352,6 +365,8 @@ def delete_shopping_item(
         
     if item.shopping_list.status == ListStatus.completed:
         raise HTTPException(status_code=400, detail="No se puede eliminar ítems de una lista completada")
+    if item.shopping_list.archived_at is not None:
+        raise HTTPException(status_code=400, detail="No se puede eliminar ítems de una lista archivada")
         
     db.delete(item)
     db.commit()
@@ -674,8 +689,52 @@ def complete_shopping_list(
     
     if not shopping_list or shopping_list.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Lista no encontrada")
-        
-    return service.complete_list(id)
+
+    try:
+        return service.complete_list(id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/{id}/archive/", response_model=ShoppingListOut)
+def archive_shopping_list(
+    *,
+    db: Session = Depends(get_db),
+    id: int,
+    current_user: User = Depends(get_current_user),
+) -> Any:
+    """
+    Archiva la lista: sale del listado y queda de solo lectura, sin perder lo
+    que se haya comprado en ella. Se deshace con /unarchive/.
+    """
+    from app.models.shopping_list import ShoppingList
+
+    shopping_list = db.get(ShoppingList, id)
+    if not shopping_list or shopping_list.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Lista no encontrada")
+    try:
+        return ShoppingListService(db).archive_list(id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/{id}/unarchive/", response_model=ShoppingListOut)
+def unarchive_shopping_list(
+    *,
+    db: Session = Depends(get_db),
+    id: int,
+    current_user: User = Depends(get_current_user),
+) -> Any:
+    """
+    Devuelve una lista archivada al listado, con el estado que tenía.
+    """
+    from app.models.shopping_list import ShoppingList
+
+    shopping_list = db.get(ShoppingList, id)
+    if not shopping_list or shopping_list.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Lista no encontrada")
+    try:
+        return ShoppingListService(db).unarchive_list(id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @router.delete("/{id}/", response_model=ShoppingListOut)
 def delete_shopping_list(

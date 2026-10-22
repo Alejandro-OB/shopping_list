@@ -27,6 +27,7 @@ class ShoppingListItemCreate(BaseModel):
 
 class ShoppingListItemUpdate(BaseModel):
     checked: Optional[bool] = None
+    in_cart: Optional[bool] = None
     price_real: Optional[float] = Field(None, ge=0)
     quantity: Optional[int] = Field(None, ge=1)
 
@@ -37,6 +38,7 @@ class ShoppingListItemOut(BaseModel):
     free_name: Optional[str] = None
     quantity: int
     checked: bool
+    in_cart: bool = False
     price_catalog_snapshot: Optional[float] = None
     price_real: float
 
@@ -144,6 +146,7 @@ class ShoppingListOut(ShoppingListBase):
     user_id: int
     status: ListStatus
     is_auto_generated: bool
+    archived_at: Optional[datetime] = None
     items: List[ShoppingListItemOut] = []
 
     model_config = ConfigDict(from_attributes=True)

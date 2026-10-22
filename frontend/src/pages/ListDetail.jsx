@@ -6,7 +6,7 @@ import {
   Circle, AlertCircle, Loader2, Sparkles, Pencil, Save,
   TrendingDown, TrendingUp, Minus, Plus, Trash2, FileText, Download,
   FileSpreadsheet, MessageSquare, Search, Filter, Tag, RefreshCw, PackagePlus, ChevronDown, ChevronUp,
-  BookmarkPlus,
+  BookmarkPlus, ShoppingBasket, Archive, ArchiveRestore,
 } from 'lucide-react'
 import api from '../api/axios'
 import { apiCache } from '../api/cache'
@@ -493,7 +493,7 @@ function QuantityControls({ quantity, onChange, disabled }) {
   )
 }
 
-function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteToProduct, onCatalogUpdated, isDisabled }) {
+function ItemRow({ item, listId, onCheck, onToggleCart, onDelete, onUpdateQuantity, onPromoteToProduct, onCatalogUpdated, isDisabled }) {
   // Persistir el precio digitado en localStorage para no perderlo al refrescar
   const storageKey = `pendingPrice:${listId}:${item.id}`
   const [price, setPrice] = useState(() => {
@@ -592,7 +592,7 @@ function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteT
     // pantalla del teléfono, que es donde esta lista se usa. El orden de las
     // celdas se reordena con order-* porque en escritorio el DOM tiene que
     // seguir el de las columnas.
-    <div className={`grid grid-cols-[minmax(0,1fr)_auto] ${ITEM_GRID_COLS} sm:items-center gap-x-3 gap-y-2 sm:gap-y-0 px-4 py-3 sm:py-4 border-b border-dark-800 transition-colors ${item.checked ? 'bg-dark-900/30' : 'hover:bg-dark-800/40'}`}>
+    <div className={`grid grid-cols-[minmax(0,1fr)_auto] ${ITEM_GRID_COLS} sm:items-center gap-x-3 gap-y-2 sm:gap-y-0 px-4 py-3 sm:py-4 border-b border-dark-800 transition-colors ${item.checked ? 'bg-dark-900/30' : item.in_cart ? 'bg-primary-600/5 hover:bg-primary-600/10' : 'hover:bg-dark-800/40'}`}>
       {/* Grupo 1: checkbox + producto (siempre visible) */}
       <div className="flex items-start sm:items-center gap-3 order-1 sm:order-none">
         <button
@@ -622,6 +622,9 @@ function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteT
             <span className={`text-xs ${isFree ? 'text-dark-500 italic' : 'text-dark-400'}`}>
               {isFree ? 'Sin tienda' : item.store_name}
             </span>
+            {item.in_cart && !item.checked && (
+              <span className="text-[10px] font-semibold text-primary-500">· En la cesta</span>
+            )}
           </div>
           {/* Precio — solo móvil (desktop lo muestra en columna separada). Los
               ítems libres también lo tienen: el precio que se les pone al
@@ -760,13 +763,26 @@ function ItemRow({ item, listId, onCheck, onDelete, onUpdateQuantity, onPromoteT
                 </button>
               </div>
             ) : (
-              <button
-                onClick={() => setShowConfirm(true)}
-                className="tap-target text-dark-500 hover:text-red-600 hover:bg-red-500/10 rounded transition-colors"
-                title="Eliminar producto"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-1">
+                {/* En la cesta: ya está en el carrito pero falta pagarlo. Es
+                    solo una marca para recorrer el supermercado; el precio y
+                    el historial siguen esperando al círculo de comprado. */}
+                <button
+                  onClick={() => onToggleCart(item.id)}
+                  className={`tap-target rounded transition-colors ${item.in_cart ? 'text-primary-500 bg-primary-600/10 hover:bg-primary-600/20' : 'text-dark-500 hover:text-primary-500 hover:bg-primary-600/10'}`}
+                  title={item.in_cart ? 'Sacar de la cesta' : 'Poner en la cesta'}
+                  aria-pressed={!!item.in_cart}
+                >
+                  <ShoppingBasket className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setShowConfirm(true)}
+                  className="tap-target text-dark-500 hover:text-red-600 hover:bg-red-500/10 rounded transition-colors"
+                  title="Eliminar producto"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             )
           )
         )}
@@ -781,6 +797,7 @@ export default function ListDetail() {
   const [list, setList] = useState(null)
   const [loading, setLoading] = useState(true)
   const [completing, setCompleting] = useState(false)
+  const [archiving, setArchiving] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
   const [showCompareModal, setShowCompareModal] = useState(false)
@@ -893,7 +910,7 @@ export default function ListDetail() {
     setList(prev => ({
       ...prev,
       items: prev.items.map(i =>
-        i.id === itemId ? { ...i, checked: true, price_real: priceReal } : i
+        i.id === itemId ? { ...i, checked: true, in_cart: false, price_real: priceReal } : i
       ),
     }))
     try {
@@ -918,6 +935,42 @@ export default function ListDetail() {
       const msg = err.response?.data?.detail || 'Error al actualizar ítem'
       toast.error(msg)
       throw err  // re-lanzar para que ItemRow no limpie el borrador local
+    }
+  }
+
+  const handleToggleCart = async (itemId) => {
+    const item = list.items.find(i => i.id === itemId)
+    if (!item) return
+    const inCart = !item.in_cart
+    const setInCart = (value) => setList(prev => ({
+      ...prev,
+      items: prev.items.map(i => (i.id === itemId ? { ...i, in_cart: value } : i)),
+    }))
+    // Sin toast en el caso normal: se toca muchas veces seguidas recorriendo
+    // los pasillos y el cambio ya se ve en la fila.
+    setInCart(inCart)
+    try {
+      const res = await api.patch(`/lists/items/${itemId}/`, { in_cart: inCart })
+      if (res?.data?._queued) {
+        toast.success('Guardado offline', { icon: '📥', duration: 2000 })
+      }
+    } catch (err) {
+      setInCart(item.in_cart)
+      toast.error(err.response?.data?.detail || 'No se pudo actualizar la cesta')
+    }
+  }
+
+  const handleArchive = async (archive) => {
+    setArchiving(true)
+    try {
+      const { data } = await api.post(`/lists/${id}/${archive ? 'archive' : 'unarchive'}/`)
+      apiCache.invalidate('/lists/')
+      setList(prev => ({ ...prev, archived_at: data.archived_at }))
+      toast.success(archive ? 'Lista archivada' : 'Lista restaurada')
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'No se pudo actualizar la lista')
+    } finally {
+      setArchiving(false)
     }
   }
 
@@ -1235,9 +1288,13 @@ export default function ListDetail() {
   }, 0)
 
   const isCompleted = list.status === 'completed'
+  const isArchived = !!list.archived_at
+  // Completada o archivada, la lista se consulta pero ya no se edita.
+  const isLocked = isCompleted || isArchived
+  const itemsInCart = list.items.filter(i => i.in_cart && !i.checked).length
 
   return (
-    <div className={`max-w-4xl mx-auto space-y-6 ${!isCompleted ? 'pb-24 lg:pb-0' : ''}`}>
+    <div className={`max-w-4xl mx-auto space-y-6 ${!isLocked ? 'pb-24 lg:pb-0' : ''}`}>
 
       {showAddModal && (
         <AddItemsModal
@@ -1318,7 +1375,7 @@ export default function ListDetail() {
               </>
             )}
           </div>
-          {!isCompleted && (
+          {!isLocked && (
             <button
               onClick={() => setShowCompareModal(true)}
               className="tap-target gap-1.5 px-2 text-teal-500 hover:text-teal-400 transition-colors"
@@ -1328,7 +1385,7 @@ export default function ListDetail() {
               <span className="text-xs font-medium">Ahorros</span>
             </button>
           )}
-          {!isCompleted && (
+          {!isLocked && (
             <button
               onClick={() => setShowAddModal(true)}
               className="tap-target gap-1.5 px-2 text-primary-500 hover:text-primary-400 transition-colors"
@@ -1338,7 +1395,18 @@ export default function ListDetail() {
               <span className="text-xs font-medium">Agregar</span>
             </button>
           )}
-          {!isCompleted && (
+          {!isArchived && (
+            <button
+              onClick={() => handleArchive(true)}
+              disabled={archiving}
+              className="tap-target gap-1.5 px-2 text-dark-400 hover:text-dark-200 transition-colors disabled:opacity-50"
+              title="Archivar: sale del listado y queda de solo lectura"
+            >
+              {archiving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Archive className="w-5 h-5" />}
+              <span className="text-xs font-medium">Archivar</span>
+            </button>
+          )}
+          {!isLocked && (
             <div className="relative hidden lg:block">
               {showConfirm ? (
                 <div className="flex items-center gap-2 bg-dark-800/80 border border-dark-700 rounded-xl px-3 py-2 backdrop-blur-sm">
@@ -1389,7 +1457,7 @@ export default function ListDetail() {
               {isCompleted ? <CheckCircle2 className="w-6 h-6" /> : <ShoppingCart className="w-6 h-6" />}
             </div>
             <div className="flex-1">
-              {!isCompleted && isEditingName ? (
+              {!isLocked && isEditingName ? (
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
@@ -1429,7 +1497,7 @@ export default function ListDetail() {
                       cargando list.name, que es el nombre realmente guardado y
                       lo que el usuario está por modificar. */}
                   <h1 className="text-xl font-bold text-dark-200 leading-tight">{listTitle(list)}</h1>
-                  {!isCompleted && (
+                  {!isLocked && (
                     <button
                       onClick={() => setIsEditingName(true)}
                       className="text-dark-500 hover:text-primary-600 transition-colors p-1"
@@ -1444,8 +1512,9 @@ export default function ListDetail() {
                 <span className={`badge-purple ${isCompleted ? 'badge-green' : 'badge-yellow'}`}>
                   {isCompleted ? 'Completada' : 'En curso'}
                 </span>
+                {isArchived && <span className="badge-purple">Archivada</span>}
                 
-                {!isCompleted && isEditingDate ? (
+                {!isLocked && isEditingDate ? (
                   <div className="flex items-center gap-2">
                     <input
                       type="date"
@@ -1476,7 +1545,7 @@ export default function ListDetail() {
                   <span className="text-xs text-dark-500 flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-dark-700" />
                     {new Date(list.date).toLocaleDateString('es-CO', { day: '2-digit', month: 'long' })}
-                    {!isCompleted && (
+                    {!isLocked && (
                       <button 
                         onClick={() => setIsEditingDate(true)} 
                         className="ml-1 text-dark-500 hover:text-primary-600 transition-colors p-1"
@@ -1495,6 +1564,9 @@ export default function ListDetail() {
             <div className="text-center md:text-right">
               <p className="text-[10px] text-dark-400 uppercase font-bold tracking-wider mb-0.5">Progreso</p>
               <p className="text-lg font-bold text-dark-200">{itemsBought} / {totalItems}</p>
+              {itemsInCart > 0 && (
+                <p className="text-[10px] text-primary-500 font-semibold">{itemsInCart} en la cesta</p>
+              )}
             </div>
             <div className="text-center md:text-right">
               <p className="text-[10px] text-dark-400 uppercase font-bold tracking-wider mb-0.5">Valor Estimado</p>
@@ -1513,6 +1585,24 @@ export default function ListDetail() {
           </div>
         </div>
       </div>
+
+      {isArchived && (
+        <div className="bg-dark-800/60 border border-dark-700 rounded-xl p-4 flex items-center gap-3">
+          <Archive className="w-5 h-5 text-dark-400 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-dark-200">Lista archivada</p>
+            <p className="text-xs text-dark-400 mt-0.5">No aparece en el listado y no se puede editar. Lo comprado en ella sigue en tu historial.</p>
+          </div>
+          <button
+            onClick={() => handleArchive(false)}
+            disabled={archiving}
+            className="btn-secondary text-xs flex-shrink-0"
+          >
+            {archiving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArchiveRestore className="w-3.5 h-3.5" />}
+            Restaurar
+          </button>
+        </div>
+      )}
 
       {/* Warning for completed list */}
       {isCompleted && (
@@ -1640,7 +1730,7 @@ export default function ListDetail() {
                 ? 'bg-primary-600/15 text-primary-500 border border-primary-500/30'
                 : 'bg-dark-900 text-dark-400 border border-dark-800 hover:text-dark-200 hover:border-dark-700'
             }`}
-            title={pendingOnly ? 'Mostrando solo pendientes' : 'Mostrar solo lo que falta por comprar'}
+            title={pendingOnly ? 'Mostrando solo pendientes' : 'Mostrar solo lo que falta (sin comprar ni en la cesta)'}
           >
             <Circle className="w-4 h-4" />
             <span className="hidden sm:inline">Pendientes</span>
@@ -1692,7 +1782,8 @@ export default function ListDetail() {
                 const matchesStore =
                   selectedStore === 'all' ||
                   (selectedStore === NO_STORE ? !item.store_name : item.store_name === selectedStore);
-                const matchesPending = !pendingOnly || !item.checked;
+                // Lo que ya va en la cesta no falta por recoger.
+                const matchesPending = !pendingOnly || (!item.checked && !item.in_cart);
                 return matchesSearch && matchesStore && matchesPending;
               });
 
@@ -1727,11 +1818,12 @@ export default function ListDetail() {
                     item={item}
                     listId={id}
                     onCheck={handleCheckItem}
+                    onToggleCart={handleToggleCart}
                     onDelete={handleDeleteItem}
                     onUpdateQuantity={handleUpdateQuantity}
                     onPromoteToProduct={(name) => setProductModalInitial(name)}
                     onCatalogUpdated={fetchList}
-                    isDisabled={isCompleted}
+                    isDisabled={isLocked}
                   />
                 ));
               }
@@ -1761,11 +1853,12 @@ export default function ListDetail() {
                     item={item}
                     listId={id}
                     onCheck={handleCheckItem}
+                    onToggleCart={handleToggleCart}
                     onDelete={handleDeleteItem}
                     onUpdateQuantity={handleUpdateQuantity}
                     onPromoteToProduct={(name) => setProductModalInitial(name)}
                     onCatalogUpdated={fetchList}
-                    isDisabled={isCompleted}
+                    isDisabled={isLocked}
                   />
                 )),
               ]);
@@ -1775,7 +1868,7 @@ export default function ListDetail() {
       </div>
 
       <StickyActionBar
-        visible={!isCompleted}
+        visible={!isLocked}
         progressLabel={`${itemsBought}/${totalItems} comprados`}
         primaryLabel="Finalizar Compra"
         onPrimaryClick={() => setShowConfirm(true)}

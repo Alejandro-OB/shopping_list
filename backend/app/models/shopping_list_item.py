@@ -20,6 +20,10 @@ class ShoppingListItem(Base):
 
     quantity: Mapped[int] = mapped_column(BigInteger, nullable=False)
     checked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Ya está en el carrito pero aún no se ha pagado. Es una marca de recorrido
+    # y no de compra: no lleva precio ni toca historial ni inventario, que solo
+    # cambian con checked. Por eso puede ir y venir sin consecuencias.
+    in_cart: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
 
     price_catalog_snapshot: Mapped[Optional[float]] = mapped_column(Numeric(10, 2), nullable=True)
     price_real: Mapped[float] = mapped_column(Numeric(10, 2), default=0, nullable=False)

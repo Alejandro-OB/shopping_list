@@ -37,9 +37,10 @@ class ShoppingListRepository(BaseRepository[ShoppingList, ShoppingListCreate, Sh
             result.items.sort(key=lambda x: (x.product_store.store.name if x.product_store and x.product_store.store else ""))
         return result
 
-    def get_by_user(self, user_id: int, *, skip: int = 0, limit: int = 100) -> List[ShoppingList]:
+    def get_by_user(self, user_id: int, *, skip: int = 0, limit: int = 100, archived: bool = False) -> List[ShoppingList]:
         """
-        Obtiene las listas de un usuario con sus relaciones.
+        Obtiene las listas de un usuario con sus relaciones: las archivadas o
+        las que no lo están, nunca las dos mezcladas.
         """
         from sqlalchemy.orm import selectinload, joinedload
         from app.models.shopping_list_item import ShoppingListItem
@@ -57,7 +58,10 @@ class ShoppingListRepository(BaseRepository[ShoppingList, ShoppingListCreate, Sh
                     selectinload(ProductStore.price_history),
                 ),
             )
-        ).filter(self.model.user_id == user_id).order_by(self.model.date.desc()).offset(skip).limit(limit)
+        ).filter(
+            self.model.user_id == user_id,
+            self.model.archived_at.is_not(None) if archived else self.model.archived_at.is_(None),
+        ).order_by(self.model.date.desc()).offset(skip).limit(limit)
 
         results = self.db.execute(query).scalars().all()
         for sl in results:
@@ -69,6 +73,9 @@ class ShoppingListRepository(BaseRepository[ShoppingList, ShoppingListCreate, Sh
         """
         Busca si ya existe una lista para el usuario en un rango de fechas.
         Utilizado para no duplicar la generación automática.
+
+        Puede haber dos en la misma semana si una se archivó y luego se creó
+        otra a mano; en ese caso devuelve la que no está archivada.
         """
         return self.db.execute(
             select(self.model).filter(
@@ -77,7 +84,7 @@ class ShoppingListRepository(BaseRepository[ShoppingList, ShoppingListCreate, Sh
                     self.model.date >= start_date,
                     self.model.date <= end_date
                 )
-            )
+            ).order_by(self.model.archived_at.is_not(None))
         ).scalars().first()
 
 class ShoppingListItemRepository(BaseRepository[ShoppingListItem, Any, Any]):

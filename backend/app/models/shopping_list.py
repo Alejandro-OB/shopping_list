@@ -35,6 +35,12 @@ class ShoppingList(Base):
         nullable=False
     )
 
+    # Archivar es apartar la lista sin borrarla: deja de salir en el listado y
+    # en el inicio, y ya no se puede editar. Va aparte del status porque se
+    # archiva tanto una lista que nunca se usó como una completada que ya no
+    # interesa ver, y al restaurarla tiene que volver al estado que tenía.
+    archived_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
