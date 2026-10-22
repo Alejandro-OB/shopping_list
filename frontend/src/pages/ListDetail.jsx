@@ -1614,6 +1614,22 @@ export default function ListDetail() {
   const budget = list.budget ? Number(list.budget) : null
   const overBudget = budget !== null && committed > budget
 
+  // Pagar todo lo que falta de una vez, sin pasarlo antes por la cesta: para
+  // cuando se compró todo y solo queda registrarlo. Abre el mismo modal de la
+  // cesta, así se revisan los precios y se puede pagar tienda por tienda. Va
+  // en el renglón de "Poner presupuesto" o, si hay presupuesto, en el de
+  // "Quedan…": junto a la barra la apretaba hasta partir los montos.
+  const payAllButton = !isLocked && pendingItems.length > 1 && (
+    <button
+      onClick={() => setCheckoutMode('pending')}
+      title="Marcar todo lo pendiente como comprado, sin pasarlo por la cesta"
+      className="btn-ghost text-xs text-teal-600 hover:text-teal-500 -mr-2 flex-shrink-0"
+    >
+      <CheckCircle2 className="w-3.5 h-3.5" />
+      Pagar todo · {pendingItems.length}
+    </button>
+  )
+
   return (
     <div className={`max-w-4xl mx-auto space-y-6 ${!isLocked ? 'pb-24 lg:pb-0' : ''}`}>
 
@@ -1952,7 +1968,10 @@ export default function ListDetail() {
               </div>
             )}
 
-            <div className={`${itemsInCart > 0 ? 'sm:w-64' : 'flex-1'} min-w-0`}>
+            {/* Presupuesto a la izquierda y "Pagar todo" a la derecha, en el
+                mismo renglón: separados quedaban en dos alturas distintas. */}
+            <div className={`${itemsInCart > 0 ? 'sm:w-96' : 'flex-1'} min-w-0 flex items-center gap-3`}>
+            <div className="flex-1 min-w-0">
               {isEditingBudget ? (
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-dark-400">Presupuesto $</span>
@@ -2001,11 +2020,14 @@ export default function ListDetail() {
                       style={{ width: `${Math.min(100, (committed / budget) * 100)}%` }}
                     />
                   </div>
-                  <p className={`text-[10px] mt-1 ${overBudget ? 'text-red-600 font-semibold' : 'text-dark-500'}`}>
-                    {overBudget
-                      ? `Te pasas por ${money(committed - budget)}`
-                      : `Quedan ${money(budget - committed)} · pagado + cesta`}
-                  </p>
+                  <div className="flex items-center justify-between gap-2 mt-1">
+                    <p className={`text-[10px] ${overBudget ? 'text-red-600 font-semibold' : 'text-dark-500'}`}>
+                      {overBudget
+                        ? `Te pasas por ${money(committed - budget)}`
+                        : `Quedan ${money(budget - committed)} · pagado + cesta`}
+                    </p>
+                    {payAllButton}
+                  </div>
                 </div>
               ) : !isLocked && (
                 <button
@@ -2017,24 +2039,11 @@ export default function ListDetail() {
                 </button>
               )}
             </div>
+            {budget === null && !isEditingBudget && payAllButton}
+            </div>
           </div>
         )}
 
-        {/* Pagar todo lo que falta de una vez, sin pasarlo antes por la cesta:
-            para cuando se compró todo y solo queda registrarlo. Abre el mismo
-            modal de la cesta, así se revisan los precios y se puede pagar
-            tienda por tienda. */}
-        {!isLocked && pendingItems.length > 1 && (
-          <div className="mt-3 flex justify-end">
-            <button
-              onClick={() => setCheckoutMode('pending')}
-              className="btn-ghost text-xs text-teal-600 hover:text-teal-500 -mr-2"
-            >
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              Marcar todo lo pendiente como comprado · {pendingItems.length}
-            </button>
-          </div>
-        )}
       </div>
 
       {isArchived && (
