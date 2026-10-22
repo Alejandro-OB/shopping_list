@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Body, Response
 from sqlalchemy.orm import Session
-from typing import List, Any
+from typing import List, Any, Optional
 import io
 import os
 from datetime import datetime
@@ -12,7 +12,7 @@ from app.api.deps import get_current_user
 from app.models.user import User
 from app.services.shopping_list_service import ShoppingListService
 from app.repositories.shopping_list_repo import ShoppingListRepository
-from app.schemas.shopping_list import ShoppingListOut, ShoppingListItemUpdate, ShoppingListItemOut, ListStatus, ShoppingListManualCreate, ShoppingListUpdate, ShoppingListItemCreate, StoreComparisonOut, SavingsOut
+from app.schemas.shopping_list import ShoppingListOut, CompleteListIn, CompleteListOut, ShoppingListItemUpdate, ShoppingListItemOut, ListStatus, ShoppingListManualCreate, ShoppingListUpdate, ShoppingListItemCreate, StoreComparisonOut, SavingsOut
 
 router = APIRouter()
 
@@ -57,9 +57,14 @@ def generate_lists(
     Ejecuta el motor de generación automática para el usuario actual.
     """
     service = ShoppingListService(db)
-    # Nota: El servicio actual genera para todos, pero lo adaptamos para que sea funcional como trigger
-    service.generate_auto_lists()
-    return {"message": "Proceso de generación automática completado."}
+    # Solo el hogar de quien la pide. Antes corría para todos los usuarios y
+    # cualquiera podía crear listas en cuentas ajenas.
+    results = service.generate_auto_lists(user_id=current_user.owner_id, catch_up=True)
+    return {
+        "message": "Proceso de generación automática completado.",
+        "lists_created": results["lists_created"],
+        "items_added": results["items_added"],
+    }
 
 @router.post("/", response_model=ShoppingListOut)
 def create_shopping_list(
@@ -89,7 +94,7 @@ def create_shopping_list(
     existing_any = db.execute(
         select(ShoppingList).where(
             and_(
-                ShoppingList.user_id == current_user.id,
+                ShoppingList.user_id == current_user.owner_id,
                 ShoppingList.date >= week_start,
                 ShoppingList.date <  week_end,
                 # Archivar una lista es dar esa semana por libre: si no, la
@@ -108,7 +113,7 @@ def create_shopping_list(
 
     # 2. Crear el encabezado de la lista
     new_list = ShoppingList(
-        user_id=current_user.id,
+        user_id=current_user.owner_id,
         name=list_in.name,
         date=list_in.date,
         status=ModelListStatus.active,
@@ -127,7 +132,7 @@ def create_shopping_list(
             ps = db.get(ProductStore, item_in.product_store_id)
             # Se comprueba el dueño: sin esto, un product_store ajeno entraba en
             # la lista y su producto quedaba a la vista.
-            if not ps or ps.product is None or ps.product.user_id != current_user.id:
+            if not ps or ps.product is None or ps.product.user_id != current_user.owner_id:
                 continue
             if ps.product_id in seen_product_ids:
                 continue
@@ -176,7 +181,7 @@ def add_items_to_list(
     from sqlalchemy import select, and_
 
     shopping_list = db.get(ShoppingList, id)
-    if not shopping_list or shopping_list.user_id != current_user.id:
+    if not shopping_list or shopping_list.user_id != current_user.owner_id:
         raise HTTPException(status_code=404, detail="Lista no encontrada")
     if shopping_list.status == ModelListStatus.completed:
         raise HTTPException(status_code=400, detail="No se pueden agregar ítems a una lista ya completada")
@@ -195,7 +200,7 @@ def add_items_to_list(
     for item_in in items_in:
         if item_in.product_store_id:
             ps = db.get(ProductStore, item_in.product_store_id)
-            if not ps or ps.product is None or ps.product.user_id != current_user.id:
+            if not ps or ps.product is None or ps.product.user_id != current_user.owner_id:
                 continue
             if ps.product_id in existing_product_ids:
                 continue  # Ya está en la lista, por esta tienda o por otra
@@ -238,7 +243,7 @@ def read_shopping_lists(
     """
     from app.repositories.shopping_list_repo import ShoppingListRepository
     repo = ShoppingListRepository(db)
-    return repo.get_by_user(current_user.id, skip=skip, limit=limit, archived=archived)
+    return repo.get_by_user(current_user.owner_id, skip=skip, limit=limit, archived=archived)
 
 @router.patch("/{id}/", response_model=ShoppingListOut)
 def update_shopping_list(
@@ -257,7 +262,7 @@ def update_shopping_list(
     from sqlalchemy.orm import joinedload
     
     shopping_list = db.get(ShoppingList, id)
-    if not shopping_list or shopping_list.user_id != current_user.id:
+    if not shopping_list or shopping_list.user_id != current_user.owner_id:
         raise HTTPException(status_code=404, detail="Lista no encontrada")
         
     if shopping_list.status == ListStatus.completed:
@@ -286,7 +291,7 @@ def read_shopping_list(
     from app.repositories.shopping_list_repo import ShoppingListRepository
     repo = ShoppingListRepository(db)
     shopping_list = repo.get(id)
-    if not shopping_list or shopping_list.user_id != current_user.id:
+    if not shopping_list or shopping_list.user_id != current_user.owner_id:
         raise HTTPException(status_code=404, detail="Lista no encontrada")
     return shopping_list
 
@@ -306,7 +311,7 @@ def check_shopping_item(
         # Validación: El item debe pertenecer a una lista del usuario
         from app.models.shopping_list_item import ShoppingListItem
         item = db.get(ShoppingListItem, item_id)
-        if not item or item.shopping_list.user_id != current_user.id:
+        if not item or item.shopping_list.user_id != current_user.owner_id:
             raise HTTPException(status_code=404, detail="Ítem no encontrado")
             
         return service.check_item(item_id, item_in.price_real)
@@ -328,7 +333,7 @@ def update_shopping_item(
     from app.models.shopping_list import ListStatus
     
     item = db.get(ShoppingListItem, item_id)
-    if not item or item.shopping_list.user_id != current_user.id:
+    if not item or item.shopping_list.user_id != current_user.owner_id:
         raise HTTPException(status_code=404, detail="Ítem no encontrado")
         
     if item.shopping_list.status == ListStatus.completed:
@@ -360,7 +365,7 @@ def delete_shopping_item(
     from app.models.shopping_list import ListStatus
     
     item = db.get(ShoppingListItem, item_id)
-    if not item or item.shopping_list.user_id != current_user.id:
+    if not item or item.shopping_list.user_id != current_user.owner_id:
         raise HTTPException(status_code=404, detail="Ítem no encontrado")
         
     if item.shopping_list.status == ListStatus.completed:
@@ -394,7 +399,7 @@ def export_shopping_list_pdf(
     
     if not shopping_list:
         raise HTTPException(status_code=404, detail="Lista no encontrada")
-    if shopping_list.user_id != current_user.id:
+    if shopping_list.user_id != current_user.owner_id:
         raise HTTPException(status_code=403, detail="No tienes permiso para acceder a esta lista")
 
     # 2. Preparar datos para la plantilla
@@ -461,7 +466,7 @@ def export_shopping_list_excel(
     
     if not shopping_list:
         raise HTTPException(status_code=404, detail="Lista no encontrada")
-    if shopping_list.user_id != current_user.id:
+    if shopping_list.user_id != current_user.owner_id:
         raise HTTPException(status_code=403, detail="No tienes permiso")
 
     # 2. Preparar el buffer
@@ -649,7 +654,7 @@ def find_savings(
     """
     service = ShoppingListService(db)
     try:
-        return service.find_savings_for_list(list_id, current_user.id)
+        return service.find_savings_for_list(list_id, current_user.owner_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -667,33 +672,41 @@ def compare_stores(
     """
     service = ShoppingListService(db)
     try:
-        return service.compare_stores_for_list(list_id, current_user.id)
+        return service.compare_stores_for_list(list_id, current_user.owner_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
 
-@router.post("/{id}/complete/", response_model=ShoppingListOut)
+@router.post("/{id}/complete/", response_model=CompleteListOut)
 def complete_shopping_list(
     *,
     db: Session = Depends(get_db),
     id: int,
+    body: Optional[CompleteListIn] = Body(None),
     current_user: User = Depends(get_current_user),
 ) -> Any:
     """
     Cierra la lista (status=completed). Una vez cerrada no puede ser editada.
+    Con `carry_over`, lo que quedó sin comprar pasa a la próxima lista.
     """
     service = ShoppingListService(db)
     from app.repositories.shopping_list_repo import ShoppingListRepository
     repo = ShoppingListRepository(db)
     shopping_list = repo.get(id)
     
-    if not shopping_list or shopping_list.user_id != current_user.id:
+    if not shopping_list or shopping_list.user_id != current_user.owner_id:
         raise HTTPException(status_code=404, detail="Lista no encontrada")
 
     try:
-        return service.complete_list(id)
+        completed, carried, target_id = service.complete_list(
+            id, carry_over=bool(body and body.carry_over)
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    out = CompleteListOut.model_validate(completed)
+    out.carried_over_count = carried
+    out.carried_over_list_id = target_id
+    return out
 
 @router.post("/{id}/archive/", response_model=ShoppingListOut)
 def archive_shopping_list(
@@ -709,7 +722,7 @@ def archive_shopping_list(
     from app.models.shopping_list import ShoppingList
 
     shopping_list = db.get(ShoppingList, id)
-    if not shopping_list or shopping_list.user_id != current_user.id:
+    if not shopping_list or shopping_list.user_id != current_user.owner_id:
         raise HTTPException(status_code=404, detail="Lista no encontrada")
     try:
         return ShoppingListService(db).archive_list(id)
@@ -729,7 +742,7 @@ def unarchive_shopping_list(
     from app.models.shopping_list import ShoppingList
 
     shopping_list = db.get(ShoppingList, id)
-    if not shopping_list or shopping_list.user_id != current_user.id:
+    if not shopping_list or shopping_list.user_id != current_user.owner_id:
         raise HTTPException(status_code=404, detail="Lista no encontrada")
     try:
         return ShoppingListService(db).unarchive_list(id)
@@ -752,7 +765,7 @@ def delete_shopping_list(
     from sqlalchemy.orm import joinedload
 
     shopping_list = db.get(ShoppingList, id)
-    if not shopping_list or shopping_list.user_id != current_user.id:
+    if not shopping_list or shopping_list.user_id != current_user.owner_id:
         raise HTTPException(status_code=404, detail="Lista no encontrada")
     if shopping_list.status == ModelListStatus.completed:
         raise HTTPException(status_code=400, detail="Las listas completadas no pueden eliminarse")

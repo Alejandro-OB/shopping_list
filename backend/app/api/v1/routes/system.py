@@ -38,17 +38,12 @@ def trigger_generation(
     current_user: User = Depends(deps.get_current_user)
 ):
     """
-    Dispara manualmente el proceso de generación de listas para todos los usuarios.
-    Solo accesible por administradores.
+    Genera ahora la lista de la semana del hogar de quien lo pide, con todo lo
+    que le tocaba desde el lunes. Antes corría para todos los usuarios; la
+    corrida general queda solo para el scheduler.
     """
-    if not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="No tienes permisos suficientes para realizar esta acción de sistema"
-        )
-    
     service = ShoppingListService(db)
-    results = service.generate_auto_lists()
+    results = service.generate_auto_lists(user_id=current_user.owner_id, catch_up=True)
     return {
         "status": "success",
         "message": "Proceso de generación completado",

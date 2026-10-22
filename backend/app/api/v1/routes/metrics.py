@@ -20,7 +20,7 @@ def read_budget_summary(
     Dashboard de métricas rápidas (gasto mes actual y top productos).
     """
     service = MetricsService(db)
-    return service.get_budget_summary(current_user.id)
+    return service.get_budget_summary(current_user.owner_id)
 
 @router.get("/monthly/", response_model=MonthlySpending)
 def read_monthly_spending(
@@ -33,7 +33,7 @@ def read_monthly_spending(
     Reporte de gasto para un año y mes específicos.
     """
     service = MetricsService(db)
-    total = service.get_monthly_spending(current_user.id, year, month)
+    total = service.get_monthly_spending(current_user.owner_id, year, month)
     return {
         "year": year,
         "month": month,
@@ -50,7 +50,7 @@ def read_most_bought(
     Obtiene los productos más comprados del historial del usuario.
     """
     service = MetricsService(db)
-    return service.get_most_bought_products(current_user.id, limit=limit)
+    return service.get_most_bought_products(current_user.owner_id, limit=limit)
 
 @router.get("/price-evolution/", response_model=List[ProductPriceEvolution])
 def read_price_evolution(
@@ -64,4 +64,4 @@ def read_price_evolution(
     Filtra opcionalmente por product_id y/o store_id.
     """
     service = MetricsService(db)
-    return service.get_price_evolution(current_user.id, product_id=product_id, store_id=store_id)
+    return service.get_price_evolution(current_user.owner_id, product_id=product_id, store_id=store_id)

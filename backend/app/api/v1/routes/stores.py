@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.orm import Session
-from typing import List, Any
+from typing import List, Any, Optional
 
 from app.core.db.session import get_db
 from app.api.deps import get_current_user
@@ -30,14 +30,14 @@ def _owned_product_store(db: Session, ps_id: int, user_id: int):
 def read_stores(
     db: Session = Depends(get_db),
     skip: int = 0,
-    limit: int = 100,
+    limit: Optional[int] = None,
     current_user: User = Depends(get_current_user),
 ) -> Any:
     """
     Obtiene la lista de tiendas del usuario actual.
     """
     store_repo = StoreRepository(db)
-    return store_repo.get_by_user(current_user.id, skip=skip, limit=limit)
+    return store_repo.get_by_user(current_user.owner_id, skip=skip, limit=limit)
 
 @router.post("/", response_model=StoreOut)
 def create_store(
@@ -50,7 +50,7 @@ def create_store(
     Crea una nueva tienda para el usuario.
     """
     store_repo = StoreRepository(db)
-    return store_repo.create(obj_in=store_in, user_id=current_user.id)
+    return store_repo.create(obj_in=store_in, user_id=current_user.owner_id)
 
 @router.get("/{id}/", response_model=StoreOut)
 def read_store(
@@ -64,7 +64,7 @@ def read_store(
     """
     store_repo = StoreRepository(db)
     store = store_repo.get(id)
-    if not store or store.user_id != current_user.id:
+    if not store or store.user_id != current_user.owner_id:
         raise HTTPException(status_code=404, detail="Tienda no encontrada")
     return store
 
@@ -81,7 +81,7 @@ def update_store(
     """
     store_repo = StoreRepository(db)
     store = store_repo.get(id)
-    if not store or store.user_id != current_user.id:
+    if not store or store.user_id != current_user.owner_id:
         raise HTTPException(status_code=404, detail="Tienda no encontrada")
     return store_repo.update(db_obj=store, obj_in=store_in)
 
@@ -97,7 +97,7 @@ def delete_store(
     """
     store_repo = StoreRepository(db)
     store = store_repo.get(id)
-    if not store or store.user_id != current_user.id:
+    if not store or store.user_id != current_user.owner_id:
         raise HTTPException(status_code=404, detail="Tienda no encontrada")
     return store_repo.soft_delete(id=id)
 
@@ -117,9 +117,9 @@ def associate_product_store(
 
     product = db.get(Product, ps_in.product_id)
     store = db.get(Store, ps_in.store_id)
-    if not product or product.user_id != current_user.id:
+    if not product or product.user_id != current_user.owner_id:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
-    if not store or store.user_id != current_user.id:
+    if not store or store.user_id != current_user.owner_id:
         raise HTTPException(status_code=404, detail="Tienda no encontrada")
 
     db_obj = ProductStore(
@@ -146,7 +146,7 @@ def update_product_store(
     """
     from app.models.product_store import ProductStore
 
-    db_obj = _owned_product_store(db, id, current_user.id)
+    db_obj = _owned_product_store(db, id, current_user.owner_id)
 
     if ps_in.price_catalog is not None:
         db_obj.price_catalog = ps_in.price_catalog
@@ -183,7 +183,7 @@ def delete_product_store(
     """
     from app.models.product_store import ProductStore
 
-    db_obj = _owned_product_store(db, id, current_user.id)
+    db_obj = _owned_product_store(db, id, current_user.owner_id)
 
     # No se quita la última: un producto sin tienda no tiene precio ni se puede
     # añadir a una lista, así que dejarlo así lo saca del catálogo en la

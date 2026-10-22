@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from typing import List, TYPE_CHECKING, Optional
-from sqlalchemy import BigInteger, DateTime, ForeignKey, String, Boolean, Enum as SqlEnum
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Numeric, String, Boolean, Enum as SqlEnum
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 from app.core.db.base import Base
 import enum
@@ -40,6 +40,9 @@ class ShoppingList(Base):
     # archiva tanto una lista que nunca se usó como una completada que ya no
     # interesa ver, y al restaurarla tiene que volver al estado que tenía.
     archived_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # Tope de gasto que el usuario se pone para esta compra. Opcional.
+    budget: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

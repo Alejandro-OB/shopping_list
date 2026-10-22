@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List, Any
+from typing import List, Any, Optional
 
 from app.core.db.session import get_db
 from app.api.deps import get_current_user
@@ -14,14 +14,14 @@ router = APIRouter()
 def read_products(
     db: Session = Depends(get_db),
     skip: int = 0,
-    limit: int = 100,
+    limit: Optional[int] = None,
     current_user: User = Depends(get_current_user),
 ) -> Any:
     """
     Obtiene la lista de productos del catálogo del usuario actual.
     """
     product_repo = ProductRepository(db)
-    return product_repo.get_by_user(current_user.id, skip=skip, limit=limit)
+    return product_repo.get_by_user(current_user.owner_id, skip=skip, limit=limit)
 
 @router.post("/", response_model=ProductOut)
 def create_product(
@@ -45,7 +45,7 @@ def create_product(
     owned = {
         store.id
         for store in db.query(Store).filter(Store.id.in_(store_ids)).all()
-        if store.user_id == current_user.id
+        if store.user_id == current_user.owner_id
     }
     if len(owned) != len(set(store_ids)):
         raise HTTPException(status_code=404, detail="Tienda no encontrada")
@@ -63,7 +63,7 @@ def create_product(
         stock=product_in.stock,
         stock_min=product_in.stock_min,
         units_per_purchase=product_in.units_per_purchase,
-        user_id=current_user.id,
+        user_id=current_user.owner_id,
     )
     db.add(product)
     db.flush()
@@ -91,7 +91,7 @@ def read_product(
     """
     product_repo = ProductRepository(db)
     product = product_repo.get(id)
-    if not product or product.user_id != current_user.id:
+    if not product or product.user_id != current_user.owner_id:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     return product
 
@@ -108,7 +108,7 @@ def update_product(
     """
     product_repo = ProductRepository(db)
     product = product_repo.get(id)
-    if not product or product.user_id != current_user.id:
+    if not product or product.user_id != current_user.owner_id:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     return product_repo.update(db_obj=product, obj_in=product_in)
 
@@ -129,7 +129,7 @@ def adjust_product_stock(
     """
     product_repo = ProductRepository(db)
     product = product_repo.get(id)
-    if not product or product.user_id != current_user.id:
+    if not product or product.user_id != current_user.owner_id:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     if product.stock is None:
         raise HTTPException(
@@ -162,6 +162,6 @@ def delete_product(
     """
     product_repo = ProductRepository(db)
     product = product_repo.get(id)
-    if not product or product.user_id != current_user.id:
+    if not product or product.user_id != current_user.owner_id:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     return product_repo.soft_delete(id=id)

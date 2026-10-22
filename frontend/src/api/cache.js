@@ -19,4 +19,9 @@ export const apiCache = {
   invalidate(...keys) {
     keys.forEach(k => store.delete(k))
   },
+
+  // Al entrar o salir de un hogar compartido cambian todos los datos a la vez.
+  clear() {
+    store.clear()
+  },
 }

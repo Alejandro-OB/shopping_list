@@ -25,9 +25,15 @@ class ProductRepository(BaseRepository[Product, ProductCreate, ProductUpdate]):
             ).filter(self.model.id == id, self.model.is_deleted == False)
         ).scalars().first()
 
-    def get_by_user(self, user_id: int, *, skip: int = 0, limit: int = 100) -> List[Product]:
+    def get_by_user(self, user_id: int, *, skip: int = 0, limit: Optional[int] = None) -> List[Product]:
         """
         Obtiene los productos activos de un usuario específico.
+
+        Sin límite por defecto. Tuvo uno de 100 y sin orden, y con más
+        productos que eso la generación automática y el catálogo trabajaban con
+        un subconjunto arbitrario: productos semanales que nunca entraban en la
+        lista sin que nada lo avisara. Un catálogo personal no crece tanto como
+        para necesitar paginar.
         """
         from sqlalchemy.orm import selectinload, joinedload
         from app.models.product_store import ProductStore
@@ -45,7 +51,7 @@ class ProductRepository(BaseRepository[Product, ProductCreate, ProductUpdate]):
                     self.model.user_id == user_id,
                     self.model.is_deleted == False
                 )
-            ).offset(skip).limit(limit)
+            ).order_by(self.model.id).offset(skip).limit(limit)
         ).scalars().all()
 
     def remove(self, *, id: int) -> Product:

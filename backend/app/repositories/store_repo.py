@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import select, and_
 
@@ -10,9 +10,10 @@ class StoreRepository(BaseRepository[Store, StoreCreate, StoreUpdate]):
     def __init__(self, db: Session):
         super().__init__(Store, db)
 
-    def get_by_user(self, user_id: int, *, skip: int = 0, limit: int = 100) -> List[Store]:
+    def get_by_user(self, user_id: int, *, skip: int = 0, limit: Optional[int] = None) -> List[Store]:
         """
-        Obtiene las tiendas activas de un usuario específico.
+        Obtiene las tiendas activas de un usuario específico. Sin límite por
+        defecto: ver ProductRepository.get_by_user.
         """
         return self.db.execute(
             select(self.model).filter(
@@ -20,5 +21,5 @@ class StoreRepository(BaseRepository[Store, StoreCreate, StoreUpdate]):
                     self.model.user_id == user_id,
                     self.model.is_deleted == False
                 )
-            ).offset(skip).limit(limit)
+            ).order_by(self.model.id).offset(skip).limit(limit)
         ).scalars().all()

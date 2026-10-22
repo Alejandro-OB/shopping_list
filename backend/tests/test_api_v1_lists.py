@@ -195,3 +195,170 @@ def test_auto_generation_leaves_an_archived_week_alone(session: Session, test_us
     assert results["items_added"] == 0
     session.refresh(shop_list)
     assert shop_list.items == []
+
+
+# ── Generación ───────────────────────────────────────────────────────────────
+
+def test_generation_considers_every_product_past_one_hundred(session: Session, test_user):
+    """
+    Test que la generación vea todos los productos aunque pasen de 100.
+    """
+    from app.services.shopping_list_service import ShoppingListService
+    from app.core.timezone import BOGOTA_TZ
+
+    store = Store(name="Exito", user_id=test_user.id)
+    session.add(store)
+    session.commit()
+    # 120 productos sin existencias: todos deben entrar hoy.
+    for n in range(120):
+        product = Product(
+            name=f"P{n}",
+            frequency=FrequencyEnum.occasional,
+            frequency_start_date=datetime.now(timezone.utc),
+            user_id=test_user.id,
+            stock=0,
+        )
+        session.add(product)
+        session.flush()
+        session.add(ProductStore(product_id=product.id, store_id=store.id, price_catalog=100))
+    session.commit()
+
+    today = BOGOTA_TZ.localize(datetime(2026, 10, 22, 0, 5))
+    results = ShoppingListService(session).generate_auto_lists(test_user.id, reference_date_bogota=today)
+
+    assert results["items_added"] == 120
+
+
+def test_generate_endpoint_only_touches_the_caller(client: TestClient, session: Session, test_user, auth_headers):
+    """
+    Test que el botón de generar no cree listas en cuentas ajenas.
+    """
+    from app.models.user import User
+
+    other = User(name="Otro", email="otro@example.com", password="x", is_verified=True)
+    session.add(other)
+    session.commit()
+    _list_with_item(session, other, stock=0)
+    session.query(ShoppingList).filter(ShoppingList.user_id == other.id).delete()
+    session.commit()
+
+    client.post(f"{API}/generate/", headers=auth_headers)
+
+    assert session.query(ShoppingList).filter(ShoppingList.user_id == other.id).count() == 0
+
+
+# ── Completar pasando lo pendiente ───────────────────────────────────────────
+
+def test_complete_carries_pending_items_to_a_new_list(client: TestClient, session: Session, test_user, auth_headers):
+    """
+    Test que al completar con carry_over lo no comprado pase a una lista nueva.
+    """
+    shop_list, item = _list_with_item(session, test_user, date=datetime(2026, 10, 20, 5, tzinfo=timezone.utc))
+    bought = ShoppingListItem(list_id=shop_list.id, free_name="Pan", quantity=1, price_real=2000, checked=True)
+    session.add(bought)
+    session.commit()
+
+    res = client.post(f"{API}/{shop_list.id}/complete/", json={"carry_over": True}, headers=auth_headers)
+
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "completed"
+    assert data["carried_over_count"] == 1
+    assert [i["product_name"] for i in data["items"]] == ["Pan"]
+    target = client.get(f"{API}/{data['carried_over_list_id']}/", headers=auth_headers).json()
+    assert [i["product_name"] for i in target["items"]] == ["Leche"]
+    assert target["status"] == "draft"
+
+
+def test_complete_carry_over_reuses_next_open_list_without_duplicates(client: TestClient, session: Session, test_user, auth_headers):
+    """
+    Test que lo pendiente vaya a la siguiente lista abierta y no duplique productos.
+    """
+    shop_list, item = _list_with_item(session, test_user, date=datetime(2026, 10, 13, 5, tzinfo=timezone.utc))
+    free = ShoppingListItem(list_id=shop_list.id, free_name="Pan", quantity=1, price_real=0)
+    session.add(free)
+    nxt = ShoppingList(user_id=test_user.id, name="Siguiente", date=datetime(2026, 10, 20, 5, tzinfo=timezone.utc), status=ListStatus.draft)
+    session.add(nxt)
+    session.commit()
+    # La siguiente ya trae la leche: solo debe pasar el pan.
+    session.add(ShoppingListItem(list_id=nxt.id, product_store_id=item.product_store_id, quantity=1, price_real=0))
+    session.commit()
+
+    data = client.post(f"{API}/{shop_list.id}/complete/", json={"carry_over": True}, headers=auth_headers).json()
+
+    assert data["carried_over_list_id"] == nxt.id
+    assert data["carried_over_count"] == 1
+    target = client.get(f"{API}/{nxt.id}/", headers=auth_headers).json()
+    assert sorted(i["product_name"] for i in target["items"]) == ["Leche", "Pan"]
+
+
+def test_complete_without_carry_over_keeps_items(client: TestClient, session: Session, test_user, auth_headers):
+    """
+    Test que completar sin carry_over deje los pendientes en su lista, como antes.
+    """
+    shop_list, _ = _list_with_item(session, test_user)
+
+    data = client.post(f"{API}/{shop_list.id}/complete/", headers=auth_headers).json()
+
+    assert data["carried_over_count"] == 0
+    assert len(data["items"]) == 1
+
+
+# ── Presupuesto ──────────────────────────────────────────────────────────────
+
+def test_budget_can_be_set_and_cleared(client: TestClient, session: Session, test_user, auth_headers):
+    """
+    Test que el presupuesto se pueda poner y quitar.
+    """
+    shop_list, _ = _list_with_item(session, test_user)
+
+    res = client.patch(f"{API}/{shop_list.id}/", json={"budget": 150000}, headers=auth_headers)
+    assert res.json()["budget"] == 150000
+
+    res = client.patch(f"{API}/{shop_list.id}/", json={"budget": None}, headers=auth_headers)
+    assert res.json()["budget"] is None
+
+
+def test_manual_generation_catches_up_on_the_week(session: Session, test_user):
+    """
+    Test que generar a mano un jueves agregue los semanales que vencían el martes.
+    """
+    from app.services.shopping_list_service import ShoppingListService
+    from app.core.timezone import BOGOTA_TZ
+
+    store = Store(name="Exito", user_id=test_user.id)
+    product = Product(
+        name="Carne",
+        frequency=FrequencyEnum.weekly,
+        frequency_start_date=datetime(2026, 10, 6, 5, tzinfo=timezone.utc),  # un martes
+        user_id=test_user.id,
+    )
+    session.add_all([store, product])
+    session.commit()
+    session.add(ProductStore(product_id=product.id, store_id=store.id, price_catalog=100))
+    session.commit()
+
+    thursday = BOGOTA_TZ.localize(datetime(2026, 10, 22, 10, 0))
+    service = ShoppingListService(session)
+
+    assert service.generate_auto_lists(test_user.id, reference_date_bogota=thursday)["items_added"] == 0
+    assert service.generate_auto_lists(test_user.id, reference_date_bogota=thursday, catch_up=True)["items_added"] == 1
+
+
+def test_generation_leaves_a_completed_week_alone(session: Session, test_user):
+    """
+    Test que el generador no agregue ítems a la lista de la semana ya completada.
+    """
+    from app.services.shopping_list_service import ShoppingListService
+    from app.core.timezone import BOGOTA_TZ, tuesday_of_week, to_utc
+
+    today = BOGOTA_TZ.localize(datetime(2026, 10, 22, 0, 5))
+    shop_list, item = _list_with_item(session, test_user, date=to_utc(tuesday_of_week(today)), stock=0)
+    session.delete(item)
+    shop_list.status = ListStatus.completed
+    session.commit()
+
+    results = ShoppingListService(session).generate_auto_lists(test_user.id, reference_date_bogota=today)
+
+    assert results["items_added"] == 0
+    assert results["lists_created"] == 0

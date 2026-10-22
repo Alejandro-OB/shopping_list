@@ -129,6 +129,8 @@ class ShoppingListUpdate(BaseModel):
     name: Optional[str] = None
     date: Optional[datetime] = None
     status: Optional[ListStatus] = None
+    # Nulo explícito quita el presupuesto.
+    budget: Optional[float] = Field(None, gt=0)
 
     @field_validator("date", mode="before")
     @classmethod
@@ -147,9 +149,19 @@ class ShoppingListOut(ShoppingListBase):
     status: ListStatus
     is_auto_generated: bool
     archived_at: Optional[datetime] = None
+    budget: Optional[float] = None
     items: List[ShoppingListItemOut] = []
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class CompleteListIn(BaseModel):
+    carry_over: bool = False
+
+
+class CompleteListOut(ShoppingListOut):
+    carried_over_count: int = 0
+    carried_over_list_id: Optional[int] = None
 
 
 # ── Comparador de tiendas ────────────────────────────────────────────────────

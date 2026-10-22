@@ -457,6 +457,213 @@ function AddItemsModal({ listId, existingItems, onClose, onAdded }) {
   )
 }
 
+// Precio que se espera pagar por un ítem aún sin comprar, con la misma
+// prioridad con que ItemRow rellena su campo: lo que el usuario ya escribió,
+// lo último que pagó, el precio vigente de la tienda.
+const draftKey = (listId, itemId) => `pendingPrice:${listId}:${itemId}`
+function expectedPrice(item, listId) {
+  let draft = null
+  try { draft = localStorage.getItem(draftKey(listId, item.id)) } catch { /* sin storage */ }
+  const typed = parseFloat(draft)
+  if (typed > 0) return typed
+  return item.last_price_real || item.price_catalog_current || item.price_catalog_snapshot || 0
+}
+
+const money = (n) => `$${Math.round(n).toLocaleString('es-CO')}`
+
+// ── Modal: Pagar la cesta ──────────────────────────────────────────────────────
+// En la caja se paga todo junto: en vez de escribir el precio y marcar los
+// productos uno por uno, se revisan los precios sugeridos de lo que va en la
+// cesta, se corrige el que cambió y se confirman todos de una vez.
+//
+// Va agrupada por tienda y cada tienda se paga aparte: en un recorrido por
+// varias tiendas, lo que quedó en la cesta de la anterior no se mezcla con el
+// recibo de esta, y dos personas del hogar comprando a la vez en tiendas
+// distintas no se pagan lo del otro.
+const NO_STORE_GROUP = 'Sin tienda'
+
+function CartCheckoutModal({ items, listId, onClose, onConfirm }) {
+  const [prices, setPrices] = useState(() =>
+    Object.fromEntries(items.map(i => [i.id, String(expectedPrice(i, listId) || '')]))
+  )
+  const [savingGroup, setSavingGroup] = useState(null)
+
+  // Al pagar una tienda sus productos salen de `items`; cuando no queda
+  // ninguna, no hay nada más que mostrar.
+  useEffect(() => {
+    if (items.length === 0) onClose()
+  }, [items.length, onClose])
+
+  const priceOf = (id) => parseFloat(prices[id]) || 0
+  const subtotal = (group) => group.reduce((acc, i) => acc + priceOf(i.id) * i.quantity, 0)
+
+  const groups = useMemo(() => {
+    const map = new Map()
+    for (const item of items) {
+      const key = item.store_name || NO_STORE_GROUP
+      if (!map.has(key)) map.set(key, [])
+      map.get(key).push(item)
+    }
+    return [...map.entries()].sort(([a], [b]) => {
+      if (a === NO_STORE_GROUP) return 1
+      if (b === NO_STORE_GROUP) return -1
+      return a.localeCompare(b)
+    })
+  }, [items])
+  const single = groups.length === 1
+
+  const handlePay = async (key, group) => {
+    setSavingGroup(key)
+    try {
+      await onConfirm(group.map(i => ({ id: i.id, price: priceOf(i.id) })))
+    } finally {
+      setSavingGroup(null)
+    }
+  }
+
+  // Funciones de render y no componentes: definidas aquí dentro, como
+  // componentes React los remontaría en cada tecla y el campo perdería el foco.
+  const renderPayButton = (groupKey, group, label) => {
+    const missing = group.filter(i => priceOf(i.id) <= 0).length
+    return (
+      <div className="space-y-1.5">
+        {missing > 0 && (
+          <p className="text-[11px] text-red-600">Falta el precio de {missing} producto{missing === 1 ? '' : 's'}.</p>
+        )}
+        <button
+          onClick={() => handlePay(groupKey, group)}
+          disabled={savingGroup !== null || missing > 0}
+          className="w-full tap-target rounded-lg bg-teal-600 text-white font-semibold text-sm hover:bg-teal-500 transition-colors disabled:opacity-40 gap-2"
+        >
+          {savingGroup === groupKey ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+          {label}
+        </button>
+      </div>
+    )
+  }
+
+  const renderItemLine = (item) => (
+    <div key={item.id} className="flex items-center gap-3 py-1.5">
+      <div className="min-w-0 flex-1">
+        <p className="text-sm text-dark-100 font-medium truncate">{item.product_name}</p>
+        {item.quantity > 1 && (
+          <p className="text-[11px] text-dark-500">
+            {item.quantity} × {priceOf(item.id) > 0 ? money(priceOf(item.id)) : '—'}
+            {priceOf(item.id) > 0 && ` · ${money(priceOf(item.id) * item.quantity)}`}
+          </p>
+        )}
+      </div>
+      <input
+        type="number"
+        inputMode="decimal"
+        value={prices[item.id] ?? ''}
+        onChange={(e) => setPrices(prev => ({ ...prev, [item.id]: e.target.value }))}
+        onFocus={(e) => e.target.select()}
+        placeholder="Precio"
+        className={`input py-2 text-right text-sm w-28 ${priceOf(item.id) <= 0 ? 'border-red-500/50' : ''}`}
+      />
+    </div>
+  )
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm">
+      <div className="bg-dark-900 border border-dark-700 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg flex flex-col max-h-[85vh]">
+        <div className="flex items-center justify-between px-4 py-3.5 border-b border-dark-800">
+          <h2 className="text-sm font-bold text-dark-200 flex items-center gap-2">
+            <ShoppingBasket className="w-4 h-4 text-primary-500" />
+            {single
+              ? `Pagar la cesta · ${groups[0]?.[0] ?? ''}`
+              : `Pagar la cesta · ${groups.length} tiendas`}
+          </h2>
+          <button onClick={onClose} disabled={savingGroup !== null} className="btn-ghost p-1.5"><X className="w-4 h-4" /></button>
+        </div>
+
+        <p className="px-4 pt-3 text-xs text-dark-400">
+          {single
+            ? 'Revisa los precios del recibo: vienen de lo último que pagaste o del catálogo.'
+            : 'Cada tienda se paga por separado, con su propio recibo. Revisa los precios antes de confirmar.'}
+        </p>
+
+        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+          {groups.map(([key, group]) => (
+            <section key={key} className={single ? '' : 'rounded-xl border border-dark-800 bg-dark-950/40 p-3'}>
+              {!single && (
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <h3 className="text-xs font-bold text-dark-200 flex items-center gap-1.5 min-w-0">
+                    {key === NO_STORE_GROUP
+                      ? <Tag className="w-3 h-3 text-primary-500 flex-shrink-0" />
+                      : <Store className="w-3 h-3 text-fuchsia-600 flex-shrink-0" />}
+                    <span className="truncate">{key}</span>
+                    <span className="text-dark-500 font-normal">· {group.length}</span>
+                  </h3>
+                  <span className="text-sm font-bold font-mono text-teal-600">{money(subtotal(group))}</span>
+                </div>
+              )}
+              {group.map(renderItemLine)}
+              {!single && (
+                <div className="mt-2">
+                  {renderPayButton(key, group, `Pagar ${key === NO_STORE_GROUP ? 'sin tienda' : key}`)}
+                </div>
+              )}
+            </section>
+          ))}
+        </div>
+
+        {single && groups[0] && (
+          <div className="px-4 py-3 border-t border-dark-800 space-y-2 safe-bottom">
+            <div className="flex items-baseline justify-between">
+              <span className="text-xs text-dark-400 uppercase font-bold tracking-wider">Total</span>
+              <span className="text-xl font-bold font-mono text-teal-600">{money(subtotal(groups[0][1]))}</span>
+            </div>
+            {renderPayButton(groups[0][0], groups[0][1], 'Marcar como pagado')}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Modal: Finalizar con productos pendientes ─────────────────────────────────
+// Lo que no se compró moría con la lista completada. Ahora se pregunta si pasa
+// a la próxima; los productos con inventario vuelven solos de todas formas,
+// pero los de calendario y los libres no.
+function CompleteWithPendingModal({ pending, loading, onCarryOver, onCompleteOnly, onClose }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm">
+      <div className="bg-dark-900 border border-dark-700 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md flex flex-col max-h-[85vh]">
+        <div className="flex items-center justify-between px-4 py-3.5 border-b border-dark-800">
+          <h2 className="text-sm font-bold text-dark-200 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-fuchsia-500" />
+            Quedaron {pending.length} sin comprar
+          </h2>
+          <button onClick={onClose} disabled={loading} className="btn-ghost p-1.5"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-4 py-3">
+          <ul className="space-y-1">
+            {pending.slice(0, 8).map(i => (
+              <li key={i.id} className="text-sm text-dark-300 truncate">· {i.product_name}</li>
+            ))}
+            {pending.length > 8 && <li className="text-xs text-dark-500">y {pending.length - 8} más</li>}
+          </ul>
+        </div>
+        <div className="px-4 py-3 border-t border-dark-800 space-y-2 safe-bottom">
+          <button
+            onClick={onCarryOver}
+            disabled={loading}
+            className="w-full tap-target rounded-lg bg-teal-600 text-white font-semibold text-sm hover:bg-teal-500 transition-colors disabled:opacity-40 gap-2"
+          >
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
+            Pasarlos a la próxima lista
+          </button>
+          <button onClick={onCompleteOnly} disabled={loading} className="w-full btn-ghost text-sm">
+            Finalizar sin pasarlos
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // Valor del selector de tiendas para los ítems sin tienda (los libres).
 // Lleva los signos que un nombre de tienda no puede traer, así nunca choca
 // con una tienda real que llegue a llamarse así.
@@ -493,9 +700,9 @@ function QuantityControls({ quantity, onChange, disabled }) {
   )
 }
 
-function ItemRow({ item, listId, onCheck, onToggleCart, onDelete, onUpdateQuantity, onPromoteToProduct, onCatalogUpdated, isDisabled }) {
+function ItemRow({ item, listId, onCheck, onToggleCart, onDelete, onUpdateQuantity, onPromoteToProduct, onCatalogUpdated, onPriceDraft, isDisabled }) {
   // Persistir el precio digitado en localStorage para no perderlo al refrescar
-  const storageKey = `pendingPrice:${listId}:${item.id}`
+  const storageKey = draftKey(listId, item.id)
   const [price, setPrice] = useState(() => {
     if (item.checked) return item.price_real || ''
     // 1. Borrador en localStorage tiene la máxima prioridad
@@ -513,6 +720,8 @@ function ItemRow({ item, listId, onCheck, onToggleCart, onDelete, onUpdateQuanti
     } else {
       localStorage.setItem(storageKey, val)
     }
+    // El total de la cesta usa este mismo borrador como precio esperado.
+    onPriceDraft?.()
   }
   const [loading, setLoading] = useState(false)
   const [updatingQty, setUpdatingQty] = useState(false)
@@ -798,6 +1007,17 @@ export default function ListDetail() {
   const [loading, setLoading] = useState(true)
   const [completing, setCompleting] = useState(false)
   const [archiving, setArchiving] = useState(false)
+  const [showCheckout, setShowCheckout] = useState(false)
+  const [showCarryModal, setShowCarryModal] = useState(false)
+  const [carriedTo, setCarriedTo] = useState(null)
+  const [isEditingBudget, setIsEditingBudget] = useState(false)
+  const [budgetInput, setBudgetInput] = useState('')
+  const [savingBudget, setSavingBudget] = useState(false)
+  // Los borradores de precio viven en localStorage; esto solo obliga a
+  // recalcular el total de la cesta cuando cambia uno.
+  const [, setDraftVersion] = useState(0)
+  const bumpDrafts = useCallback(() => setDraftVersion(v => v + 1), [])
+  const closeCheckout = useCallback(() => setShowCheckout(false), [])
   const [showConfirm, setShowConfirm] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
   const [showCompareModal, setShowCompareModal] = useState(false)
@@ -949,6 +1169,13 @@ export default function ListDetail() {
     // Sin toast en el caso normal: se toca muchas veces seguidas recorriendo
     // los pasillos y el cambio ya se ve en la fila.
     setInCart(inCart)
+    if (inCart && list.budget) {
+      const before = committedTotal(list.items)
+      const after = before + expectedPrice(item, id) * item.quantity
+      if (before <= list.budget && after > list.budget) {
+        toast(`Con esto te pasas del presupuesto por ${money(after - list.budget)}`, { icon: '⚠️' })
+      }
+    }
     try {
       const res = await api.patch(`/lists/items/${itemId}/`, { in_cart: inCart })
       if (res?.data?._queued) {
@@ -957,6 +1184,73 @@ export default function ListDetail() {
     } catch (err) {
       setInCart(item.in_cart)
       toast.error(err.response?.data?.detail || 'No se pudo actualizar la cesta')
+    }
+  }
+
+  // Pagado más lo que va en la cesta: lo que ya está comprometido de esta compra.
+  const committedTotal = (items) => items.reduce((acc, i) => {
+    if (i.checked) return acc + (i.price_real || 0) * i.quantity
+    if (i.in_cart) return acc + expectedPrice(i, id) * i.quantity
+    return acc
+  }, 0)
+
+  const handleCheckoutCart = async (entries) => {
+    const byId = new Map(entries.map(e => [e.id, e.price]))
+    const prevItems = list.items
+    setList(prev => ({
+      ...prev,
+      items: prev.items.map(i => byId.has(i.id)
+        ? { ...i, checked: true, in_cart: false, price_real: byId.get(i.id) }
+        : i),
+    }))
+    // Uno por uno sobre el mismo endpoint de marcar comprado: así cada uno
+    // registra historial e inventario como siempre, y sin señal se encolan
+    // igual que si se marcaran a mano.
+    const failed = []
+    let queued = 0
+    for (const { id: itemId, price } of entries) {
+      try {
+        const res = await api.patch(`/lists/items/${itemId}/check/`, { price_real: price, checked: true })
+        if (res?.data?._queued) queued += 1
+        localStorage.removeItem(draftKey(id, itemId))
+      } catch (err) {
+        failed.push({ itemId, detail: err.response?.data?.detail })
+      }
+    }
+    if (failed.length) {
+      const failedIds = new Set(failed.map(f => f.itemId))
+      setList(prev => ({
+        ...prev,
+        items: prev.items.map(i => failedIds.has(i.id) ? prevItems.find(p => p.id === i.id) : i),
+      }))
+      toast.error(`${failed.length} no se pudieron marcar${failed[0].detail ? `: ${failed[0].detail}` : ''}`)
+    }
+    const ok = entries.length - failed.length
+    if (ok > 0) {
+      toast.success(queued
+        ? `${ok} pagados — se sincronizarán al volver la conexión`
+        : `${ok} producto${ok === 1 ? '' : 's'} pagado${ok === 1 ? '' : 's'}`,
+        queued ? { icon: '📥' } : undefined)
+    }
+    if (queued < ok) fetchList()
+  }
+
+  const handleSaveBudget = async () => {
+    const value = budgetInput === '' ? null : parseFloat(budgetInput)
+    if (value !== null && !(value > 0)) {
+      toast.error('Ingresa un valor mayor a 0')
+      return
+    }
+    setSavingBudget(true)
+    try {
+      const { data } = await api.patch(`/lists/${id}/`, { budget: value })
+      setList(prev => ({ ...prev, budget: data.budget }))
+      setIsEditingBudget(false)
+      toast.success(value === null ? 'Presupuesto quitado' : 'Presupuesto guardado')
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'No se pudo guardar el presupuesto')
+    } finally {
+      setSavingBudget(false)
     }
   }
 
@@ -1031,15 +1325,35 @@ export default function ListDetail() {
     }
   }
 
-  const handleComplete = async () => {
+  // Si quedó algo sin comprar se pregunta antes qué hacer con eso.
+  const requestComplete = () => {
+    if (list.items.some(i => !i.checked)) {
+      setShowConfirm(false)
+      setShowCarryModal(true)
+    } else {
+      handleComplete(false)
+    }
+  }
+
+  const handleComplete = async (carryOver) => {
     setCompleting(true)
     try {
-      await api.post(`/lists/${id}/complete/`)
-      toast.success('¡Compra finalizada con éxito!', {
-        icon: '🚀',
-        duration: 5000
-      })
+      const { data } = await api.post(`/lists/${id}/complete/`, { carry_over: carryOver })
+      apiCache.invalidate('/lists/')
+      if (data.carried_over_count > 0) {
+        setCarriedTo(data.carried_over_list_id)
+        toast.success(
+          `Compra finalizada. ${data.carried_over_count} producto${data.carried_over_count === 1 ? '' : 's'} pasaron a la próxima lista`,
+          { icon: '🚀', duration: 5000 },
+        )
+      } else {
+        toast.success('¡Compra finalizada con éxito!', {
+          icon: '🚀',
+          duration: 5000
+        })
+      }
       setShowConfirm(false)
+      setShowCarryModal(false)
       fetchList()
     } catch (err) {
       console.error("Error al finalizar lista:", err)
@@ -1291,7 +1605,12 @@ export default function ListDetail() {
   const isArchived = !!list.archived_at
   // Completada o archivada, la lista se consulta pero ya no se edita.
   const isLocked = isCompleted || isArchived
-  const itemsInCart = list.items.filter(i => i.in_cart && !i.checked).length
+  const cartItems = list.items.filter(i => i.in_cart && !i.checked)
+  const itemsInCart = cartItems.length
+  const cartTotal = cartItems.reduce((acc, i) => acc + expectedPrice(i, id) * i.quantity, 0)
+  const committed = totalReal + cartTotal
+  const budget = list.budget ? Number(list.budget) : null
+  const overBudget = budget !== null && committed > budget
 
   return (
     <div className={`max-w-4xl mx-auto space-y-6 ${!isLocked ? 'pb-24 lg:pb-0' : ''}`}>
@@ -1302,6 +1621,25 @@ export default function ListDetail() {
           existingItems={list.items}
           onClose={() => setShowAddModal(false)}
           onAdded={fetchList}
+        />
+      )}
+
+      {showCheckout && (
+        <CartCheckoutModal
+          items={cartItems}
+          listId={id}
+          onClose={closeCheckout}
+          onConfirm={handleCheckoutCart}
+        />
+      )}
+
+      {showCarryModal && (
+        <CompleteWithPendingModal
+          pending={list.items.filter(i => !i.checked)}
+          loading={completing}
+          onCarryOver={() => handleComplete(true)}
+          onCompleteOnly={() => handleComplete(false)}
+          onClose={() => setShowCarryModal(false)}
         />
       )}
 
@@ -1419,7 +1757,7 @@ export default function ListDetail() {
                     <X className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={handleComplete}
+                    onClick={requestComplete}
                     disabled={completing}
                     title="Confirmar"
                     className="w-8 h-8 rounded-lg flex items-center justify-center text-dark-400 hover:text-teal-600 hover:bg-teal-500/10 transition-colors disabled:opacity-50"
@@ -1584,6 +1922,100 @@ export default function ListDetail() {
             </div>
           </div>
         </div>
+
+        {/* Cesta y presupuesto: lo que se va a pagar en la caja y si cabe */}
+        {(itemsInCart > 0 || budget !== null || !isLocked) && (
+          <div className="mt-5 pt-4 border-t border-dark-800 flex flex-col sm:flex-row sm:items-center gap-4">
+            {itemsInCart > 0 && (
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-primary-600/10 text-primary-500 flex items-center justify-center flex-shrink-0">
+                  <ShoppingBasket className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] text-dark-400 uppercase font-bold tracking-wider">
+                    En la cesta · {itemsInCart}
+                  </p>
+                  <p className="text-lg font-bold font-mono text-primary-500 leading-tight">~{money(cartTotal)}</p>
+                </div>
+                {!isLocked && (
+                  <button
+                    onClick={() => setShowCheckout(true)}
+                    className="ml-auto sm:ml-2 tap-target rounded-lg bg-teal-600 text-white font-semibold text-xs px-3 hover:bg-teal-500 transition-colors gap-1.5 flex-shrink-0"
+                  >
+                    <Check className="w-4 h-4" />
+                    Pagar cesta
+                  </button>
+                )}
+              </div>
+            )}
+
+            <div className={`${itemsInCart > 0 ? 'sm:w-64' : 'flex-1'} min-w-0`}>
+              {isEditingBudget ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-dark-400">Presupuesto $</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    value={budgetInput}
+                    onChange={(e) => setBudgetInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSaveBudget()
+                      if (e.key === 'Escape') setIsEditingBudget(false)
+                    }}
+                    placeholder="Sin tope"
+                    autoFocus
+                    className="input py-1 px-2 text-sm w-full"
+                  />
+                  <button onClick={handleSaveBudget} disabled={savingBudget} className="text-primary-600 hover:text-primary-700 p-1">
+                    {savingBudget ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  </button>
+                  <button onClick={() => setIsEditingBudget(false)} className="text-dark-500 hover:text-dark-300 p-1">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : budget !== null ? (
+                <div>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="text-[10px] text-dark-400 uppercase font-bold tracking-wider">
+                      Presupuesto
+                      {!isLocked && (
+                        <button
+                          onClick={() => { setBudgetInput(String(budget)); setIsEditingBudget(true) }}
+                          className="ml-1 text-dark-500 hover:text-primary-600 p-0.5 align-middle"
+                          title="Editar presupuesto (déjalo vacío para quitarlo)"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                      )}
+                    </p>
+                    <p className={`text-xs font-mono font-semibold ${overBudget ? 'text-red-600' : 'text-dark-300'}`}>
+                      {money(committed)} / {money(budget)}
+                    </p>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-dark-800 mt-1.5 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${overBudget ? 'bg-red-500' : committed / budget > 0.85 ? 'bg-fuchsia-500' : 'bg-teal-500'}`}
+                      style={{ width: `${Math.min(100, (committed / budget) * 100)}%` }}
+                    />
+                  </div>
+                  <p className={`text-[10px] mt-1 ${overBudget ? 'text-red-600 font-semibold' : 'text-dark-500'}`}>
+                    {overBudget
+                      ? `Te pasas por ${money(committed - budget)}`
+                      : `Quedan ${money(budget - committed)} · pagado + cesta`}
+                  </p>
+                </div>
+              ) : !isLocked && (
+                <button
+                  onClick={() => { setBudgetInput(''); setIsEditingBudget(true) }}
+                  className="btn-ghost text-xs text-dark-400 -ml-2"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Poner presupuesto
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {isArchived && (
@@ -1611,6 +2043,15 @@ export default function ListDetail() {
           <div>
             <p className="text-sm font-semibold text-dark-200">¡Compra Finalizada!</p>
             <p className="text-xs text-teal-600/80 mt-0.5">Los precios reales han sido registrados en tu historial para futuras sugerencias.</p>
+            {carriedTo && (
+              <button
+                onClick={() => { setCarriedTo(null); navigate(`/lists/${carriedTo}`) }}
+                className="mt-2 text-xs font-semibold text-teal-600 hover:text-teal-500 inline-flex items-center gap-1"
+              >
+                Ver la próxima lista, con lo que quedó pendiente
+                <ArrowRight className="w-3 h-3" />
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -1819,6 +2260,7 @@ export default function ListDetail() {
                     listId={id}
                     onCheck={handleCheckItem}
                     onToggleCart={handleToggleCart}
+                    onPriceDraft={bumpDrafts}
                     onDelete={handleDeleteItem}
                     onUpdateQuantity={handleUpdateQuantity}
                     onPromoteToProduct={(name) => setProductModalInitial(name)}
@@ -1854,6 +2296,7 @@ export default function ListDetail() {
                     listId={id}
                     onCheck={handleCheckItem}
                     onToggleCart={handleToggleCart}
+                    onPriceDraft={bumpDrafts}
                     onDelete={handleDeleteItem}
                     onUpdateQuantity={handleUpdateQuantity}
                     onPromoteToProduct={(name) => setProductModalInitial(name)}
@@ -1874,7 +2317,7 @@ export default function ListDetail() {
         onPrimaryClick={() => setShowConfirm(true)}
         confirming={showConfirm}
         loading={completing}
-        onConfirm={handleComplete}
+        onConfirm={requestComplete}
         onCancel={() => setShowConfirm(false)}
         disabled={completing || itemsBought === 0}
       />

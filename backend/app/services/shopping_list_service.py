@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
@@ -43,7 +43,7 @@ class ShoppingListService:
         return min(active_stores, key=lambda ps: ps.price_catalog)
 
     @staticmethod
-    def _product_is_due(product, today_bogota: datetime) -> bool:
+    def _product_is_due(product, today_bogota: datetime, catch_up: bool = False) -> bool:
         """
         Decide si un producto entra hoy en la lista.
 
@@ -56,17 +56,28 @@ class ShoppingListService:
         Sin inventario —stock nulo— se decide por calendario, igual que antes de
         que esto existiera. Los productos que ya estaban en el catálogo nacen
         así, y solo cambian de régimen cuando alguien les declara existencias.
+
+        Con catch_up el calendario mira toda la semana hasta hoy y no solo hoy:
+        es lo que hace el botón de generar a mano, que si no un jueves no
+        agregaría nada porque los semanales vencen el martes.
         """
         if product.stock is None:
-            return should_appear_today(
-                product.frequency.value, product.frequency_start_date, today_bogota
+            days = [today_bogota]
+            if catch_up:
+                week_start, _ = get_week_bounds(today_bogota)
+                days = [week_start + timedelta(days=n) for n in range(today_bogota.weekday() + 1)]
+            return any(
+                should_appear_today(product.frequency.value, product.frequency_start_date, day)
+                for day in days
             )
         return float(product.stock) <= float(product.stock_min)
 
-    def generate_auto_lists(self, user_id: Optional[int] = None, reference_date_bogota: Optional[datetime] = None):
+    def generate_auto_lists(self, user_id: Optional[int] = None, reference_date_bogota: Optional[datetime] = None, catch_up: bool = False):
         """
         Genera automáticamente las listas usando los repositorios.
-        Puede generar para un usuario específico o para todos.
+        Puede generar para un usuario específico o para todos. Los miembros de
+        un hogar ajeno no tienen datos propios en uso: con user_id se genera
+        para el dueño de su hogar, y en la corrida general se saltan.
 
         `reference_date_bogota` permite fijar el "hoy" (usado en tests para
         simular corridas del scheduler en días distintos de forma
@@ -76,13 +87,19 @@ class ShoppingListService:
         
         if user_id:
             user = self.user_repo.get(user_id)
+            if user is not None and user.household_owner_id is not None:
+                user = self.user_repo.get(user.household_owner_id)
             users = [user] if user else []
         else:
             # Filtrar solo usuarios que deseen generación automática y estén verificados
             from sqlalchemy import and_, select
             from app.models.user import User
             users = self.db.execute(
-                select(User).filter(and_(User.can_autogenerate_lists == True, User.is_verified == True))
+                select(User).filter(and_(
+                    User.can_autogenerate_lists == True,
+                    User.is_verified == True,
+                    User.household_owner_id.is_(None),
+                ))
             ).scalars().all()
 
         results = {
@@ -97,7 +114,7 @@ class ShoppingListService:
 
             products_to_add = []
             for product in products:
-                if self._product_is_due(product, today_bogota):
+                if self._product_is_due(product, today_bogota, catch_up):
                     active_stores = [ps for ps in product.product_stores if not ps.is_deleted]
                     chosen = self._store_for(active_stores)
                     if chosen is not None:
@@ -119,8 +136,12 @@ class ShoppingListService:
 
             # Si la lista de la semana se archivó, el usuario ya decidió que
             # esa semana no se compra: ni se le agregan ítems a escondidas ni
-            # se crea otra que le reaparezca al día siguiente.
-            if existing_list is not None and existing_list.archived_at is not None:
+            # se crea otra que le reaparezca al día siguiente. Si ya se
+            # completó, la compra de la semana está hecha y cerrada.
+            if existing_list is not None and (
+                existing_list.archived_at is not None
+                or existing_list.status == ListStatus.completed
+            ):
                 continue
 
             list_was_created = False
@@ -227,10 +248,13 @@ class ShoppingListService:
         self.db.commit()
         return item
 
-    def complete_list(self, list_id: int):
+    def complete_list(self, list_id: int, carry_over: bool = False):
         """
         Marca una lista como completada (Status = completed).
         Una vez completada no puede ser editada.
+
+        Con carry_over, lo que quedó sin comprar pasa a la próxima lista en vez
+        de morir con esta. Devuelve (lista, cuántos pasaron, a qué lista).
         """
         shopping_list = self.list_repo.get(list_id)
         if not shopping_list:
@@ -242,11 +266,93 @@ class ShoppingListService:
         if shopping_list.archived_at is not None:
             raise ValueError("No se puede completar una lista archivada")
             
+        carried, target = 0, None
+        pending = [i for i in shopping_list.items if not i.checked]
+        if carry_over and pending:
+            target = self._next_open_list(shopping_list)
+            carried = self._move_pending_items(pending, target)
+
         shopping_list.status = ListStatus.completed
         self.db.add(shopping_list)
         self.db.commit()
-        self.db.refresh(shopping_list)
-        return shopping_list
+        return self.list_repo.get(list_id), carried, target.id if target else None
+
+    def _next_open_list(self, after):
+        """
+        La lista a la que pasa lo pendiente: la siguiente abierta del mismo
+        dueño, o una nueva para la primera semana libre a partir de la próxima.
+        La nueva nace como las automáticas para que el generador, al llegar su
+        martes, le sume lo suyo en vez de abrir otra.
+        """
+        from datetime import timedelta
+        from sqlalchemy import select
+        from app.models.shopping_list import ShoppingList
+
+        target = self.db.execute(
+            select(ShoppingList).filter(
+                ShoppingList.user_id == after.user_id,
+                ShoppingList.id != after.id,
+                ShoppingList.date > after.date,
+                ShoppingList.status != ListStatus.completed,
+                ShoppingList.archived_at.is_(None),
+            ).order_by(ShoppingList.date)
+        ).scalars().first()
+        if target is not None:
+            return target
+
+        # Semana a semana desde la próxima, por si alguna ya tiene una lista
+        # completada. Cuatro intentos sobran; si no, se usa la última probada.
+        day = now_bogota() + timedelta(days=7)
+        for _ in range(4):
+            week_start, week_end = get_week_bounds(day)
+            existing = self.list_repo.get_by_date_range(after.user_id, to_utc(week_start), to_utc(week_end))
+            if existing is None or existing.archived_at is not None:
+                break
+            day += timedelta(days=7)
+
+        list_date = tuesday_of_week(day)
+        target = ShoppingList(
+            user_id=after.user_id,
+            name=f"Lista Automática - {list_date.strftime('%Y-%m-%d')}",
+            date=to_utc(list_date),
+            is_auto_generated=True,
+            status=ListStatus.draft,
+        )
+        self.db.add(target)
+        self.db.flush()
+        return target
+
+    def _move_pending_items(self, items, target) -> int:
+        """
+        Mueve los ítems a `target`. Se mueven y no se copian: la lista
+        completada queda con lo que de verdad se compró. Lo que ya está en el
+        destino —el mismo producto por cualquier tienda, o un libre con el
+        mismo nombre— se queda donde estaba para no comprarlo dos veces.
+        """
+        present_products = {
+            i.product_store.product_id for i in target.items if i.product_store is not None
+        }
+        present_free = {i.free_name.strip().lower() for i in target.items if i.free_name}
+
+        moved = 0
+        for item in items:
+            if item.product_store is not None:
+                if item.product_store.product_id in present_products:
+                    continue
+                present_products.add(item.product_store.product_id)
+                # Precio de hoy, no el de cuando se armó la lista vieja.
+                item.price_catalog_snapshot = float(item.product_store.price_catalog)
+            else:
+                key = (item.free_name or "").strip().lower()
+                if key in present_free:
+                    continue
+                present_free.add(key)
+            # Por la relación y no por list_id: el ítem sigue en la colección
+            # de la lista vieja y al hacer flush la reasignaría de vuelta.
+            target.items.append(item)
+            item.in_cart = False
+            moved += 1
+        return moved
 
     def archive_list(self, list_id: int):
         """

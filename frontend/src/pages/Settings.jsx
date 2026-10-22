@@ -7,6 +7,7 @@ import {
 import api from '../api/axios'
 import toast from 'react-hot-toast'
 import { useAuth } from '../context/useAuth'
+import HouseholdCard from '../components/HouseholdCard'
 
 export default function SettingsPage() {
   const { user, fetchMe, logout } = useAuth()
@@ -133,7 +134,9 @@ export default function SettingsPage() {
         
         {/* Left Column - Forms */}
         <div className="lg:col-span-2 space-y-6">
-          
+
+          <HouseholdCard />
+
           {/* Profile Details */}
           <div className="card space-y-5">
             <h2 className="text-sm font-semibold text-dark-200 flex items-center gap-2 border-b border-dark-800 pb-3">

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { CalendarDays, CheckCircle2, Server, RefreshCw, Loader2, Sparkles, AlertTriangle } from 'lucide-react'
+import { CalendarDays, CheckCircle2, Server, RefreshCw, Loader2, Sparkles } from 'lucide-react'
 import api from '../api/axios'
+import { apiCache } from '../api/cache'
 import toast from 'react-hot-toast'
 import { useAuth } from '../context/useAuth'
 
@@ -50,7 +51,11 @@ export default function SystemInfo() {
     setGenerating(true)
     try {
       const { data } = await api.post('/system/generate-lists/')
-      toast.success(data.message || 'Proceso de generación completado')
+      const added = data?.data?.items_added ?? 0
+      apiCache.invalidate('/lists/')
+      toast.success(added > 0
+        ? `${added} producto${added === 1 ? '' : 's'} agregado${added === 1 ? '' : 's'} a la lista de esta semana`
+        : 'Tu lista de esta semana ya estaba al día')
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Error al disparar la generación')
     } finally {
@@ -137,19 +142,19 @@ export default function SystemInfo() {
         </div>
       </div>
 
-      {/* Admin Actions Section */}
-      {user?.is_admin && (
+      {/* Generación de listas: cada quien la de su propio hogar */}
+      {user && (
         <div className="card border-primary-500/20 bg-primary-500/5 space-y-4">
           <div className="flex items-center gap-2 border-b border-primary-500/10 pb-3">
             <Sparkles className="w-4 h-4 text-primary-600" />
-            <h2 className="text-sm font-semibold text-dark-200">Acciones de Administrador</h2>
+            <h2 className="text-sm font-semibold text-dark-200">Generación de listas</h2>
           </div>
           
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <p className="text-sm text-dark-100 font-medium">Mi Preferencia Personal</p>
               <p className="text-xs text-dark-400 mt-1 max-w-md">
-                Indica si deseas que el sistema genere listas automáticas para <strong>tu propia cuenta</strong> de administrador.
+                Indica si deseas que el sistema genere listas automáticas para <strong>tu cuenta</strong> cada semana.
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -169,9 +174,10 @@ export default function SystemInfo() {
           <div className="border-t border-primary-500/10 pt-4 space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <p className="text-sm text-dark-100 font-medium">Ejecución Manual (Global)</p>
+                <p className="text-sm text-dark-100 font-medium">Generar ahora</p>
                 <p className="text-xs text-dark-400 mt-1 max-w-md">
-                  Dispara el motor de recomendaciones inmediatamente para todos los usuarios que tengan la opción activa.
+                  Agrega a la lista de esta semana todo lo que te tocaba desde el lunes. Útil si un producto no entró
+                  o acabas de crearlo. Si sacaste algo de la lista a propósito, puede volver a aparecer.
                 </p>
               </div>
               <button
@@ -180,17 +186,10 @@ export default function SystemInfo() {
                 className="btn-primary shrink-0"
               >
                 {generating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
-                Ejecutar Ahora
+                Generar
               </button>
             </div>
 
-            <div className="flex items-start gap-2 px-3 py-2 bg-fuchsia-500/10 border border-fuchsia-500/30 rounded-lg">
-              <AlertTriangle className="w-3.5 h-3.5 text-fuchsia-600 shrink-0 mt-0.5" />
-              <p className="text-[11px] text-fuchsia-700 leading-relaxed">
-                <strong>Nota:</strong> Esta acción puede tomar unos segundos dependiendo de la cantidad de usuarios activos.
-                No recargues la página mientras se procesa.
-              </p>
-            </div>
           </div>
         </div>
       )}
